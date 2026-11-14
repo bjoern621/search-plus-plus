@@ -46,7 +46,60 @@ Structural search matches by the structure of a file: keys in YAML, JSON and TOM
 - The file type decides how a query reads: a dotted key path in YAML, JSON and TOML, code in every other language.
 - A dotted key path matches the key at that position in the tree: `global.values.gravitee.enabled` finds `enabled` under `gravitee` under `values` under `global`.
   An `enabled` anywhere else stays out of the results.
-- `*` in a dotted key path stands for any single key ("wildcard"): `values.*.enabled`.
+- A dotted key path follows the key path language below.
+
+## Key path language
+
+A dotted key path takes the [VS Code glob syntax](https://code.visualstudio.com/docs/editor/glob-patterns), with `.` in place of `/`.
+The files to include field takes the same syntax, so VS Code users know it already.
+
+### Grammar
+
+The grammar uses EBNF as defined in ISO/IEC 14977.
+
+```ebnf
+path         = segment, { ".", segment } ;
+segment      = "**" | piece, { piece } ;
+piece        = literal | "*" | "?" | class | group ;
+group        = "{", alternative, { ",", alternative }, "}" ;
+alternative  = alt segment, { ".", alt segment } ;
+alt segment  = "**" | alt piece, { alt piece } ;
+alt piece    = alt literal | "*" | "?" | class ;
+class        = "[", [ "!" | "^" ], class item, { class item }, "]" ;
+class item   = class char, [ "-", class char ] ;
+literal      = ? any character except ".", "*", "?", "[", "]", "{", "}" ? ;
+alt literal  = ? any literal except "," ? ;
+class char   = ? any character except ".", "]" ? ;
+```
+
+Groups don't nest, since VS Code closes a group at the first `}`.
+
+### Meaning
+
+- A YAML, JSON or TOML file holds a tree of nodes.
+- The key path of a node lists the keys from the root down to that node.
+- A sequence item takes its index as its key, counted from 0: `hosts.0` names the first host.
+- A query matches a node when the whole pattern matches the whole key path of that node.
+- A segment made of `**` alone matches zero or more keys.
+  Several `**` in a row act as one.
+- Every other segment matches exactly one key:
+  - A literal matches itself.
+  - `*` matches zero or more characters.
+  - `?` matches one character.
+  - A class matches one character out of its items.
+    `a-z` covers every character from `a` to `z`.
+    A leading `!` or `^` negates the class.
+  - A group matches when one of its alternatives matches.
+    An alternative may span several keys: `{gateway.enabled,portal}`.
+
+### Examples
+
+- `global.values.gravitee.enabled` finds `enabled` under `gravitee` under `values` under `global`.
+- `values.*.enabled` finds `values.gateway.enabled` and `values.portal.enabled`.
+- `values.grav*.enabled` finds `values.gravitee.enabled`.
+- `**.enabled` finds every `enabled` key at any depth.
+- `values.{gateway,portal}.enabled` finds both toggles and leaves out `values.ui.enabled`.
+- `ingress.hosts.0` finds the first host.
 
 ## Excluding results
 
@@ -78,7 +131,9 @@ The history scope groups results by commit.
 
 ## Open questions
 
-- Does `**` in a dotted key path match any number of keys, as in globs (`global.**.enabled`)?
+- How does a key path name a key that holds a dot, such as the label `app.kubernetes.io/name`, given that VS Code globs offer no escape?
+- Do case-insensitive matching, umlauts and fuzzy matching apply to key paths?
+- What happens with a query that breaks the grammar, such as an unclosed `[`?
 - Which wildcard does code use, given that `*` already means multiplication, dereference and `import *` in many languages?
 - Does `a.b.c` in a code file match member access, or a key path inside a JSON or YAML literal as well?
 - Do umlauts match in both directions, given that `ae` to `ä` hits words such as "Israel" and "aerial"?
