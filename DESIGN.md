@@ -30,6 +30,7 @@ The level decides how far the view keeps the feature from the query input.
 | Matching defaults | Core | work without a control |
 | Context lines around each match | Core | one line before and after, dimmed |
 | Hints on the query | Core | one line under the query input, shown when they apply |
+| Wildcard `*` | Core | works without a control |
 | Exclude buttons on folders and files | Frequent | on hover over a result |
 | Larger excerpt around a match | Frequent | on hover over a match |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
@@ -45,7 +46,8 @@ The summary line shows a scope other than the working tree in color, so a histor
   The settings change the number of context lines.
 - Context of two close matches merges into one block.
 - A key path match shows its key path above the lines, such as `global › values › gravitee`, since a YAML line alone loses its parents.
-- A fuzzy match looks and sorts like an exact match.
+- Results carry no ranking: files follow the folder tree, matches follow their line numbers.
+- A fuzzy match looks like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
 - Hovering a match shows a larger excerpt of its file.
@@ -80,7 +82,17 @@ A query matches with these defaults:
   `Größe` finds `Groesse`, and `Groesse` finds `Größe`.
 - Fuzzy: each word of the query also matches a word a few edits away.
 
+A word in double quotes matches as written: case-sensitive, without umlaut variants and without fuzzy matches.
+`"Größe"` finds `Größe` alone.
+Once a search finds close spellings, the hint under the input offers the quotes.
 The extension settings change each default.
+
+### Wildcard
+
+- Outside a regex, `*` stands for any run of characters inside one line.
+- In code, `console.log(*)` finds every call of `console.log`, whatever its arguments.
+- `\*` finds a literal star: `import \* as fs`.
+- A key path gives `*` the meaning of the key path language below.
 
 ### Fuzzy matching
 
@@ -110,6 +122,9 @@ A hint takes one line under the query input and names what the query does or how
 | starts with a slash, ends without one | End with a slash to search as a regex. |
 | breaks the key path grammar | The key path skips this query because a bracket ([) stays open. Close it with ]. |
 | regex that does not compile | The regex cannot compile: (parser's message). Fix it or drop the slashes. |
+| finds close spellings of a word | Includes close spellings. Quote "(word)" to find it as written. |
+
+A hint that suggests a query runs it on click.
 
 A query that breaks the key path grammar still runs in the other search engines.
 A regex that does not compile runs no search.
@@ -180,9 +195,12 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 - A segment made of `**` alone matches zero or more keys.
   Several `**` in a row act as one.
 - Every other segment matches exactly one key:
-  - A literal matches itself.
+  - A literal matches itself under the matching defaults: case-insensitive, with umlaut variants.
+  - A segment made of literals alone also matches a key a few edits away, as in fuzzy matching.
+    `Global.Values.Gravite.Enabled` finds `global.values.gravitee.enabled`.
   - An escape matches the character after the `\`.
-  - A quoted piece matches its characters as written: `"a.*"` matches the key `a.*` alone.
+  - A quoted piece matches its characters as written, without the matching defaults: `"a.*"` matches the key `a.*` alone.
+    `**."enabled"` leaves out `enable` and `Enabled`.
   - `*` matches zero or more characters.
   - `?` matches one character.
   - A class matches one character out of its items.
@@ -239,6 +257,4 @@ The history scope groups results by commit.
 
 ## Open questions
 
-- Do case-insensitive matching, umlauts and fuzzy matching apply to key paths?
-- Which wildcard does a code search engine use, given that `*` already means multiplication, dereference and `import *` in many languages?
 - Does `a.b.c` in a code file match member access, or a key path inside a JSON or YAML literal as well?
