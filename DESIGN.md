@@ -29,9 +29,9 @@ The level decides how far the view keeps the feature from the query input.
 | Key path search | Core | works without a control |
 | Matching defaults | Core | work without a control |
 | Context lines around each match | Core | one line before and after, dimmed |
+| Hints on the query | Core | one line under the query input, shown when they apply |
 | Exclude buttons on folders and files | Frequent | on hover over a result |
 | Larger excerpt around a match | Frequent | on hover over a match |
-| Replace input | Frequent | behind the arrow left of the query input |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Scope | Rare | menu at the end of the results summary line |
 | Settings for the matching defaults | Rare | behind the gear in the view title |
@@ -45,6 +45,7 @@ The summary line shows a scope other than the working tree in color, so a histor
   The settings change the number of context lines.
 - Context of two close matches merges into one block.
 - A key path match shows its key path above the lines, such as `global › values › gravitee`, since a YAML line alone loses its parents.
+- A fuzzy match looks and sorts like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
 - Hovering a match shows a larger excerpt of its file.
@@ -53,10 +54,13 @@ The summary line shows a scope other than the working tree in color, so a histor
 
 - Structural Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
 - The view sits in the side bar.
-  A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree and no replace input.
+  A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree.
+- The view renders in a webview, which draws the inputs and the dimmed context lines.
+  Its hover card stays as wide as the side bar.
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Structural Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
-- The view keeps the core of the built-in Search view: query input, replace input, files to include and exclude, results in a folder tree.
+- The view keeps the core of the built-in Search view: query input, files to include and exclude, results in a folder tree.
+- Replace stays with the built-in Search view.
 - Further features of the built-in view come back on demand.
 - The input keeps the text that you typed, for example `global.values.gravitee.enabled`, whatever query runs underneath.
 
@@ -67,23 +71,71 @@ A query matches with these defaults:
 
 - Case-insensitive.
 - Inside words: `grav` finds `gravitee`.
-- Umlauts: each umlaut also matches its spelled-out form.
-  - `ä` matches `ae`.
-  - `ö` matches `oe`.
-  - `ü` matches `ue`.
-  - `ß` matches `ss`.
-- Fuzzy: text that sits a few typos away from the query matches as well.
+- Umlauts: each umlaut and its spelled-out form match each other in both directions.
+  - `ä` and `ae`
+  - `ö` and `oe`
+  - `ü` and `ue`
+  - `ß` and `ss`
+
+  `Größe` finds `Groesse`, and `Groesse` finds `Größe`.
+- Fuzzy: each word of the query also matches a word a few edits away.
 
 The extension settings change each default.
+
+### Fuzzy matching
+
+Fuzzy matching copies the `AUTO` fuzziness of [Elasticsearch](https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#fuzziness).
+An edit inserts, deletes or replaces one character, or swaps two neighbouring characters (Damerau-Levenshtein distance).
+The length of a query word sets the edits that it allows:
+
+| Word length | Edits allowed |
+|---|---|
+| 1 to 2 characters | 0 |
+| 3 to 5 characters | 1 |
+| 6 or more characters | 2 |
+
+## Regex
+
+- A query between two slashes runs as a regex: `/4\.\d+\.\d+/`.
+- The regex follows the [syntax of the Rust `regex` crate](https://docs.rs/regex/latest/regex/#syntax), which ripgrep uses.
+- A regex query skips the matching defaults and the key path search engines.
+
+## Hints
+
+A hint takes one line under the query input and names what the query does or how to change it.
+
+| Query | Hint |
+|---|---|
+| between two slashes | Searching as a regex. (highlighted) |
+| starts with a slash, ends without one | End with a slash to search as a regex. |
+| breaks the key path grammar | The key path skips this query because a bracket ([) stays open. Close it with ]. |
+| regex that does not compile | The regex cannot compile: (parser's message). Fix it or drop the slashes. |
+
+A query that breaks the key path grammar still runs in the other search engines.
+A regex that does not compile runs no search.
+
+## Search engines
+
+- A search engine reads a query and a file and returns its matches.
+- Each search engine sits in its own module behind one interface.
+- Other VS Code extensions add search engines through the API that Structural Search exports from its `activate` function.
+- A search engine declares the file types and the queries that it accepts.
+- Every query runs in every search engine that accepts it.
+  `example.com` runs the plain text engine in every file and the key path engines in YAML, JSON and TOML files.
+- The results list the matches of all search engines together.
+  A line that several search engines find shows once.
+- The plain text engine accepts every file, so a file type without an engine of its own still gets results.
+- The first version brings search engines for plain text, regex and key paths in YAML, JSON and TOML.
+- The search engines get picked during implementation.
+  Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code, the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths, `git grep` and `git log -G` for branches and history.
 
 ## Structural search
 
 Structural search matches by the structure of a file: keys in YAML, JSON and TOML, syntax in code.
 
 - The query stays plain text, without metavariables (placeholders that stand for any code, such as ast-grep's `$A`) or the templates of IntelliJ's Structural Search and Replace.
-- The file type decides how a query reads: a dotted key path in YAML, JSON and TOML, code in every other language.
 - A dotted key path matches the key at that position in the tree: `global.values.gravitee.enabled` finds `enabled` under `gravitee` under `values` under `global`.
-  An `enabled` anywhere else stays out of the results.
+  An `enabled` anywhere else stays out of the key path results.
 - A dotted key path follows the key path language below.
 
 ## Key path language
@@ -172,28 +224,21 @@ The history scope groups results by commit.
 - Structural Search reads no per-project config file.
 - Every option lives in the VS Code settings and works with its default.
 
+## Dependencies
+
+- The repository keeps a software bill of materials (SBOM) in the CycloneDX JSON format.
+- The SBOM lists every package and every binary that the extension ships.
+- The build regenerates the SBOM from the lockfile.
+- CI fails when the committed SBOM differs from the regenerated one, so every dependency change updates the SBOM in the same commit.
+
 ## Out of scope
 
 - Helm cross-references between `values.yaml` and templates belong in a separate extension.
+- Replace stays with the built-in Search view until a need comes up.
 - Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search, skipping comments and searching ignored folders stay out until a need comes up.
 
 ## Open questions
 
-- Does a query in a YAML, JSON or TOML file run as a key path, as plain text or as both, given that `example.com` reads as a key path as well?
 - Do case-insensitive matching, umlauts and fuzzy matching apply to key paths?
-- What happens with a query that breaks the grammar, such as an unclosed `[`?
-- Which wildcard does code use, given that `*` already means multiplication, dereference and `import *` in many languages?
+- Which wildcard does a code search engine use, given that `*` already means multiplication, dereference and `import *` in many languages?
 - Does `a.b.c` in a code file match member access, or a key path inside a JSON or YAML literal as well?
-- Do umlauts match in both directions, given that `ae` to `ä` hits words such as "Israel" and "aerial"?
-- How many typos does fuzzy matching allow?
-- How do exact matches stand out from fuzzy ones in the results?
-- How does a query ask for a regex, given that the input carries no regex toggle?
-- When does a query in a code file run as structural search, given that the input carries no structure toggle?
-- Which engines run each mode? Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code, the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths, `git grep` and `git log -G` for branches and history.
-- Does replace work in structural, fuzzy and history scopes, or only for plain text and regex?
-- Does structural search in a file type without a parser fall back to plain text or skip the file?
-- Does the view render in a webview or in a tree view?
-  A webview draws the inputs and dimmed context lines.
-  Its hover card stays as wide as the side bar.
-  A tree view shows a native VS Code hover that reaches over the editor.
-  It hosts no inputs and draws each row as one line of label and description.
