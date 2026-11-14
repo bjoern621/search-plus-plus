@@ -16,7 +16,7 @@ Structural search feels like typing plain text.
 - Better Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Better Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
-- The view keeps the core of the built-in Search view: query input, replace input, files to include and exclude, results grouped by file.
+- The view keeps the core of the built-in Search view: query input, replace input, files to include and exclude, results in a folder tree.
 - Further features of the built-in view come back on demand.
 - The input keeps the text that you typed, for example `global.values.gravitee.enabled`, whatever query runs underneath.
 
@@ -46,11 +46,11 @@ Structural search matches by the structure of a file: keys in YAML, JSON and TOM
   An `enabled` anywhere else stays out of the results.
 - `*` in a dotted key path stands for any single key ("wildcard"): `values.*.enabled`.
 
-## Refining
+## Excluding results
 
-- A refine row below the inputs holds a chip per refinement.
-- A chip either keeps the files that also contain a text or drops the files that contain it.
-- A chip filters the current results and starts no new search.
+- Every folder and file in the results carries an exclude button.
+- Excluding adds the folder or file to files to exclude and drops its results without a new search.
+- Removing the entry from files to exclude brings its results back.
 
 ## Scope
 
@@ -72,9 +72,12 @@ The history scope groups results by commit.
 ## Out of scope
 
 - Helm cross-references between `values.yaml` and templates belong in a separate extension.
-- Conditions across one YAML document, proximity search, case variants of identifiers, keys-only search, skipping comments and searching ignored folders stay out until a need comes up.
+- Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search, skipping comments and searching ignored folders stay out until a need comes up.
 
 ## Open questions
+
+- Does Better Search open as a side bar view or as a popover over the editor?
+  A popover would use the VS Code Quick Pick, which shows a flat list with a header per file and offers no tree and no replace input.
 
 - Does `**` in a dotted key path match any number of keys, as in globs (`global.**.enabled`)?
 - Which wildcard does code use, given that `*` already means multiplication, dereference and `import *` in many languages?
