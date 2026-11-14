@@ -1,22 +1,60 @@
-# Better Search design
+# Structural Search design
 
-This document records the decisions behind Better Search, a VS Code extension that takes over the job of the built-in Search view.
+This document records the decisions behind Structural Search, a VS Code extension that takes over the job of the built-in Search view.
 Each decision takes one line.
 Open questions sit at the end until we settle them.
 
 ## Goal
 
 Search stays as simple as the built-in Search view: type text, press Enter, read results.
-Better Search reads the intent from the query and the file type.
+Structural Search reads the intent from the query and the file type.
 Most searches need no option.
 Structural search feels like typing plain text.
 
+## Importance
+
+Each feature gets one of three levels.
+The level decides how far the view keeps the feature from the query input.
+
+| Level | Place in the view |
+|---|---|
+| Core | visible at all times |
+| Frequent | one click away, or shown on hover |
+| Rare | in a menu or in the settings |
+
+| Feature | Level | Place |
+|---|---|---|
+| Query input | Core | top of the view |
+| Results in a folder tree | Core | under the query input |
+| Key path search | Core | works without a control |
+| Matching defaults | Core | work without a control |
+| Context lines around each match | Core | one line before and after, dimmed |
+| Exclude buttons on folders and files | Frequent | on hover over a result |
+| Larger excerpt around a match | Frequent | on hover over a match |
+| Replace input | Frequent | behind the arrow left of the query input |
+| Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
+| Scope | Rare | menu at the end of the results summary line |
+| Settings for the matching defaults | Rare | behind the gear in the view title |
+
+The summary line shows a scope other than the working tree in color, so a history search never passes for a working tree search.
+
+## Results
+
+- Each match shows its line with the line number, as in the editor.
+- One line before and one after the match frame it, dimmed.
+  The settings change the number of context lines.
+- Context of two close matches merges into one block.
+- A key path match shows its key path above the lines, such as `global › values › gravitee`, since a YAML line alone loses its parents.
+- Folders and files carry no result count.
+  The summary line holds the total.
+- Hovering a match shows a larger excerpt of its file.
+
 ## Place in VS Code
 
-- Better Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
+- Structural Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
 - The view sits in the side bar.
   A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree and no replace input.
-- To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Better Search.
+- To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Structural Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
 - The view keeps the core of the built-in Search view: query input, replace input, files to include and exclude, results in a folder tree.
 - Further features of the built-in view come back on demand.
@@ -119,7 +157,7 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 
 ## Scope
 
-A scope selector picks where the search runs:
+A menu at the end of the results summary line picks where the search runs:
 
 - Working tree (the default)
 - Files changed against the default branch
@@ -131,7 +169,7 @@ The history scope groups results by commit.
 
 ## Configuration
 
-- Better Search reads no per-project config file.
+- Structural Search reads no per-project config file.
 - Every option lives in the VS Code settings and works with its default.
 
 ## Out of scope
@@ -154,3 +192,8 @@ The history scope groups results by commit.
 - Which engines run each mode? Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code, the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths, `git grep` and `git log -G` for branches and history.
 - Does replace work in structural, fuzzy and history scopes, or only for plain text and regex?
 - Does structural search in a file type without a parser fall back to plain text or skip the file?
+- Does the view render in a webview or in a tree view?
+  A webview draws the inputs and dimmed context lines.
+  Its hover card stays as wide as the side bar.
+  A tree view shows a native VS Code hover that reaches over the editor.
+  It hosts no inputs and draws each row as one line of label and description.
