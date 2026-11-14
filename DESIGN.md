@@ -34,6 +34,7 @@ The level decides how far the view keeps the feature from the query input.
 | Query highlighting | Core | colors in the query input |
 | Exclude buttons on folders and files | Frequent | on hover over a result |
 | Larger excerpt around a match | Frequent | on hover over a match |
+| Context menu on a match | Frequent | on right-click on a match |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Scope | Rare | menu at the end of the results summary line |
 | Settings for the matching defaults | Rare | behind the gear in the view title |
@@ -52,6 +53,25 @@ The summary line shows a scope other than the working tree in color, so a histor
 - Folders and files carry no result count.
   The summary line holds the total.
 - Hovering a match shows a larger excerpt of its file.
+
+### Context menu
+
+Right-clicking a match opens a context menu.
+Its top lines say why the line matched whenever a matching default stretched the query:
+
+- `Gröse: close spelling of Größe, 1 edit away.`
+- `Groesse: spelled-out umlaut of Größe.`
+- `Key gravitee: close spelling of Gravite, 1 edit away.`
+
+Below them come the quick actions:
+
+| Action | Shown for | Effect |
+|---|---|---|
+| Find "(word)" as written | a match that a matching default stretched | puts the query word in quotes and searches again |
+| Exclude (file) | every match | adds the file to files to exclude |
+| Exclude folder (folder) | every match | adds the folder to files to exclude |
+| Copy line | every match | copies the line of the match |
+| Copy key path | a key path match | copies the key path of the matched node, such as `global.values.gravitee.enabled` |
 
 ## Place in VS Code
 
@@ -85,7 +105,7 @@ A query matches with these defaults:
 
 A word in double quotes matches as written: case-sensitive, without umlaut variants and without fuzzy matches.
 `"Größe"` finds `Größe` alone.
-Once a search finds close spellings, the hint under the input offers the quotes.
+The context menu on a close match offers the quotes.
 The extension settings change each default.
 
 ### Wildcard
@@ -136,7 +156,6 @@ A hint takes one line under the query input and names what the query does or how
 | starts with a slash, ends without one | End with a slash to search as a regex. |
 | breaks the key path grammar | The key path skips this query because a bracket ([) stays open. Close it with ]. |
 | regex that does not compile | The regex cannot compile: (parser's message). Fix it or drop the slashes. |
-| finds close spellings of a word | Includes close spellings. Quote "(word)" to find it as written. |
 
 A hint that suggests a query runs it on click.
 
