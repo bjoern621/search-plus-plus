@@ -7,7 +7,8 @@ Open questions sit at the end until we settle them.
 ## Goal
 
 Search stays as simple as the built-in Search view: type text, press Enter, read results.
-Extra toggles and buttons add power without adding syntax.
+Better Search reads the intent from the query and the file type.
+Most searches need no option.
 Structural search feels like typing plain text.
 
 ## Place in VS Code
@@ -15,20 +16,25 @@ Structural search feels like typing plain text.
 - Better Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Better Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
-- The view looks and behaves like the built-in one: query input, replace input, files to include and exclude, results grouped by file.
+- The view keeps the core of the built-in Search view: query input, replace input, files to include and exclude, results grouped by file.
+- Further features of the built-in view come back on demand.
 - The input keeps the text that you typed, for example `global.values.gravitee.enabled`, whatever query runs underneath.
 
-## Toggles
+## Matching
 
-The input carries the built-in toggles (match case, whole word, regex) and adds these:
+The input carries no toggles.
+A query matches with these defaults:
 
-- Structure: turns on structural search.
+- Case-insensitive.
+- Inside words: `grav` finds `gravitee`.
 - Umlauts: each umlaut also matches its spelled-out form.
   - `ä` matches `ae`.
   - `ö` matches `oe`.
   - `ü` matches `ue`.
   - `ß` matches `ss`.
-- Fuzzy: matches text that sits a few typos away from the query.
+- Fuzzy: text that sits a few typos away from the query matches as well.
+
+The extension settings change each default.
 
 ## Structural search
 
@@ -62,7 +68,6 @@ The history scope groups results by commit.
 
 - Better Search reads no per-project config file.
 - Every option lives in the VS Code settings and works with its default.
-- The toggle states persist across sessions, like the built-in toggles.
 
 ## Out of scope
 
@@ -76,7 +81,9 @@ The history scope groups results by commit.
 - Does `a.b.c` in a code file match member access, or a key path inside a JSON or YAML literal as well?
 - Do umlauts match in both directions, given that `ae` to `ä` hits words such as "Israel" and "aerial"?
 - How many typos does fuzzy matching allow?
-- Does fuzzy matching run on every search or on refined results alone?
+- How do exact matches stand out from fuzzy ones in the results?
+- How does a query ask for a regex, given that the input carries no regex toggle?
+- When does a query in a code file run as structural search, given that the input carries no structure toggle?
 - Which engines run each mode? Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code, the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths, `git grep` and `git log -G` for branches and history.
 - Does replace work in structural, fuzzy and history scopes, or only for plain text and regex?
 - Does structural search in a file type without a parser fall back to plain text or skip the file?
