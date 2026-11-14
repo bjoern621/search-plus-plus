@@ -31,6 +31,7 @@ The level decides how far the view keeps the feature from the query input.
 | Context lines around each match | Core | one line before and after, dimmed |
 | Hints on the query | Core | one line under the query input, shown when they apply |
 | Wildcard `*` | Core | works without a control |
+| Query highlighting | Core | colors in the query input |
 | Exclude buttons on folders and files | Frequent | on hover over a result |
 | Larger excerpt around a match | Frequent | on hover over a match |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
@@ -111,6 +112,19 @@ The length of a query word sets the edits that it allows:
 - A query between two slashes runs as a regex: `/4\.\d+\.\d+/`.
 - The regex follows the [syntax of the Rust `regex` crate](https://docs.rs/regex/latest/regex/#syntax), which ripgrep uses.
 - A regex query skips the matching defaults and the key path search engines.
+
+## Query highlighting
+
+The query input colors each character by its role, so you see which characters the search reads as operators.
+
+- Operators show in a highlight color of the theme: `*`, `?`, `[`, `]`, `{`, `}`, the comma inside braces, the quotes around a quoted word and the slashes around a regex.
+- A backslash that escapes the next character dims.
+  The escaped character keeps the text color.
+  In `"hello"` the quotes show as operators.
+  In `\"hello\"` the backslashes dim and the quotes show as text.
+- Inside a regex, metacharacters such as `.`, `+` and `(` show as operators.
+  A backslash before a letter, such as `\d`, shows as an operator as well.
+  A backslash before any other character dims, as in `\.`.
 
 ## Hints
 
