@@ -14,6 +14,8 @@ Structural search feels like typing plain text.
 ## Place in VS Code
 
 - Better Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
+- The view sits in the side bar.
+  A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree and no replace input.
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Better Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
 - The view keeps the core of the built-in Search view: query input, replace input, files to include and exclude, results in a folder tree.
@@ -75,9 +77,6 @@ The history scope groups results by commit.
 - Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search, skipping comments and searching ignored folders stay out until a need comes up.
 
 ## Open questions
-
-- Does Better Search open as a side bar view or as a popover over the editor?
-  A popover would use the VS Code Quick Pick, which shows a flat list with a header per file and offers no tree and no replace input.
 
 - Does `**` in a dotted key path match any number of keys, as in globs (`global.**.enabled`)?
 - Which wildcard does code use, given that `*` already means multiplication, dereference and `import *` in many languages?
