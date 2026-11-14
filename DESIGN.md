@@ -52,6 +52,9 @@ Structural search matches by the structure of a file: keys in YAML, JSON and TOM
 
 A dotted key path takes the [VS Code glob syntax](https://code.visualstudio.com/docs/editor/glob-patterns), with `.` in place of `/`.
 The files to include field takes the same syntax, so VS Code users know it already.
+Two characters depart from VS Code globs to name a key that holds a dot or an operator:
+- `\` escapes the next character.
+- `"` quotes a run of characters.
 
 ### Grammar
 
@@ -60,16 +63,20 @@ The grammar uses EBNF as defined in ISO/IEC 14977.
 ```ebnf
 path         = segment, { ".", segment } ;
 segment      = "**" | piece, { piece } ;
-piece        = literal | "*" | "?" | class | group ;
+piece        = literal | escape | quoted | "*" | "?" | class | group ;
 group        = "{", alternative, { ",", alternative }, "}" ;
 alternative  = alt segment, { ".", alt segment } ;
 alt segment  = "**" | alt piece, { alt piece } ;
-alt piece    = alt literal | "*" | "?" | class ;
+alt piece    = alt literal | escape | quoted | "*" | "?" | class ;
 class        = "[", [ "!" | "^" ], class item, { class item }, "]" ;
-class item   = class char, [ "-", class char ] ;
-literal      = ? any character except ".", "*", "?", "[", "]", "{", "}" ? ;
+class item   = class atom, [ "-", class atom ] ;
+class atom   = class char | escape ;
+escape       = "\", ? any character ? ;
+quoted       = '"', { quoted char | escape }, '"' ;
+literal      = ? any character except ".", "*", "?", "[", "]", "{", "}", '"', "\" ? ;
 alt literal  = ? any literal except "," ? ;
-class char   = ? any character except ".", "]" ? ;
+class char   = ? any character except ".", "]", "\" ? ;
+quoted char  = ? any character except '"', "\" ? ;
 ```
 
 Groups don't nest, since VS Code closes a group at the first `}`.
@@ -84,6 +91,8 @@ Groups don't nest, since VS Code closes a group at the first `}`.
   Several `**` in a row act as one.
 - Every other segment matches exactly one key:
   - A literal matches itself.
+  - An escape matches the character after the `\`.
+  - A quoted piece matches its characters as written: `"a.*"` matches the key `a.*` alone.
   - `*` matches zero or more characters.
   - `?` matches one character.
   - A class matches one character out of its items.
@@ -100,6 +109,7 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 - `**.enabled` finds every `enabled` key at any depth.
 - `values.{gateway,portal}.enabled` finds both toggles and leaves out `values.ui.enabled`.
 - `ingress.hosts.0` finds the first host.
+- `metadata.labels."app.kubernetes.io/name"` and `metadata.labels.app\.kubernetes\.io/name` both find the label `app.kubernetes.io/name`.
 
 ## Excluding results
 
@@ -131,7 +141,7 @@ The history scope groups results by commit.
 
 ## Open questions
 
-- How does a key path name a key that holds a dot, such as the label `app.kubernetes.io/name`, given that VS Code globs offer no escape?
+- Does a query in a YAML, JSON or TOML file run as a key path, as plain text or as both, given that `example.com` reads as a key path as well?
 - Do case-insensitive matching, umlauts and fuzzy matching apply to key paths?
 - What happens with a query that breaks the grammar, such as an unclosed `[`?
 - Which wildcard does code use, given that `*` already means multiplication, dereference and `import *` in many languages?
