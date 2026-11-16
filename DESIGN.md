@@ -184,7 +184,11 @@ Structural search matches by the structure of a file: keys in YAML, JSON and TOM
 - The query stays plain text, without metavariables (placeholders that stand for any code, such as ast-grep's `$A`) or the templates of IntelliJ's Structural Search and Replace.
 - A dotted key path matches the key at that position in the tree: `global.values.gravitee.enabled` finds `enabled` under `gravitee` under `values` under `global`.
   An `enabled` anywhere else stays out of the key path results.
+- In code, a dotted key path matches a chain of member accesses that holds its keys in a row.
+  `config.server.port` finds `this.config.server.port`, `config?.server.port` and `config["server"].port`, also when the chain spans several lines.
 - A dotted key path follows the key path language below.
+- A Helm reference such as `.Values.global.domain` gets no special treatment: its leading dot breaks the key path grammar.
+  The plain text engine still finds it in the templates.
 
 ## Key path language
 
@@ -287,7 +291,3 @@ The history scope groups results by commit.
 - Helm cross-references between `values.yaml` and templates belong in a separate extension.
 - Replace stays with the built-in Search view until a need comes up.
 - Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search, skipping comments and searching ignored folders stay out until a need comes up.
-
-## Open questions
-
-- Does `a.b.c` in a code file match member access, or a key path inside a JSON or YAML literal as well?
