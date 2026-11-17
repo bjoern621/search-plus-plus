@@ -158,7 +158,6 @@ Below them come the quick actions:
 
 ## Matching
 
-The input carries no toggles.
 A query matches with these defaults:
 
 - Case-insensitive.
