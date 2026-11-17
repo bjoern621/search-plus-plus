@@ -6,7 +6,7 @@ Open questions sit at the end until we settle them.
 
 ## Goal
 
-Search stays as simple as the built-in Search view: type text, press Enter, read results.
+Search stays as simple as the built-in Search view: type text, read results.
 Structural Search reads the intent from the query and the file type.
 Most searches need no option.
 Structural search feels like typing plain text.
@@ -43,6 +43,12 @@ The empty query input names both kinds of query in its placeholder: `Text or key
 It stays short enough to show whole in a side bar of the default width.
 The summary line holds the scope button from the start, so the scope can change before the first search.
 It shows a scope other than the working tree in color, so a history search never passes for a working tree search.
+
+As in the built-in Search view, typing in the query input or the file fields searches once typing pauses for `search.searchOnTypeDebouncePeriod`, while `search.searchOnType` stays on.
+Enter searches at once.
+A keystroke cancels the search that runs.
+An empty query clears the results.
+A query enters the search history on Enter or once no other search replaced it for two seconds, as in the built-in Search view.
 
 ## Results
 

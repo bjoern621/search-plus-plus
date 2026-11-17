@@ -180,6 +180,7 @@ export interface HoverGeometry {
 export type ViewMessage =
   | { type: "ready" }
   | ({ type: "search"; query: string; scope: SearchScope } & FileFields)
+  | { type: "cancelSearch" }
   /** Asks for a branch to search. The host answers with `branchPicked` unless the person cancels. */
   | { type: "pickBranch" }
   | { type: "open"; uri: string; line: number; range?: Range; preserveFocus: boolean }
@@ -196,6 +197,10 @@ export interface ViewSettings {
   treeIndentPx: number;
   /** False while `workbench.tree.renderIndentGuides` reads `none`. */
   indentGuides: boolean;
+  /** `search.searchOnType`: typing in the query or the file fields searches once typing pauses. */
+  searchOnType: boolean;
+  /** `search.searchOnTypeDebouncePeriod`: how long typing pauses before the search starts. */
+  searchOnTypeDebounceMs: number;
 }
 
 export type HostMessage =
@@ -222,4 +227,5 @@ export type HostMessage =
   | { type: "testOpenMenu"; index: number }
   | { type: "testHover"; index: number }
   | { type: "testChooseMenuItem"; label: string }
-  | ({ type: "testTypeFileFields" } & FileFields);
+  | ({ type: "testTypeFileFields" } & FileFields)
+  | { type: "testTypeQuery"; keys: string[] };

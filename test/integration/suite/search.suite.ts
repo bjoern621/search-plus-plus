@@ -77,6 +77,13 @@ describe("Structural Search view", () => {
     ]);
   });
 
+  it("searches once typing pauses, without Enter, and runs one search for keystrokes in quick succession", async () => {
+    const { snapshot, searches } = await vscode.commands.executeCommand<{ snapshot: TestSnapshot; searches: number }>("structuralSearch.test.typeQuery", ["4.1", ".0"]);
+    assert.equal(searches, 1);
+    assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
+    assert.ok(snapshot.rows.includes("match 4:     tag: [4.1.0]"), snapshot.rows.join("\n"));
+  });
+
   it("draws a divider above a code line that skips lines of its file and none above the next line or the first line of a file", async () => {
     const snapshot = await search("/^gateway|replicas|version/");
     const lines = snapshot.rows.flatMap((row, index) => (row.startsWith("match ") || row.startsWith("context ") ? [`${snapshot.gapsAbove[index] ? "—" : ""}${row.split(":")[0]}`] : []));

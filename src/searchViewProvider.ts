@@ -151,11 +151,20 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.applyColorTheme();
   }
 
-  /** Sends the workbench settings that shape the rows. */
+  /** Sends the workbench and search settings that the view follows. */
   sendSettings(): void {
     const tree = vscode.workspace.getConfiguration("workbench.tree");
+    const search = vscode.workspace.getConfiguration("search");
     const indent = Math.min(Math.max(tree.get<number>("indent", 8), TREE_INDENT_MIN_PX), TREE_INDENT_MAX_PX);
-    this.post({ type: "settings", settings: { treeIndentPx: indent, indentGuides: tree.get<string>("renderIndentGuides") !== "none" } });
+    this.post({
+      type: "settings",
+      settings: {
+        treeIndentPx: indent,
+        indentGuides: tree.get<string>("renderIndentGuides") !== "none",
+        searchOnType: search.get<boolean>("searchOnType", true),
+        searchOnTypeDebounceMs: Math.max(search.get<number>("searchOnTypeDebouncePeriod", 300), 0),
+      },
+    });
   }
 
   /** Picks the icons of the `light` or `highContrast` section of the theme for the active color theme and redraws them. */
@@ -193,6 +202,19 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     if (startsSearch) return this.afterSearch({ type: "testTypeFileFields", ...fields });
     this.post({ type: "testTypeFileFields", ...fields });
     return this.testSnapshot();
+  }
+
+  /**
+   * Types `keys` into the emptied query input one after another without a pause and without Enter.
+   * Returns what the view shows once the search that the typing starts ends and the time for another search has passed, with the number of searches that started. For integration tests.
+   */
+  async testTypeQuery(keys: string[]): Promise<{ snapshot: TestSnapshot; searches: number }> {
+    await this.focus();
+    const before = this.searchId;
+    await this.afterSearch({ type: "testTypeQuery", keys });
+    const debounce = vscode.workspace.getConfiguration("search").get<number>("searchOnTypeDebouncePeriod", 300);
+    await new Promise((resolve) => setTimeout(resolve, 2 * debounce));
+    return { snapshot: await this.testSnapshot(), searches: this.searchId - before };
   }
 
   /** Clicks the hint line, then returns what the view shows once the suggested search ends. For integration tests. */
@@ -284,6 +306,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         return;
       case "search":
         void this.search(message.query, { include: message.include, exclude: message.exclude }, message.scope);
+        return;
+      case "cancelSearch":
+        this.running?.abort();
         return;
       case "pickBranch":
         void this.pickBranch();

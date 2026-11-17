@@ -1,4 +1,4 @@
-import type { FileResult, HostMessage, KeyPathRoom, RowMetrics, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
+import type { FileResult, HostMessage, KeyPathRoom, RowMetrics, SearchStatus, TestSnapshot, ViewMessage, ViewSettings } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
@@ -29,8 +29,8 @@ declare function acquireVsCodeApi(): {
 const HISTORY_LIMIT = 50;
 /** Rows rendered above and below the visible ones, so fast scrolling shows no gaps. */
 const OVERSCAN_ROWS = 20;
-/** Time after the last keystroke in a files to include or exclude field before the search repeats. */
-const FILE_FIELDS_SEARCH_DELAY_MS = 400;
+/** A search adds its query to the history once no other search replaced it for this long, as in the built-in Search view. */
+const HISTORY_DELAY_MS = 2000;
 
 const vscode = acquireVsCodeApi();
 document.documentElement.dataset.platform = editorPlatform(navigator.userAgent);
@@ -68,7 +68,10 @@ let blockedHint: Hint | undefined;
 let searched: ({ query: string; scope: SearchScope } & FileFields) | undefined;
 /** What the host found out about Git. Undefined until it answers. */
 let git: GitInfo | undefined;
-let fileFieldsTimer = 0;
+/** The settings of the workbench that the view follows, with their defaults until the host sends them. */
+let settings: ViewSettings = { treeIndentPx: 8, indentGuides: true, searchOnType: true, searchOnTypeDebounceMs: 300 };
+let typingTimer = 0;
+let historyTimer = 0;
 /** Index of the row that holds the keyboard focus inside the results, -1 without one. */
 let focusedIndex = -1;
 /** The line of the tree that the focused row lights, set on each render. */
@@ -110,6 +113,7 @@ input.addEventListener("input", () => {
   blockedHint = undefined;
   refreshHint();
   saveState();
+  searchOnType();
 });
 
 detailsButton.addEventListener("click", () => setFileFieldsOpen(fileFieldsElement.hidden));
@@ -188,6 +192,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       input.select();
       return;
     case "settings":
+      settings = message.settings;
       rowsElement.style.setProperty("--tree-indent", `${message.settings.treeIndentPx}px`);
       rowsElement.classList.toggle("no-indent-guides", !message.settings.indentGuides);
       return;
@@ -262,6 +267,14 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       setFileFields(message);
       applyFileFields();
       return;
+    case "testTypeQuery":
+      input.focus();
+      input.value = "";
+      for (const key of message.keys) {
+        input.value += key;
+        input.dispatchEvent(new Event("input"));
+      }
+      return;
   }
 });
 
@@ -269,36 +282,53 @@ vscode.postMessage({ type: "ready" });
 
 function submit(): void {
   const query = input.value;
+  searchWithFields(query);
+  remember(query);
+}
+
+/** Adds `query` to the end of the history, once. */
+function remember(query: string): void {
+  window.clearTimeout(historyTimer);
   if (query !== "" && state.history.at(-1) !== query) state.history = [...state.history, query].slice(-HISTORY_LIMIT);
   historyIndex = state.history.length;
   saveState();
-  searchWithFields(query);
 }
 
+/** Searches for `query` at once. A search that no other search replaces for a while adds its query to the history. */
 function searchWithFields(query: string): void {
-  window.clearTimeout(fileFieldsTimer);
+  window.clearTimeout(typingTimer);
   const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
   searched = { query, scope: state.scope, ...fields };
   vscode.postMessage({ type: "search", query, scope: state.scope, ...fields });
+  window.clearTimeout(historyTimer);
+  historyTimer = window.setTimeout(() => remember(query), HISTORY_DELAY_MS);
+}
+
+/**
+ * Searches for the query once typing pauses, as the built-in Search view does under `search.searchOnType`.
+ * The keystroke cancels the search that runs, since its results no longer fit the fields.
+ */
+function searchOnType(): void {
+  window.clearTimeout(typingTimer);
+  if (!settings.searchOnType) return;
+  vscode.postMessage({ type: "cancelSearch" });
+  typingTimer = window.setTimeout(() => searchWithFields(input.value), settings.searchOnTypeDebounceMs);
 }
 
 /**
  * Follows a change of the files to include and exclude fields.
  * A change that only adds exclusions hides their results at once.
- * Any other change repeats the last search once typing stops, since it can bring back files that the last search left out.
+ * Any other change searches once typing pauses, since it can bring back files that the last search left out.
  */
 function applyFileFields(): void {
   saveState();
-  window.clearTimeout(fileFieldsTimer);
-  if (!searched) return;
   const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
-  if (fields.include === searched.include && onlyAdded(searched.exclude, fields.exclude)) {
+  if (searched && fields.include === searched.include && onlyAdded(searched.exclude, fields.exclude)) {
     tree.setFilter(new PathFilter(fields));
     invalidateLayout();
     return;
   }
-  const query = searched.query;
-  fileFieldsTimer = window.setTimeout(() => searchWithFields(query), FILE_FIELDS_SEARCH_DELAY_MS);
+  searchOnType();
 }
 
 /** Adds `entry` to files to exclude and drops its results without a new search. */
@@ -374,6 +404,7 @@ function walkHistory(step: -1 | 1): void {
   if (next < 0 || next > state.history.length) return;
   historyIndex = next;
   setQuery(state.history[next] ?? "");
+  searchOnType();
 }
 
 /** Puts `query` into the input as if typed. */

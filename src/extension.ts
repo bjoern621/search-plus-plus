@@ -38,7 +38,7 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("workbench.iconTheme")) void provider.reloadIconTheme();
-      if (event.affectsConfiguration("workbench.tree")) provider.sendSettings();
+      if (event.affectsConfiguration("workbench.tree") || event.affectsConfiguration("search.searchOnType") || event.affectsConfiguration("search.searchOnTypeDebouncePeriod")) provider.sendSettings();
     }),
     vscode.window.onDidChangeActiveColorTheme(() => provider.applyColorTheme()),
     vscode.window.registerWebviewViewProvider(SearchViewProvider.viewId, provider, { webviewOptions: { retainContextWhenHidden: true } }),
@@ -58,6 +58,7 @@ function registerTestCommands(context: vscode.ExtensionContext, provider: Search
     vscode.commands.registerCommand("structuralSearch.test.openScopeMenu", () => provider.testOpenScopeMenu()),
     vscode.commands.registerCommand("structuralSearch.test.excludeRow", (index: number) => provider.testExcludeRow(index)),
     vscode.commands.registerCommand("structuralSearch.test.typeFileFields", (fields: FileFields, startsSearch: boolean) => provider.testTypeFileFields(fields, startsSearch)),
+    vscode.commands.registerCommand("structuralSearch.test.typeQuery", (keys: string[]) => provider.testTypeQuery(keys)),
     vscode.commands.registerCommand("structuralSearch.test.snapshot", () => provider.testSnapshot()),
     vscode.commands.registerCommand("structuralSearch.test.clickRow", (index: number) => provider.testClickRow(index)),
     vscode.commands.registerCommand("structuralSearch.test.pressKeys", (keys: string[]) => provider.testPressKeys(keys)),
