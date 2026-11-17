@@ -1,5 +1,5 @@
 import type { FileResult, HoverGeometry, ResultLine } from "../messages";
-import { keyPathElement, shownKeyPath } from "./keyPath";
+import { fitKeyPaths, keyPathElement, shownKeys } from "./keyPath";
 import { describeLine, highlightParts, relativePath } from "./tree";
 
 /** Time that the pointer rests on a match before the hover card asks for its excerpt. */
@@ -63,13 +63,13 @@ export class HoverCard {
     const elements = lines.map((excerptLine) => lineElement(excerptLine, excerptLine.line === line));
     const header = document.createElement("div");
     header.className = "hover-file";
-    const keyPath = shownKeyPath(lines[hit] as ResultLine);
-    if (keyPath !== undefined) {
+    const keys = shownKeys(lines[hit] as ResultLine);
+    if (keys) {
       const separator = document.createElement("span");
       separator.className = "hover-separator";
       separator.textContent = " · ";
-      header.append(headerPart("hover-key-path", keyPath), separator);
-      elements[hit]?.append(keyPathElement(keyPath));
+      header.append(keyPathElement(keys, "hover-key-path"), separator);
+      elements[hit]?.append(keyPathElement(keys));
     }
     const path = [file.root, relativePath(file)].filter((part) => part !== "").join("/");
     const nameStart = path.lastIndexOf("/") + 1;
@@ -83,6 +83,7 @@ export class HoverCard {
     // The numbers take the width of the numbers in the results, so the text of the hovered line starts where its row's text starts.
     const rowNumberWidth = getComputedStyle(row).getPropertyValue("--line-number-width").trim() || "2ch";
     this.element.style.setProperty("--line-number-width", `max(${rowNumberWidth}, ${String((lines.at(-1)?.line ?? 0) + 1).length}ch)`);
+    fitKeyPaths(this.element.querySelectorAll<HTMLElement>(".hover-line .key-path"));
     this.element.style.top = "0px";
 
     const hitElement = elements[hit] as HTMLElement;
@@ -143,11 +144,17 @@ export class HoverCard {
 }
 
 /**
- * Drops the folder of a header that stays too wide once the folder has shrunk to nothing, so the key path takes the cut.
- * The key path keeps its width before that, since flex items shrink in proportion to their width: a key path shrinking beside the folder would lose a fraction of a pixel, and its ellipsis a character.
+ * Drops the folder of a header that stays too wide once the folder has shrunk to nothing, then cuts the key path to the room left.
+ * The key path keeps its width before that, since flex items shrink in proportion to their width: a key path shrinking beside the folder would lose a fraction of a pixel off its end.
+ * A key path that leaves the header takes its separator along.
  */
 function fitHeader(header: HTMLElement): void {
-  if (header.scrollWidth > header.clientWidth) header.classList.add("crowded");
+  if (header.scrollWidth <= header.clientWidth) return;
+  header.classList.add("crowded");
+  const keyPath = header.querySelector<HTMLElement>(".hover-key-path");
+  if (!keyPath) return;
+  fitKeyPaths([keyPath]);
+  if (!keyPath.isConnected) header.querySelector(".hover-separator")?.remove();
 }
 
 /** Measures how much of a header part its cut hides. 0 for a missing part. */

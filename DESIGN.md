@@ -64,8 +64,9 @@ It shows a scope other than the working tree in color, so a history search never
   A single plain word such as `gateway` shows no path on the keys that it matches, since such a query reads as a text search.
   The path takes the dimmed small font of the workbench and sits at the right edge of the row.
   A key holding a dot appears in quotes, as a query writes it.
-  The line keeps its room: on a narrow side bar the path gets cut from the left, so its last keys stay in view.
-  Once the room drops below a few characters, the path hides.
+  The line keeps its room: on a narrow side bar the path drops whole keys after its first key, behind an ellipsis, so its first and last keys stay in view: `gateway.….limits.memory`.
+  Once the first and the last key leave too little room, the path drops the first key as well: `….memory`.
+  Without room for the last key, the path hides.
   A member chain in code shows no path, since its line spells the chain.
 - Results carry no ranking: files follow the folder tree, matches follow their line numbers.
 - A fuzzy match looks like an exact match.
@@ -73,7 +74,7 @@ It shows a scope other than the working tree in color, so a history search never
   The summary line holds the total.
 - Hovering a match shows a larger excerpt of its file in a card.
   The card names the file above its lines, after the key path of the match where the row shows one: `gateway.image.tag · charts/apim/values.yaml`.
-  A header too long for the card loses its folder first, then the start of the key path, so the last keys and the file name stay in view.
+  A header too long for the card loses its folder first, then cuts its key path as the row does, so the file name stays in view.
   Its copy of the hovered line covers the row in place, in the same font and size, so the code keeps its place while the lines before it appear above and the lines after it below.
   Near an edge of the view, the card drops the lines on that side that would leave the view.
   Once no line is left to drop there, the card moves into the view.

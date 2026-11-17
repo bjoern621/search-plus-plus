@@ -392,33 +392,15 @@ body {
   --row-foreground: var(--vscode-foreground);
 }
 
-/*
- * The key path grows from its minimum width up to its full width in the room that the line text leaves.
- * A key path that cannot get its minimum width wraps onto a second flex line, which the fixed height of the line hides.
- */
-.line:has(.key-path),
-.hover-line:has(.key-path) {
-  flex-wrap: wrap;
-  height: 22px;
-  overflow: hidden;
-}
-
-/* Wider line text would wrap below the line number in place of shrinking. */
-.line:has(.key-path) .text,
-.hover-line:has(.key-path) .text {
-  max-width: calc(100% - var(--line-number-width, 2ch) - 8px);
-}
-
+/* The key path grows up to its full width in the room that the line text leaves. The script cuts it to that room at key boundaries. */
 .key-path {
   flex: 1 1 0;
-  min-width: 48px;
+  min-width: 0;
   max-width: max-content;
   margin-left: auto;
   padding-left: 12px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
-  direction: rtl;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-font-family);
   font-size: var(--small-font-size);
@@ -585,10 +567,10 @@ body {
   overflow: hidden;
 }
 
-/* The border plus the left padding of the card match the padding of a row, so the line numbers of both start together. */
+/* The border plus the padding of the card match the padding of a row, so the hovered line takes the width of its row. */
 .hover-file {
   display: flex;
-  padding: 0 8px 4px 7px;
+  padding: 0 7px 4px;
   color: var(--vscode-descriptionForeground);
   font-size: var(--small-font-size);
   line-height: 18px;
@@ -602,12 +584,15 @@ body {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  direction: rtl;
 }
 
 .hover-key-path {
   flex-shrink: 0;
+}
+
+.hover-folder {
+  text-overflow: ellipsis;
+  direction: rtl;
 }
 
 .hover-file.crowded .hover-folder {
@@ -633,7 +618,7 @@ body {
 
 .hover-line {
   display: flex;
-  padding: 0 8px 0 7px;
+  padding: 0 7px;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-editor-font-family);
   font-size: var(--vscode-font-size);

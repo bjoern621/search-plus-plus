@@ -149,6 +149,22 @@ describe("Structural Search view", () => {
     assert.equal(box.headerKeyPathCut, 0);
   });
 
+  it("cuts a key path too long for the side bar at key boundaries, in its row and in the hover card header", async () => {
+    const keys = ["platform", "ingressController", "resourceLimits", "memory"];
+    const snapshot = await search(keys.join("."));
+    const index = snapshot.rows.findIndex((row) => row.startsWith("match 4:") && row.includes("[memory]"));
+    assert.notEqual(index, -1, snapshot.rows.join("\n"));
+    const drawn = snapshot.drawnKeyPaths[index] ?? "";
+    assert.ok(keyBoundaryCuts(keys).includes(drawn), drawn);
+
+    await vscode.commands.executeCommand("structuralSearch.test.hover", index);
+    const header = (await shownHover())[0] ?? "";
+    const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
+    assert.ok(box, "no hover card");
+    assert.ok(keyBoundaryCuts(keys).includes(header.split(" · ")[0] ?? ""), header);
+    assert.ok(box.headerKeyPathCut <= 1, JSON.stringify(box));
+  });
+
   it("drops the results of an excluded folder at once and leaves the folder out of later searches", async () => {
     const before = await search("4.1.0");
     const snapshot = await excludeRow(before.rows, "folder docs");
@@ -573,6 +589,12 @@ function downTo(rows: string[], index: number): string[] {
 /** Maps each match row to the key path that it shows, empty for a row without one. */
 function shownKeyPaths(snapshot: TestSnapshot): Record<string, string> {
   return Object.fromEntries(snapshot.rows.flatMap((row, index) => (row.startsWith("match ") ? [[row, snapshot.keyPaths[index] ?? ""]] : [])));
+}
+
+/** Lists the ways to write `keys` cut at key boundaries: the first key, an ellipsis and the last keys, or an ellipsis and the last key. */
+function keyBoundaryCuts(keys: readonly string[]): string[] {
+  const cuts = keys.slice(2).map((_, index) => [keys[0], "…", ...keys.slice(index + 2)].join("."));
+  return [...cuts, `….${keys.at(-1)}`];
 }
 
 /** Waits for the hover card to show and returns what it holds. */

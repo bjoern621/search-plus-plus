@@ -11,7 +11,7 @@ import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
-import { keyPathElement, shownKeyPath } from "./keyPath";
+import { fitKeyPaths, keyPathElement, keyPathText, shownKeys } from "./keyPath";
 
 interface ViewState extends FileFields {
   query: string;
@@ -485,6 +485,7 @@ function render(): void {
     if (row) elements.push(rowElement(row, index));
   }
   rowsElement.replaceChildren(...elements);
+  fitKeyPaths(rowsElement.querySelectorAll<HTMLElement>(".key-path"));
 }
 
 function rowElement(row: Row, index: number): HTMLElement {
@@ -525,8 +526,8 @@ function rowElement(row: Row, index: number): HTMLElement {
         else text.append(part.text);
       }
       element.append(span("number", String(row.line.line + 1)), text);
-      const keyPath = shownKeyPath(row.line);
-      if (keyPath !== undefined) element.append(keyPathElement(keyPath));
+      const keys = shownKeys(row.line);
+      if (keys) element.append(keyPathElement(keys));
       return element;
     }
   }
@@ -700,7 +701,14 @@ function snapshot(): TestSnapshot {
     icons: rows.map(rowIcon),
     iconLefts: rows.map((_, index) => leftOf(index, ".file-icon")),
     labelLefts: rows.map((_, index) => leftOf(index, ".label")),
-    keyPaths: rows.map((row) => (row.kind === "line" ? (shownKeyPath(row.line) ?? "") : "")),
+    keyPaths: rows.map((row) => {
+      const keys = row.kind === "line" ? shownKeys(row.line) : undefined;
+      return keys ? keyPathText(keys) : "";
+    }),
+    drawnKeyPaths: rows.map((_, index) => {
+      const element = document.getElementById(`row-${index}`);
+      return element ? (element.querySelector(".key-path")?.textContent ?? "") : null;
+    }),
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
     focusedMarkColor: markColor(".focused .mark"),

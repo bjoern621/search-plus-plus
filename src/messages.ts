@@ -107,6 +107,8 @@ export interface TestSnapshot {
   labelLefts: (number | null)[];
   /** The key path that each row shows after its line text, empty for a row without one. */
   keyPaths: string[];
+  /** The key path that each drawn row shows, cut to its room. Empty for a drawn row without one, null for a row not drawn. */
+  drawnKeyPaths: (string | null)[];
   /** Index of the row drawn with the focus, -1 without one. */
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
