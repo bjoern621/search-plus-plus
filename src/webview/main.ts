@@ -33,6 +33,7 @@ const OVERSCAN_ROWS = 20;
 const FILE_FIELDS_SEARCH_DELAY_MS = 400;
 
 const vscode = acquireVsCodeApi();
+document.documentElement.dataset.platform = editorPlatform(navigator.userAgent);
 const input = document.getElementById("query") as HTMLInputElement;
 const queryHighlight = new QueryHighlight(input, document.getElementById("query-highlight") as HTMLDivElement);
 const hint = document.getElementById("hint") as HTMLDivElement;
@@ -815,4 +816,11 @@ function showRow(index: number): HTMLElement | null {
   scrollRowIntoView(index);
   render();
   return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`);
+}
+
+/** Picks the platform as the VS Code renderer does, which decides the default fonts of the editor. */
+function editorPlatform(userAgent: string): "mac" | "windows" | "linux" {
+  if (userAgent.includes("Macintosh")) return "mac";
+  if (userAgent.includes("Windows")) return "windows";
+  return "linux";
 }

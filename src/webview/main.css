@@ -23,6 +23,22 @@ body {
   font-weight: var(--vscode-font-weight);
 }
 
+/*
+ * The editor appends the default fonts of its platform to editor.fontFamily (EDITOR_FONT_DEFAULTS in VS Code).
+ * The webview variable carries the setting alone, so a font missing on the system would fall back to the browser's serif font.
+ */
+:root {
+  --code-font-family: var(--vscode-editor-font-family), "Droid Sans Mono", "monospace", monospace;
+}
+
+:root[data-platform="mac"] {
+  --code-font-family: var(--vscode-editor-font-family), Menlo, Monaco, "Courier New", monospace;
+}
+
+:root[data-platform="windows"] {
+  --code-font-family: var(--vscode-editor-font-family), Consolas, "Courier New", monospace;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -207,7 +223,7 @@ body {
   padding: 0 3px;
   border: 1px solid currentColor;
   border-radius: 3px;
-  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
+  font-family: var(--code-font-family);
   font-size: var(--x-small-font-size);
   line-height: 14px;
 }
@@ -335,7 +351,7 @@ body {
 .commit .sha {
   flex: none;
   margin-right: 6px;
-  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
+  font-family: var(--code-font-family);
   color: var(--vscode-textLink-foreground);
 }
 
@@ -380,7 +396,7 @@ body {
   height: 22px;
   line-height: 22px;
   color: var(--row-foreground);
-  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
+  font-family: var(--code-font-family);
   font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
   font-feature-settings: var(--vscode-editor-font-feature-settings);
@@ -620,7 +636,7 @@ body {
   display: flex;
   padding: 0 7px;
   color: var(--vscode-descriptionForeground);
-  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
+  font-family: var(--code-font-family);
   font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
   font-feature-settings: var(--vscode-editor-font-feature-settings);
