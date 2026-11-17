@@ -10,7 +10,7 @@ import { matchMenu, type MenuAction } from "./menu";
 import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
-import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
+import { codeLineHeightPx, commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 
 interface ViewState extends FileFields {
   query: string;
@@ -74,6 +74,8 @@ let menuRow: Extract<Row, { kind: "line" }> | undefined;
 let menuScrollTop = 0;
 /** The scroll position at which the hover card got its match. */
 let hoverScrollTop = 0;
+/** The height of a code line in the results and the hover card. */
+let lineHeightPx = 0;
 
 const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, scope: WORKING_TREE, ...vscode.getState() };
 includeInput.value = state.include;
@@ -83,6 +85,9 @@ let historyIndex = state.history.length;
 setQuery(state.query);
 setFileFieldsOpen(state.fileFieldsOpen);
 renderSummary();
+applyEditorFont();
+// VS Code rewrites the style variables on the root element when the editor font or the color theme changes.
+new MutationObserver(applyEditorFont).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
 
 input.addEventListener("keydown", (event) => {
   switch (event.key) {
@@ -371,6 +376,16 @@ function refreshHint(): void {
   renderHint(hint, blockedHint ?? hintFor(parseQuery(input.value)), blockedHint !== undefined, runSuggestedQuery);
 }
 
+/** Sizes the code lines for the editor font that VS Code hands the view. */
+function applyEditorFont(): void {
+  const fontSize = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--vscode-editor-font-size"));
+  const height = codeLineHeightPx(fontSize, navigator.userAgent.includes("Macintosh"));
+  if (height === lineHeightPx) return;
+  lineHeightPx = height;
+  document.body.style.setProperty("--line-height", `${height}px`);
+  invalidateLayout();
+}
+
 function invalidateLayout(): void {
   layoutStale = true;
   scheduleRender();
@@ -388,7 +403,7 @@ function layout(): void {
   if (!layoutStale) return;
   layoutStale = false;
   rows = tree.rows(collapsed);
-  offsets = rowOffsets(rows);
+  offsets = rowOffsets(rows, lineHeightPx);
   if (focusedIndex >= rows.length) focusedIndex = rows.length - 1;
   rowsElement.style.height = `${offsets.at(-1) ?? 0}px`;
   const widest = rows.reduce((max, row) => (row.kind === "line" ? Math.max(max, row.line.line + 1) : max), 0);

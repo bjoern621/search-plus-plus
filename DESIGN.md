@@ -84,6 +84,12 @@ Below them come the quick actions:
   A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree.
 - The view renders in a webview, which draws the inputs and the dimmed context lines.
   Its hover card stays as wide as the side bar.
+- The view follows the color theme of VS Code.
+  Rows, inputs, menus and the hover card take the theme colors of their counterparts in the explorer, the Search view and the editor.
+  High contrast themes draw hover and selection as outlines.
+- Code lines take the editor font with its size and weight, spaced as the editor spaces lines without a set line height.
+  Every other text takes the font of the workbench.
+  A change of color theme or editor font redraws the view without a new search.
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Structural Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
 - The view keeps the core of the built-in Search view: query input, files to include and exclude, results in a folder tree.
@@ -165,6 +171,7 @@ A hint that suggests a query runs it on click.
 
 A query that breaks the key path grammar still runs in the other search engines.
 A regex that does not compile runs no search.
+A hint that stopped the search shows in the error colors of an input, as the built-in Search view shows a broken regex.
 
 ## Search engines
 

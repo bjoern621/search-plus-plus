@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CommitInfo, FileResult } from "../../src/messages";
 import { PathFilter } from "../../src/search/globs";
-import { highlightParts, resultSummary, ResultTree, rowAt, rowOffsets } from "../../src/webview/tree";
+import { codeLineHeightPx, highlightParts, resultSummary, ResultTree, rowAt, rowOffsets } from "../../src/webview/tree";
 
 function file(folder: string, name: string, rootIndex = 0, root = ""): FileResult {
   return {
@@ -118,12 +118,22 @@ describe("rowAt", () => {
   it("finds the row under a pixel offset", () => {
     const tree = new ResultTree();
     tree.add([file("a", "b.yaml")]);
-    const offsets = rowOffsets(tree.rows(new Set()));
-    expect(offsets).toEqual([0, 22, 44, 62]);
+    const offsets = rowOffsets(tree.rows(new Set()), 19);
+    expect(offsets).toEqual([0, 22, 44, 63]);
     expect(rowAt(offsets, 0)).toBe(0);
     expect(rowAt(offsets, 43)).toBe(1);
     expect(rowAt(offsets, 50)).toBe(2);
     expect(rowAt(offsets, 500)).toBe(2);
+  });
+});
+
+describe("codeLineHeightPx", () => {
+  it("spaces code lines as the editor does for its font size, with a floor for small fonts", () => {
+    expect(codeLineHeightPx(14, false)).toBe(19);
+    expect(codeLineHeightPx(20, false)).toBe(27);
+    expect(codeLineHeightPx(14, true)).toBe(21);
+    expect(codeLineHeightPx(10, false)).toBe(18);
+    expect(codeLineHeightPx(Number.NaN, false)).toBe(18);
   });
 });
 

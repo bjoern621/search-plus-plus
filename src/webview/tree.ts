@@ -8,7 +8,10 @@ export type Row =
   | { kind: "file"; key: string; file: FileResult; collapsed: boolean }
   | { kind: "line"; file: FileResult; line: ResultLine };
 
-export const ROW_HEIGHT_PX: Record<Row["kind"], number> = { commit: 22, folder: 22, file: 22, line: 18 };
+/** The height of commit, folder and file rows, as in the explorer. */
+const TREE_ROW_HEIGHT_PX = 22;
+/** A code line keeps at least this height, so a small editor font leaves a row that a click can hit. */
+const LINE_MIN_HEIGHT_PX = 18;
 
 interface FolderGroup {
   key: string;
@@ -158,11 +161,20 @@ function compareGroups(a: FolderGroup, b: FolderGroup): number {
   return a.segments.length - b.segments.length;
 }
 
-/** Returns the top offset of each row in pixels, plus the total height as the last entry. */
-export function rowOffsets(rows: readonly Row[]): number[] {
+/** Returns the top offset of each row in pixels, plus the total height as the last entry. Code lines take `lineHeightPx`. */
+export function rowOffsets(rows: readonly Row[], lineHeightPx: number): number[] {
   const offsets = [0];
-  for (const row of rows) offsets.push((offsets.at(-1) ?? 0) + ROW_HEIGHT_PX[row.kind]);
+  for (const row of rows) offsets.push((offsets.at(-1) ?? 0) + (row.kind === "line" ? lineHeightPx : TREE_ROW_HEIGHT_PX));
   return offsets;
+}
+
+/**
+ * Returns the height of a code line in an editor font of `fontSizePx`, by the ratio that the editor applies without a set line height.
+ * The editor spaces its lines wider on macOS.
+ */
+export function codeLineHeightPx(fontSizePx: number, macOS: boolean): number {
+  if (!(fontSizePx > 0)) return LINE_MIN_HEIGHT_PX;
+  return Math.max(LINE_MIN_HEIGHT_PX, Math.round(fontSizePx * (macOS ? 1.5 : 1.35)));
 }
 
 /** Returns the index of the row that covers `top`, found by binary search over `offsets`. */
