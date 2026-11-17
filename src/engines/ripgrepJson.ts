@@ -34,16 +34,41 @@ export function parseRipgrepEvent(jsonLine: string): RipgrepEvent {
   const text = message.data?.lines?.text;
   const lineNumber = message.data?.line_number;
   if (text === undefined || lineNumber === undefined) return { kind: "other" };
-  const bytes = Buffer.from(text, "utf8");
-  const ranges = (message.data?.submatches ?? []).map((submatch) => ({
-    start: utf16Length(bytes, submatch.start),
-    end: utf16Length(bytes, submatch.end),
+  const submatches = message.data?.submatches ?? [];
+  const utf16Offsets = utf16OffsetsOf(text, submatches.flatMap((submatch) => [submatch.start, submatch.end]));
+  const ranges = submatches.map((submatch) => ({
+    start: utf16Offsets.get(submatch.start)!,
+    end: utf16Offsets.get(submatch.end)!,
   }));
   return { kind: "match", path, line: lineNumber - 1, ranges };
 }
 
-function utf16Length(bytes: Buffer, byteOffset: number): number {
-  return bytes.subarray(0, byteOffset).toString("utf8").length;
+/**
+ * Maps UTF-8 byte offsets into `text` to UTF-16 offsets in one pass over the text.
+ * A byte offset inside a character maps to the end of that character.
+ * A byte offset past the end maps to the length of the text.
+ */
+function utf16OffsetsOf(text: string, byteOffsets: number[]): Map<number, number> {
+  const sorted = [...byteOffsets].sort((a, b) => a - b);
+  const utf16Offsets = new Map<number, number>();
+  let byteOffset = 0;
+  let utf16Offset = 0;
+  for (const wanted of sorted) {
+    while (byteOffset < wanted && utf16Offset < text.length) {
+      const codePoint = text.codePointAt(utf16Offset)!;
+      byteOffset += utf8Length(codePoint);
+      utf16Offset += codePoint > 0xffff ? 2 : 1;
+    }
+    utf16Offsets.set(wanted, utf16Offset);
+  }
+  return utf16Offsets;
+}
+
+function utf8Length(codePoint: number): number {
+  if (codePoint < 0x80) return 1;
+  if (codePoint < 0x800) return 2;
+  if (codePoint < 0x10000) return 3;
+  return 4;
 }
 
 /**
