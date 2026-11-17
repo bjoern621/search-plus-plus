@@ -137,7 +137,9 @@ Below them come the quick actions:
   Rows, inputs and menus take the theme colors of their counterparts in the explorer, the Search view and the editor.
   Hover and selection draw one rounded outline around a group of rows and fill none of them.
   A folder or file groups the rows inside it. A code line groups its match with the context lines.
-  The outlines take the colors that the explorer fills a hovered or selected row with.
+  The hover outline takes the color that the explorer fills a hovered row with.
+  The selection outline takes the text color, so it stands out more than the hover outline.
+  It shows after a key press in the results and hides on a click, as a `:focus-visible` outline does.
 - Twisties and buttons take their icons from the codicon font of the workbench (`@vscode/codicons`), so they match the icons of the built-in views.
   A twisty sits where the workbench trees place theirs, with the chevron 16px wide and 6px before the file icon.
 - Code lines take the family and weight of the editor font at the size of the workbench font, in rows as high as the folder and file rows.

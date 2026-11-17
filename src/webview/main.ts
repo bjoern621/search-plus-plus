@@ -132,8 +132,19 @@ rowsElement.addEventListener("click", (event) => {
   activate(row, true);
 });
 
+// The class "keyboard-focus" shows the selection outline after a key press in the results and hides it on a click.
+// Focus that arrives from the keyboard, such as Tab from the query field, shows the outline at once.
+let lastInputFromKeyboard = false;
+document.addEventListener("keydown", () => (lastInputFromKeyboard = true), true);
+document.addEventListener("pointerdown", () => {
+  lastInputFromKeyboard = false;
+  results.classList.remove("keyboard-focus");
+}, true);
+results.addEventListener("focus", () => results.classList.toggle("keyboard-focus", lastInputFromKeyboard));
+
 results.addEventListener("keydown", (event) => {
   if (event.target !== results) return;
+  results.classList.add("keyboard-focus");
   if (handleRowKey(event)) event.preventDefault();
 });
 

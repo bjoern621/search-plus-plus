@@ -479,7 +479,8 @@ button {
 
 /*
  * Hover and selection draw one rounded outline around a group of rows and fill none of them.
- * The outlines take the colors that the explorer fills a hovered or selected row with.
+ * The hover outline takes the color that the explorer fills a hovered row with.
+ * The selection outline takes the text color, so it stands out more than the hover outline.
  */
 .group-outline {
   position: absolute;
@@ -495,12 +496,14 @@ button {
   border-color: var(--vscode-list-hoverBackground);
 }
 
+/* The selection outline shows after a key press in the results and hides on a click, as a :focus-visible outline does. */
 .group-outline.focused {
-  border-color: var(--vscode-list-inactiveSelectionBackground);
+  visibility: hidden;
 }
 
-.results:focus .group-outline.focused {
-  border-color: var(--vscode-list-activeSelectionBackground);
+.results.keyboard-focus:focus .group-outline.focused {
+  visibility: visible;
+  border-color: var(--vscode-foreground);
 }
 
 /* High contrast themes leave the list fills unset and outline a row with the contrast border. */
