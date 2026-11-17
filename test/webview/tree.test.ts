@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FileResult } from "../../src/messages";
+import type { CommitInfo, FileResult } from "../../src/messages";
 import { PathFilter } from "../../src/search/globs";
 import { highlightParts, resultSummary, ResultTree, rowAt, rowOffsets } from "../../src/webview/tree";
 
@@ -17,7 +17,28 @@ function file(folder: string, name: string, rootIndex = 0, root = ""): FileResul
 }
 
 function labels(tree: ResultTree, collapsed: Set<string> = new Set()): string[] {
-  return tree.rows(collapsed).map((row) => (row.kind === "folder" ? `folder ${row.label}` : row.kind === "file" ? `file ${row.file.name}` : `line ${row.line.line}`));
+  return tree.rows(collapsed).map((row) => {
+    switch (row.kind) {
+      case "commit":
+        return `commit ${row.commit.shortSha}`;
+      case "folder":
+        return `folder ${row.label}`;
+      case "file":
+        return `file ${row.file.name}`;
+      case "line":
+        return `line ${row.line.line}`;
+    }
+  });
+}
+
+function commit(index: number): CommitInfo {
+  const sha = String(index).repeat(40);
+  return { sha, shortSha: sha.slice(0, 7), author: "Ada", date: "2026-11-02T14:03:00+01:00", subject: `Commit ${index}`, index };
+}
+
+/** A file as a commit changed it. The URI names the commit, as revision URIs do. */
+function committed(at: CommitInfo, folder: string, name: string): FileResult {
+  return { ...file(folder, name), uri: `structural-search-git:/w0/${folder}/${name}?${at.sha}`, commit: at };
 }
 
 describe("ResultTree", () => {
@@ -125,5 +146,57 @@ describe("resultSummary", () => {
     expect(resultSummary(1, 1)).toBe("1 result in 1 file");
     expect(resultSummary(0, 0)).toBe("No results.");
     expect(resultSummary(10000, 812, 10000)).toBe("Showing the first 10,000 results in 812 files");
+  });
+
+  it("counts commits in place of files in the Git history scope", () => {
+    expect(resultSummary(3, 3, undefined, 2)).toBe("3 results in 2 commits");
+    expect(resultSummary(1, 1, undefined, 1)).toBe("1 result in 1 commit");
+    expect(resultSummary(10000, 812, 10000, 40)).toBe("Showing the first 10,000 results in 40 commits");
+  });
+});
+
+describe("ResultTree in the Git history scope", () => {
+  it("heads the folders of each commit with a commit row, the newest commit first", () => {
+    const tree = new ResultTree();
+    const [newest, older] = [commit(0), commit(1)];
+    tree.add([committed(older, "charts/apim", "Chart.yaml"), committed(newest, "charts/apim", "values.yaml"), committed(older, "", "README.md"), committed(newest, "docs", "upgrade.md")]);
+    expect(labels(tree)).toEqual([
+      "commit 0000000",
+      "folder charts/apim",
+      "file values.yaml",
+      "line 0",
+      "folder docs",
+      "file upgrade.md",
+      "line 0",
+      "commit 1111111",
+      "file README.md",
+      "line 0",
+      "folder charts/apim",
+      "file Chart.yaml",
+      "line 0",
+    ]);
+    expect(tree.commitCount).toBe(2);
+    expect(tree.fileCount).toBe(4);
+  });
+
+  it("keeps a file that two commits changed apart under each commit", () => {
+    const tree = new ResultTree();
+    tree.add([committed(commit(0), "docs", "upgrade.md"), committed(commit(1), "docs", "upgrade.md")]);
+    expect(labels(tree)).toEqual(["commit 0000000", "folder docs", "file upgrade.md", "line 0", "commit 1111111", "folder docs", "file upgrade.md", "line 0"]);
+    expect(tree.matchCount).toBe(2);
+  });
+
+  it("hides the rows below a collapsed commit", () => {
+    const tree = new ResultTree();
+    tree.add([committed(commit(0), "docs", "upgrade.md"), committed(commit(1), "docs", "sizing.md")]);
+    expect(labels(tree, new Set([`commit:${commit(0).sha}`]))).toEqual(["commit 0000000", "commit 1111111", "folder docs", "file sizing.md", "line 0"]);
+  });
+
+  it("drops a commit row once the filter hides every file of the commit", () => {
+    const tree = new ResultTree();
+    tree.add([committed(commit(0), "docs", "upgrade.md"), committed(commit(1), "charts", "Chart.yaml")]);
+    tree.setFilter(new PathFilter({ include: "", exclude: "Chart.yaml" }));
+    expect(labels(tree)).toEqual(["commit 0000000", "folder docs", "file upgrade.md", "line 0"]);
+    expect(tree.commitCount).toBe(1);
   });
 });

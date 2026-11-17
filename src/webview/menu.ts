@@ -1,4 +1,5 @@
 import type { FileResult, ResultLine } from "../messages";
+import type { SearchScope } from "../search/scope";
 import type { MatchReason } from "../search/types";
 import { fileEntry, folderEntry } from "./exclusions";
 
@@ -6,21 +7,30 @@ export type MenuAction =
   | { kind: "search"; query: string }
   | { kind: "exclude"; entry: string }
   | { kind: "copyLine" }
-  | { kind: "copy"; text: string };
+  | { kind: "copy"; text: string }
+  | { kind: "scope"; scope: SearchScope }
+  /** Asks the host for a branch, then searches it. */
+  | { kind: "pickBranch" };
 
 export interface MenuItem {
   label: string;
   action: MenuAction;
+  /** Shown after the label in a dimmer color, such as the number of commits that a scope reads. */
+  description?: string;
+  /** Marks the current choice of a menu that picks one option. */
+  checked?: boolean;
+  /** A disabled item shows, takes no focus and runs nothing. Its description should say why. */
+  disabled?: boolean;
 }
 
-/** The context menu of a match: why it matched, then groups of actions with a separator between them. */
-export interface MatchMenu {
+/** A menu: lines that explain it, then groups of actions with a separator between them. */
+export interface MenuContent {
   reasons: string[];
   groups: MenuItem[][];
 }
 
-/** Lays out the context menu of the matched `line`. `query` holds the text of the search that found it. */
-export function matchMenu(file: FileResult, line: ResultLine, query: string): MatchMenu {
+/** Lays out the context menu of the matched `line`. `query` holds the text of the search that found it. Its reasons say why the line matched. */
+export function matchMenu(file: FileResult, line: ResultLine, query: string): MenuContent {
   const reasons = line.reasons ?? [];
   const groups: MenuItem[][] = [];
   const asWritten = findAsWritten(reasons, query);

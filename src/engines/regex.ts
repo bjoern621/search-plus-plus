@@ -4,6 +4,7 @@ import type { LineMatch, Query } from "../search/types";
 import { ripgrepWalkArgs } from "../search/walk";
 import type { SearchRoot, WorkspaceSearchEngine } from "../search/workspaceEngine";
 import { parseRipgrepEvent, regexErrorMessage } from "./ripgrepJson";
+import { TextBatch } from "./textBatch";
 
 /**
  * Runs a regex query through ripgrep, which compiles it with the syntax of the Rust regex crate.
@@ -40,6 +41,24 @@ export class RegexEngine implements WorkspaceSearchEngine {
       if (root.fsPath === undefined) continue;
       await this.searchRoot(this.rgPath, root, root.fsPath, query.source, signal, onFile);
     }
+  }
+
+  async searchTexts(texts: readonly string[], query: Query, signal: AbortSignal): Promise<LineMatch[][]> {
+    const matches: LineMatch[][] = texts.map(() => []);
+    if (query.kind !== "regex" || !this.rgPath || texts.length === 0) return matches;
+    const batch = new TextBatch(texts);
+    const exit = await runRipgrep(this.rgPath, ["--json", "--no-config", "--case-sensitive", "--regexp", query.source, "-"], {
+      stdin: batch.input,
+      signal,
+      onLine: (line) => {
+        const event = parseRipgrepEvent(line);
+        if (event.kind !== "match") return;
+        const place = batch.locate(event.line);
+        matches[place.text]?.push({ line: place.line, ranges: event.ranges, reasons: [] });
+      },
+    });
+    if (exit.code === 2) this.log(`ripgrep reported errors on texts from Git: ${exit.stderr.trim()}`);
+    return matches;
   }
 
   private async searchRoot(rgPath: string, root: SearchRoot, cwd: string, source: string, signal: AbortSignal, onFile: (root: SearchRoot, relativePath: string, matches: LineMatch[]) => void): Promise<void> {

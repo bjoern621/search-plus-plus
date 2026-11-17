@@ -1,16 +1,19 @@
-import type { FileResult, ResultLine } from "../messages";
+import type { CommitInfo, FileResult, ResultLine } from "../messages";
 import type { PathFilter } from "../search/globs";
 
 export type Row =
+  | { kind: "commit"; key: string; commit: CommitInfo; collapsed: boolean }
   /** `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. */
   | { kind: "folder"; key: string; label: string; folder: string; collapsed: boolean }
   | { kind: "file"; key: string; file: FileResult; collapsed: boolean }
   | { kind: "line"; file: FileResult; line: ResultLine };
 
-export const ROW_HEIGHT_PX: Record<Row["kind"], number> = { folder: 22, file: 22, line: 18 };
+export const ROW_HEIGHT_PX: Record<Row["kind"], number> = { commit: 22, folder: 22, file: 22, line: 18 };
 
 interface FolderGroup {
   key: string;
+  /** Set in the Git history scope, where every folder group belongs to one commit. */
+  commit: CommitInfo | undefined;
   rootIndex: number;
   /** The folder path relative to the workspace folder, split at `/`. */
   segments: string[];
@@ -26,6 +29,7 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "bas
  * Holds the results of one search and lays them out as flat rows.
  * Each folder that holds matched files gets one row with its whole path, so rows need no indentation.
  * Folders follow the folder tree, files their names, lines their numbers.
+ * In the Git history scope, a row per commit heads the folders of that commit, the newest commit first.
  */
 export class ResultTree {
   /** Maps a folder key to its group. */
@@ -46,6 +50,11 @@ export class ResultTree {
     return this.shownFiles().length;
   }
 
+  /** Counts the commits that hold a file that the filter lets pass. Zero outside the Git history scope. */
+  get commitCount(): number {
+    return new Set(this.shownFiles().flatMap((file) => (file.commit ? [file.commit.sha] : []))).size;
+  }
+
   /** Hides the files that `filter` rejects. `undefined` shows every file. */
   setFilter(filter: PathFilter | undefined): void {
     this.filter = filter;
@@ -54,10 +63,11 @@ export class ResultTree {
   /** Adds files to the tree. A file already in it gets replaced. */
   add(results: readonly FileResult[]): void {
     for (const file of results) {
-      const key = `${file.rootIndex}:${file.folder}`;
+      const folderKey = `${file.rootIndex}:${file.folder}`;
+      const key = file.commit ? `${file.commit.sha}:${folderKey}` : folderKey;
       let group = this.groups.get(key);
       if (!group) {
-        group = { key, rootIndex: file.rootIndex, segments: file.folder === "" ? [] : file.folder.split("/"), label: [file.root, file.folder].filter((part) => part !== "").join("/"), files: new Map() };
+        group = { key, commit: file.commit, rootIndex: file.rootIndex, segments: file.folder === "" ? [] : file.folder.split("/"), label: [file.root, file.folder].filter((part) => part !== "").join("/"), files: new Map() };
         this.groups.set(key, group);
       }
       const replaced = group.files.get(file.uri);
@@ -79,12 +89,21 @@ export class ResultTree {
     this.files = 0;
   }
 
-  /** Lays out the rows. `collapsed` holds the keys of collapsed folder and file rows. */
+  /** Lays out the rows. `collapsed` holds the keys of collapsed commit, folder and file rows. */
   rows(collapsed: ReadonlySet<string>): Row[] {
     const rows: Row[] = [];
+    let commitSha: string | undefined;
+    let commitCollapsed = false;
     for (const group of [...this.groups.values()].sort(compareGroups)) {
       const files = [...group.files.values()].filter((file) => this.shows(file));
       if (files.length === 0) continue;
+      if (group.commit && group.commit.sha !== commitSha) {
+        commitSha = group.commit.sha;
+        const key = `commit:${commitSha}`;
+        commitCollapsed = collapsed.has(key);
+        rows.push({ kind: "commit", key, commit: group.commit, collapsed: commitCollapsed });
+      }
+      if (group.commit && commitCollapsed) continue;
       const folderCollapsed = collapsed.has(group.key);
       if (group.label !== "") rows.push({ kind: "folder", key: group.key, label: group.label, folder: group.segments.join("/"), collapsed: folderCollapsed });
       if (folderCollapsed) continue;
@@ -112,8 +131,11 @@ export function relativePath(file: Pick<FileResult, "folder" | "name">): string 
   return file.folder === "" ? file.name : `${file.folder}/${file.name}`;
 }
 
-/** A parent folder sorts before its subfolders, so the rows follow the folder tree. */
+/** Commits keep the order of the log. Inside one, a parent folder sorts before its subfolders, so the rows follow the folder tree. */
 function compareGroups(a: FolderGroup, b: FolderGroup): number {
+  const commitOrder = (a.commit?.index ?? 0) - (b.commit?.index ?? 0);
+  if (commitOrder !== 0) return commitOrder;
+  if (a.commit?.sha !== b.commit?.sha) return (a.commit?.sha ?? "") < (b.commit?.sha ?? "") ? -1 : 1;
   if (a.rootIndex !== b.rootIndex) return a.rootIndex - b.rootIndex;
   const shared = Math.min(a.segments.length, b.segments.length);
   for (let i = 0; i < shared; i++) {
@@ -165,10 +187,19 @@ export function describeLine(line: ResultLine): string {
   return `${line.match ? "match" : "context"} ${line.line + 1}: ${text}`;
 }
 
-/** Builds the summary line, such as "4 results in 4 files". */
-export function resultSummary(matchCount: number, fileCount: number, cappedAt?: number): string {
+/** Builds the summary line, such as "4 results in 4 files". The Git history scope counts commits in place of files: "4 results in 2 commits". */
+export function resultSummary(matchCount: number, fileCount: number, cappedAt?: number, commitCount?: number): string {
   if (matchCount === 0) return "No results.";
-  const files = `${fileCount.toLocaleString("en-US")} ${fileCount === 1 ? "file" : "files"}`;
+  const files = commitCount === undefined ? count(fileCount, "file", "files") : count(commitCount, "commit", "commits");
   if (cappedAt !== undefined) return `Showing the first ${cappedAt.toLocaleString("en-US")} results in ${files}`;
   return `${matchCount.toLocaleString("en-US")} ${matchCount === 1 ? "result" : "results"} in ${files}`;
+}
+
+function count(value: number, one: string, many: string): string {
+  return `${value.toLocaleString("en-US")} ${value === 1 ? one : many}`;
+}
+
+/** Writes the author date as the day it fell on, such as `2026-11-02`. */
+export function commitDay(commit: CommitInfo): string {
+  return commit.date.slice(0, 10);
 }

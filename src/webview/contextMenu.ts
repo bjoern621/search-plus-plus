@@ -1,4 +1,4 @@
-import type { MatchMenu, MenuAction } from "./menu";
+import type { MenuAction, MenuContent, MenuItem } from "./menu";
 
 /** Space between the menu and the edges of the view, as in the mockup. */
 const MENU_LEFT_PX = 36;
@@ -11,7 +11,10 @@ const MENU_RIGHT_PX = 12;
 export class ContextMenu {
   private readonly reasons: HTMLDivElement;
   private readonly list: HTMLDivElement;
-  private items: { element: HTMLDivElement; action: MenuAction }[] = [];
+  /** The items that take focus and run, in the order of the menu. Disabled items stay out. */
+  private items: { element: HTMLDivElement; label: string; action: MenuAction }[] = [];
+  /** Every item as `describe` writes it, disabled ones included. */
+  private descriptions = new Map<HTMLElement, string>();
 
   constructor(
     private readonly element: HTMLDivElement,
@@ -49,18 +52,18 @@ export class ContextMenu {
   }
 
   /** Opens `menu` below `anchor`, or above it when the view ends first, and focuses the first item. */
-  open(menu: MatchMenu, anchor: DOMRect): void {
+  open(menu: MenuContent, anchor: DOMRect): void {
     this.reasons.replaceChildren(...menu.reasons.map((text) => textElement("menu-reason", text)));
     this.reasons.hidden = menu.reasons.length === 0;
     this.items = [];
+    this.descriptions.clear();
     const children: HTMLElement[] = [];
     menu.groups.forEach((group, index) => {
       if (index > 0) children.push(separator());
       for (const item of group) {
-        const element = textElement("menu-item", item.label);
-        element.setAttribute("role", "menuitem");
-        element.tabIndex = -1;
-        this.items.push({ element, action: item.action });
+        const element = itemElement(item);
+        this.descriptions.set(element, describeItem(item));
+        if (!item.disabled) this.items.push({ element, label: item.label, action: item.action });
         children.push(element);
       }
     });
@@ -81,6 +84,7 @@ export class ContextMenu {
     if (!this.isOpen) return;
     this.element.hidden = true;
     this.items = [];
+    this.descriptions.clear();
     if (returnFocus) this.onClose();
   }
 
@@ -88,13 +92,13 @@ export class ContextMenu {
   describe(): string[] {
     if (!this.isOpen) return [];
     const reasons = Array.from(this.reasons.children).map((child) => child.textContent ?? "");
-    const items = Array.from(this.list.children).map((child) => (child.getAttribute("role") === "separator" ? "-" : (child.textContent ?? "")));
+    const items = Array.from(this.list.children).map((child) => (child.getAttribute("role") === "separator" ? "-" : (this.descriptions.get(child as HTMLElement) ?? "")));
     return [...reasons, ...items];
   }
 
-  /** Runs the item labelled `label`. Returns false when the menu holds no such item. For integration tests. */
+  /** Runs the item labelled `label`. Returns false when the menu holds no such item or the item is disabled. For integration tests. */
   chooseLabel(label: string): boolean {
-    const index = this.items.findIndex((item) => item.element.textContent === label);
+    const index = this.items.findIndex((item) => item.label === label);
     if (index < 0) return false;
     this.choose(index);
     return true;
@@ -149,8 +153,39 @@ export class ContextMenu {
   }
 }
 
+/** A check mark column, the label and the dimmer description. */
+function itemElement(item: MenuItem): HTMLDivElement {
+  const element = document.createElement("div");
+  element.className = item.disabled ? "menu-item disabled" : "menu-item";
+  element.tabIndex = -1;
+  if (item.checked === undefined) element.setAttribute("role", "menuitem");
+  else {
+    element.setAttribute("role", "menuitemradio");
+    element.setAttribute("aria-checked", String(item.checked));
+    element.append(spanElement("menu-check", item.checked ? "✓" : ""));
+  }
+  if (item.disabled) element.setAttribute("aria-disabled", "true");
+  element.append(spanElement("menu-label", item.label));
+  if (item.description !== undefined) element.append(spanElement("menu-description", item.description));
+  return element;
+}
+
+/** Writes an item for integration tests, such as `✓ Working tree` or `Git history (Last 200 commits)`, with `[disabled]` behind a disabled one. */
+function describeItem(item: MenuItem): string {
+  const check = item.checked ? "✓ " : "";
+  const description = item.description === undefined ? "" : ` (${item.description})`;
+  return `${check}${item.label}${description}${item.disabled ? " [disabled]" : ""}`;
+}
+
 function textElement(className: string, text: string): HTMLDivElement {
   const element = document.createElement("div");
+  element.className = className;
+  element.textContent = text;
+  return element;
+}
+
+function spanElement(className: string, text: string): HTMLSpanElement {
+  const element = document.createElement("span");
   element.className = className;
   element.textContent = text;
   return element;

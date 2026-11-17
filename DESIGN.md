@@ -271,8 +271,18 @@ A menu at the end of the results summary line picks where the search runs:
 - Another branch
 - Git history
 
+The button names the scope that the search runs in, such as `Branch feature ▾`.
 The branch and history scopes read Git without a checkout.
-The history scope groups results by commit.
+Files to include, files to exclude and the exclusions in the VS Code settings apply in every scope.
+
+- The changed files scope searches the files that differ from the merge base with `main` or `master`, uncommitted and untracked files included.
+- The branch scope lists the branches in a quick pick, the most recent commit first.
+- The history scope searches the lines that the latest commits on HEAD added or changed.
+  `HISTORY_COMMIT_LIMIT` in `src/search/config.ts` sets how many commits it reads.
+- The history scope groups results by commit, the newest first.
+  A commit row shows the short hash, the subject, the author and the day.
+- A result from a branch or a commit opens read-only at the match.
+- Outside a Git repository, the menu shows the Git scopes disabled and says why.
 
 ## Configuration
 

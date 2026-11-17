@@ -56,13 +56,16 @@ function isMatch(row: Row): boolean {
   return row.kind === "line" && row.line.match;
 }
 
-/** Moves the focus from a line to its file row and from a file row to its folder row. */
+/** How deep each kind of row sits in the tree. A row's parent sits one level or more above it. */
+const ROW_DEPTH: Record<Row["kind"], number> = { commit: 0, folder: 1, file: 2, line: 3 };
+
+/** Moves the focus to the nearest row above that sits higher in the tree: from a line to its file, from a file to its folder or commit, from a folder to its commit. */
 function focusParent(rows: readonly Row[], index: number): RowCommand | undefined {
-  const kind = rows[index]?.kind;
-  if (kind === "folder") return undefined;
-  const parentKind = kind === "line" ? "file" : "folder";
+  const row = rows[index];
+  if (!row) return undefined;
   for (let candidate = index - 1; candidate >= 0; candidate--) {
-    if (rows[candidate]?.kind === parentKind) return { kind: "focus", index: candidate };
+    const parent = rows[candidate];
+    if (parent && ROW_DEPTH[parent.kind] < ROW_DEPTH[row.kind]) return { kind: "focus", index: candidate };
   }
   return undefined;
 }

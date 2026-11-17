@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FILE_SIZE_LIMIT_BYTES } from "../../src/search/config";
-import { enabledGlobs, ripgrepWalkArgs } from "../../src/search/walk";
+import { enabledGlobs, ripgrepWalkArgs, WalkExcludes } from "../../src/search/walk";
 
 const defaults = { excludeGlobs: [], useIgnoreFiles: true, useParentIgnoreFiles: false, useGlobalIgnoreFiles: false, followSymlinks: true };
 
@@ -26,5 +26,18 @@ describe("ripgrepWalkArgs", () => {
     const args = ripgrepWalkArgs({ ...defaults, useIgnoreFiles: false });
     expect(args).toContain("--no-ignore");
     expect(args).not.toContain("--no-ignore-parent");
+  });
+});
+
+describe("WalkExcludes", () => {
+  it("excludes a matched folder with everything below it, at the depth that the glob allows", () => {
+    const excludes = new WalkExcludes(["**/vendor", "build/", "/out", "**/*.lock"]);
+    expect(excludes.excludes("vendor/values.yaml")).toBe(true);
+    expect(excludes.excludes("charts/vendor/a/b.yaml")).toBe(true);
+    expect(excludes.excludes("build/values.yaml")).toBe(true);
+    expect(excludes.excludes("charts/build/values.yaml")).toBe(false);
+    expect(excludes.excludes("out/a.js")).toBe(true);
+    expect(excludes.excludes("deps/yarn.lock")).toBe(true);
+    expect(excludes.excludes("charts/apim/values.yaml")).toBe(false);
   });
 });

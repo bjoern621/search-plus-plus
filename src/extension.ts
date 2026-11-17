@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 import { textEngine } from "./engines/text";
 import type { FileFields } from "./search/globs";
+import type { SearchScope } from "./search/scope";
 import { RegexEngine } from "./engines/regex";
+import { REVISION_SCHEME, RevisionDocuments } from "./git/revisionDocuments";
 import { LanguageIndex, languageContributions } from "./search/languages";
 import { EngineRegistry, type StructuralSearchApi } from "./search/registry";
 import { findRipgrep } from "./search/ripgrep";
@@ -25,13 +27,16 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     languages: () => (languages ??= new LanguageIndex(languageContributions(vscode.extensions.all.map((extension) => extension.packageJSON)))),
     log: (message) => log.warn(message),
   });
-  const provider = new SearchViewProvider(context.extensionUri, runner);
+  const documents = new RevisionDocuments(gitPath);
+  const provider = new SearchViewProvider(context.extensionUri, runner, { gitPath, documents, log: (message) => log.warn(message) });
 
   context.subscriptions.push(
     log,
     vscode.extensions.onDidChange(() => (languages = undefined)),
     vscode.window.registerWebviewViewProvider(SearchViewProvider.viewId, provider, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand("structuralSearch.focus", () => provider.focus()),
+    vscode.workspace.registerTextDocumentContentProvider(REVISION_SCHEME, documents),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => void provider.sendGitInfo()),
   );
   if (context.extensionMode === vscode.ExtensionMode.Test) registerTestCommands(context, provider);
 
@@ -41,7 +46,8 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
 /** Commands that integration tests drive the view with. Other modes never register them. */
 function registerTestCommands(context: vscode.ExtensionContext, provider: SearchViewProvider): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand("structuralSearch.test.search", (query: string, fields?: FileFields) => provider.testSearch(query, fields)),
+    vscode.commands.registerCommand("structuralSearch.test.search", (query: string, fields?: FileFields, scope?: SearchScope) => provider.testSearch(query, fields, scope)),
+    vscode.commands.registerCommand("structuralSearch.test.openScopeMenu", () => provider.testOpenScopeMenu()),
     vscode.commands.registerCommand("structuralSearch.test.excludeRow", (index: number) => provider.testExcludeRow(index)),
     vscode.commands.registerCommand("structuralSearch.test.typeFileFields", (fields: FileFields, startsSearch: boolean) => provider.testTypeFileFields(fields, startsSearch)),
     vscode.commands.registerCommand("structuralSearch.test.snapshot", () => provider.testSnapshot()),
@@ -53,6 +59,21 @@ function registerTestCommands(context: vscode.ExtensionContext, provider: Search
     vscode.commands.registerCommand("structuralSearch.test.chooseMenuSearch", (label: string) => provider.testChooseMenuSearch(label)),
     vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
   );
+}
+
+interface GitExtensionApi {
+  getAPI(version: 1): { git: { path: string } };
+}
+
+/** The git binary that the built-in Git extension found, else `git` on the PATH. Activates no extension. */
+function gitPath(): string {
+  const extension = vscode.extensions.getExtension<GitExtensionApi>("vscode.git");
+  if (!extension?.isActive) return "git";
+  try {
+    return extension.exports.getAPI(1).git.path;
+  } catch {
+    return "git";
+  }
 }
 
 export function deactivate(): void {}

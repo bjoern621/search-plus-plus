@@ -54,4 +54,14 @@ describe("rowCommand", () => {
     expect(rowCommand([], -1, press("ArrowDown"))).toBeUndefined();
     expect(rowCommand(rows(), -1, press("Enter"))).toBeUndefined();
   });
+
+  it("moves from a file and from a folder to the commit row above in the Git history scope", () => {
+    const commit = { sha: "a".repeat(40), shortSha: "aaaaaaa", author: "Ada", date: "2026-11-02T14:03:00+01:00", subject: "Raise the gateway", index: 0 };
+    const history: Row[] = [{ kind: "commit", key: `commit:${commit.sha}`, commit, collapsed: false }, { kind: "file", key: "root", file, collapsed: false }, ...rows()];
+    expect(rowCommand(history, 1, press("ArrowLeft"))).toEqual({ kind: "toggle" });
+    expect(rowCommand(history.map((row) => (row.kind === "file" ? { ...row, collapsed: true } : row)), 1, press("ArrowLeft"))).toEqual({ kind: "focus", index: 0 });
+    expect(rowCommand(history, 2, press("ArrowLeft"))).toEqual({ kind: "toggle" });
+    expect(rowCommand(history.map((row) => (row.kind === "folder" ? { ...row, collapsed: true } : row)), 2, press("ArrowLeft"))).toEqual({ kind: "focus", index: 0 });
+    expect(rowCommand(history, 0, press("ArrowLeft"))).toEqual({ kind: "toggle" });
+  });
 });

@@ -3,13 +3,19 @@ import * as vscode from "vscode";
 import type { TestSnapshot } from "../../../src/messages";
 import { type FileFields, NO_FILE_FIELDS } from "../../../src/search/globs";
 import type { StructuralSearchApi } from "../../../src/search/registry";
+import { type SearchScope, WORKING_TREE } from "../../../src/search/scope";
 
 const EXTENSION_ID = "bjoern621.structural-search";
 const EDITOR_WAIT_DURATION_MS = 5_000;
 
-/** Searches with `fields` in files to include and exclude. */
-function search(query: string, fields: FileFields = NO_FILE_FIELDS): Thenable<TestSnapshot> {
-  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.search", query, fields);
+/** Searches `scope` with `fields` in files to include and exclude. */
+function search(query: string, fields: FileFields = NO_FILE_FIELDS, scope: SearchScope = WORKING_TREE): Thenable<TestSnapshot> {
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.search", query, fields, scope);
+}
+
+/** Writes each commit row with `<sha>` in place of its short hash, since the length of a short hash depends on the repository. */
+function withoutShas(rows: string[]): string[] {
+  return rows.map((row) => row.replace(/^commit [0-9a-f]+ /, "commit <sha> "));
 }
 
 /** Searches with what the files to include and exclude fields hold. */
@@ -262,6 +268,102 @@ describe("Structural Search view", () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await vscode.commands.executeCommand("structuralSearch.test.pressKeys", ["Enter"]);
     assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
+  });
+});
+
+describe("Structural Search scopes", () => {
+  const history: SearchScope = { kind: "history" };
+  const feature: SearchScope = { kind: "branch", branch: "feature" };
+
+  after(async () => {
+    await search("4.1.0", NO_FILE_FIELDS, WORKING_TREE);
+  });
+
+  it("offers the Git scopes in the scope menu and marks the current one", async () => {
+    await search("4.1.0");
+    const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.openScopeMenu");
+    assert.deepEqual(snapshot.menu, ["✓ Working tree", "-", "Files changed against main", "Another branch…", "Git history (Last 200 commits)"]);
+    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", ["Escape"]);
+  });
+
+  it("searches the files changed against the default branch, uncommitted changes included", async () => {
+    const snapshot = await search("4.1.0", NO_FILE_FIELDS, { kind: "changed" });
+    assert.equal(snapshot.summary, "2 results in 2 files | Changed against main ▾");
+    assert.deepEqual(
+      snapshot.rows.filter((row) => row.startsWith("file ")),
+      ["file values.yaml", "file upgrade.md"],
+    );
+  });
+
+  it("searches another branch without a checkout and leaves out the excluded folders", async () => {
+    const raised = await search("5.0.0", NO_FILE_FIELDS, feature);
+    assert.equal(raised.summary, "1 result in 1 file | Branch feature ▾");
+    assert.deepEqual(raised.rows, ["folder charts/apim", "file values.yaml", "context 3:     repository: graviteeio/apim-gateway", "match 4:     tag: [5.0.0]", "context 5:   replicas: 2"]);
+
+    const chart = await search("4.1.0", NO_FILE_FIELDS, feature);
+    assert.deepEqual(chart.rows, ["folder charts/apim", "file Chart.yaml", "context 1: name: apim", "match 2: version: [4.1.0]"]);
+  });
+
+  it("picks the branch to search from a quick pick", async () => {
+    await search("5.0.0");
+    await vscode.commands.executeCommand("structuralSearch.test.openScopeMenu");
+    const picked = vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.chooseMenuSearch", "Another branch…");
+    const accepting = setInterval(() => void vscode.commands.executeCommand("workbench.action.acceptSelectedQuickOpenItem"), 200);
+    try {
+      const snapshot = await picked;
+      assert.equal(snapshot.summary, "1 result in 1 file | Branch feature ▾");
+    } finally {
+      clearInterval(accepting);
+    }
+  });
+
+  it("groups the lines that recent commits added under their commits, newest first", async () => {
+    const snapshot = await search("4.1.0", NO_FILE_FIELDS, history);
+    assert.equal(snapshot.summary, "2 results in 2 commits | Git history ▾");
+    assert.deepEqual(withoutShas(snapshot.rows), [
+      "commit <sha> Raise the gateway to 4.1.0 (Ada Lovelace, 2026-11-03)",
+      "folder charts/apim",
+      "file values.yaml",
+      "context 3:     repository: graviteeio/apim-gateway",
+      "match 4:     tag: [4.1.0]",
+      "context 5:   replicas: 2",
+      "commit <sha> Add the gateway chart (Ada Lovelace, 2026-11-01)",
+      "folder charts/apim",
+      "file Chart.yaml",
+      "context 1: name: apim",
+      "match 2: version: [4.1.0]",
+    ]);
+  });
+
+  it("applies files to exclude to the Git history", async () => {
+    const snapshot = await search("4.1.0", { include: "", exclude: "Chart.yaml" }, history);
+    assert.equal(snapshot.summary, "1 result in 1 commit | Git history ▾");
+  });
+
+  it("runs a regex and a key path through the Git history", async () => {
+    const regex = await search("/tag: \\d+\\.\\d+/", NO_FILE_FIELDS, history);
+    assert.deepEqual(
+      regex.rows.filter((row) => row.startsWith("match ")),
+      ["match 4:     [tag: 4.1].0", "match 4:     [tag: 4.0].0"],
+    );
+    const keyPath = await search("gateway.image.tag", NO_FILE_FIELDS, history);
+    assert.deepEqual(
+      keyPath.rows.filter((row) => row.startsWith("match ")),
+      ["match 4:     [tag]: 4.1.0", "match 4:     [tag]: 4.0.0"],
+    );
+  });
+
+  it("opens a match of the Git history in a read-only editor at the match", async () => {
+    const snapshot = await search("4.0.0", NO_FILE_FIELDS, history);
+    const index = snapshot.rows.indexOf("match 4:     tag: [4.0.0]");
+    assert.notEqual(index, -1, snapshot.rows.join("\n"));
+
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    await vscode.commands.executeCommand("structuralSearch.test.clickRow", index);
+    assert.deepEqual(await settledSelection("charts/apim/values.yaml", [3, 9, 3, 14]), [3, 9, 3, 14]);
+    const editor = vscode.window.visibleTextEditors.find((candidate) => candidate.document.uri.path.endsWith("charts/apim/values.yaml"));
+    assert.equal(editor?.document.uri.scheme, "structural-search-git");
+    assert.equal(editor?.document.lineAt(3).text, "    tag: 4.0.0");
   });
 });
 

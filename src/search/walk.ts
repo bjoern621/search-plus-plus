@@ -1,4 +1,5 @@
 import { FILE_SIZE_LIMIT_BYTES } from "./config";
+import { globToRegExp } from "./globs";
 
 /** The settings of one workspace folder that decide which files a search reads. */
 export interface WalkSettings {
@@ -45,4 +46,24 @@ export function ripgrepWalkArgs(settings: WalkSettings): string[] {
 function anchorGlob(glob: string): string {
   const trimmed = glob.replace(/[/\\]+$/, "");
   return trimmed.startsWith("**") || trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Tests a path from a Git listing against the exclude globs of a folder, as ripgrep tests them during its walk.
+ * A glob that matches a folder excludes everything below it.
+ * Paths are relative to the workspace folder, with `/` as separator.
+ */
+export class WalkExcludes {
+  private readonly globs: RegExp[];
+
+  constructor(excludeGlobs: readonly string[]) {
+    this.globs = excludeGlobs.flatMap((glob) => {
+      const trimmed = glob.replace(/[/\\]+$/, "").replace(/^\/+/, "");
+      return trimmed === "" ? [] : [globToRegExp(trimmed), globToRegExp(`${trimmed}/**`)];
+    });
+  }
+
+  excludes(relativePath: string): boolean {
+    return this.globs.some((glob) => glob.test(relativePath));
+  }
 }

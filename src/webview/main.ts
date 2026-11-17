@@ -1,6 +1,7 @@
 import type { FileResult, HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
+import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
 import { ContextMenu } from "./contextMenu";
 import { HoverCard } from "./hoverCard";
@@ -8,12 +9,14 @@ import { type KeyPress, rowCommand } from "./keyboard";
 import { matchMenu, type MenuAction } from "./menu";
 import { fileIcon } from "./icons";
 import { QueryHighlight, renderHint } from "./queryInput";
-import { describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
+import { scopeLabel, scopeMenu } from "./scopeMenu";
+import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 
 interface ViewState extends FileFields {
   query: string;
   history: string[];
   fileFieldsOpen: boolean;
+  scope: SearchScope;
 }
 
 declare function acquireVsCodeApi(): {
@@ -57,8 +60,10 @@ let layoutStale = false;
 let frame = 0;
 /** The hint of the host that stopped the last search. It replaces the hint on the typed query until the text changes. */
 let blockedHint: Hint | undefined;
-/** The query and fields of the last search, so a change of the fields can repeat it. */
-let searched: ({ query: string } & FileFields) | undefined;
+/** The query, fields and scope of the last search, so a change of the fields or the scope can repeat it. */
+let searched: ({ query: string; scope: SearchScope } & FileFields) | undefined;
+/** What the host found out about Git. Undefined until it answers. */
+let git: GitInfo | undefined;
 let fileFieldsTimer = 0;
 /** Index of the row that holds the keyboard focus inside the results, -1 without one. */
 let focusedIndex = -1;
@@ -69,13 +74,14 @@ let menuScrollTop = 0;
 /** The scroll position at which the hover card got its match. */
 let hoverScrollTop = 0;
 
-const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, ...vscode.getState() };
+const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, scope: WORKING_TREE, ...vscode.getState() };
 includeInput.value = state.include;
 excludeInput.value = state.exclude;
 /** Position in the history while Up and Down walk it. `history.length` stands for the text being typed. */
 let historyIndex = state.history.length;
 setQuery(state.query);
 setFileFieldsOpen(state.fileFieldsOpen);
+renderSummary();
 
 input.addEventListener("keydown", (event) => {
   switch (event.key) {
@@ -97,6 +103,8 @@ input.addEventListener("input", () => {
 });
 
 detailsButton.addEventListener("click", () => setFileFieldsOpen(fileFieldsElement.hidden));
+
+scope.addEventListener("click", () => openScopeMenu());
 
 for (const field of [includeInput, excludeInput]) {
   field.addEventListener("keydown", (event) => {
@@ -171,6 +179,13 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       input.focus();
       input.select();
       return;
+    case "git":
+      git = message.git;
+      renderSummary();
+      return;
+    case "branchPicked":
+      chooseScope({ kind: "branch", branch: message.branch });
+      return;
     case "searchStarted":
       startSearch(message.searchId);
       return;
@@ -195,11 +210,15 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       return;
     case "testSearch":
       if (message.fields) setFileFields(message.fields);
+      if (message.scope) setScope(message.scope);
       setQuery(message.query);
       submit();
       return;
     case "testSnapshot":
       vscode.postMessage({ type: "testSnapshot", snapshot: snapshot() });
+      return;
+    case "testOpenScopeMenu":
+      scope.click();
       return;
     case "testClickRow":
       clickRow(message.index);
@@ -242,8 +261,8 @@ function submit(): void {
 function searchWithFields(query: string): void {
   window.clearTimeout(fileFieldsTimer);
   const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
-  searched = { query, ...fields };
-  vscode.postMessage({ type: "search", query, ...fields });
+  searched = { query, scope: state.scope, ...fields };
+  vscode.postMessage({ type: "search", query, scope: state.scope, ...fields });
 }
 
 /**
@@ -276,6 +295,18 @@ function setFileFields(fields: FileFields): void {
   includeInput.value = fields.include;
   excludeInput.value = fields.exclude;
   saveState();
+}
+
+/** Sets the scope of later searches and repeats the last search in it. */
+function chooseScope(next: SearchScope): void {
+  setScope(next);
+  if (searched) searchWithFields(searched.query);
+}
+
+function setScope(next: SearchScope): void {
+  state.scope = next;
+  saveState();
+  renderSummary();
 }
 
 function setFileFieldsOpen(open: boolean): void {
@@ -359,11 +390,18 @@ function layout(): void {
   renderSummary();
 }
 
+/**
+ * Shows the counts and the scope button.
+ * A scope other than the working tree shows in color and keeps the line in view without results, so a Git search never passes for a working tree search.
+ */
 function renderSummary(): void {
   const text = summaryFor();
-  summary.hidden = text === undefined;
+  const otherScope = state.scope.kind !== "workingTree";
+  summary.hidden = text === undefined && !otherScope;
   summaryText.textContent = text ?? "";
   scope.hidden = status === "noFolder";
+  scope.textContent = `${scopeLabel(state.scope, git)} ▾`;
+  scope.classList.toggle("other", otherScope);
 }
 
 function summaryFor(): string | undefined {
@@ -374,13 +412,20 @@ function summaryFor(): string | undefined {
       return undefined;
     case "noFolder":
       return "Open a folder to search it.";
+    case "noRepository":
+      return "No Git repository holds this workspace. Pick Working tree to search its files.";
     case "running":
-      return tree.matchCount === 0 ? undefined : resultSummary(tree.matchCount, tree.fileCount);
+      return tree.matchCount === 0 ? undefined : resultSummary(tree.matchCount, tree.fileCount, undefined, shownCommitCount());
     case "complete":
-      return resultSummary(tree.matchCount, tree.fileCount);
+      return resultSummary(tree.matchCount, tree.fileCount, undefined, shownCommitCount());
     case "capped":
-      return resultSummary(tree.matchCount, tree.fileCount, cappedAt);
+      return resultSummary(tree.matchCount, tree.fileCount, cappedAt, shownCommitCount());
   }
+}
+
+/** The number of commits for the summary of a history search. Undefined in any other scope. */
+function shownCommitCount(): number | undefined {
+  return searched?.scope.kind === "history" ? tree.commitCount : undefined;
 }
 
 /** Renders the rows in view. The others stay out of the page, so thousands of results scroll smoothly. */
@@ -405,6 +450,12 @@ function rowElement(row: Row, index: number): HTMLElement {
   element.style.top = `${offsets[index] ?? 0}px`;
   element.setAttribute("role", "treeitem");
   switch (row.kind) {
+    case "commit":
+      element.className = "row commit";
+      element.setAttribute("aria-expanded", String(!row.collapsed));
+      element.title = `${row.commit.sha}\n${row.commit.author}, ${row.commit.date}\n${row.commit.subject}`;
+      element.append(span("twisty", row.collapsed ? "▶" : "▼"), span("sha", row.commit.shortSha), span("label", row.commit.subject), span("commit-meta", `${row.commit.author}, ${commitDay(row.commit)}`));
+      return element;
     case "folder":
       element.className = "row";
       element.setAttribute("aria-expanded", String(!row.collapsed));
@@ -517,8 +568,22 @@ function openMenu(index: number): boolean {
   return true;
 }
 
+/** Opens the scope menu below the scope button. */
+function openScopeMenu(): void {
+  menuRow = undefined;
+  menuScrollTop = results.scrollTop;
+  hoverCard.hide();
+  contextMenu.open(scopeMenu(state.scope, git), scope.getBoundingClientRect());
+}
+
 function runMenuAction(action: MenuAction): void {
   switch (action.kind) {
+    case "scope":
+      chooseScope(action.scope);
+      return;
+    case "pickBranch":
+      vscode.postMessage({ type: "pickBranch" });
+      return;
     case "search":
       setQuery(action.query);
       submit();
@@ -544,9 +609,10 @@ function pressKey(key: string): void {
   target.dispatchEvent(new KeyboardEvent("keydown", { key: shiftKey ? key.slice("Shift+".length) : key, shiftKey, bubbles: true, cancelable: true }));
 }
 
-/** A line opens its file at the match. A folder or file row collapses or expands. */
+/** A line opens its file at the match. A commit, folder or file row collapses or expands. */
 function activate(row: Row, preserveFocus: boolean): void {
   switch (row.kind) {
+    case "commit":
     case "folder":
     case "file":
       if (collapsed.has(row.key)) collapsed.delete(row.key);
@@ -575,6 +641,8 @@ function snapshot(): TestSnapshot {
 
 function describeRow(row: Row): string {
   switch (row.kind) {
+    case "commit":
+      return `commit ${row.commit.shortSha} ${row.commit.subject} (${row.commit.author}, ${commitDay(row.commit)})`;
     case "folder":
       return `folder ${row.label}`;
     case "file":

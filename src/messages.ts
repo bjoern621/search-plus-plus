@@ -1,5 +1,6 @@
 import type { Hint } from "./query/types";
 import type { FileFields } from "./search/globs";
+import type { GitInfo, SearchScope } from "./search/scope";
 import type { MatchReason, Range } from "./search/types";
 
 export interface ResultLine {
@@ -18,6 +19,17 @@ export interface ResultLine {
   keyPath?: string[];
 }
 
+export interface CommitInfo {
+  sha: string;
+  shortSha: string;
+  author: string;
+  /** The author date in ISO 8601, such as `2026-11-02T14:03:00+01:00`. */
+  date: string;
+  subject: string;
+  /** Position in the log of its repository, 0 for the newest commit. */
+  index: number;
+}
+
 export interface FileResult {
   uri: string;
   /** Position of the workspace folder, so roots keep the order of the workspace. */
@@ -31,14 +43,17 @@ export interface FileResult {
   matchCount: number;
   /** Runs of consecutive lines in ascending order. Context of close matches shares one block. */
   blocks: ResultLine[][];
+  /** The commit that changed the file. Set in the Git history scope alone. */
+  commit?: CommitInfo;
 }
 
 /**
  * How a search ended.
  * `capped`: the search stopped at `limit` matched lines.
  * `blocked`: the query ran no search, and a hint says why.
+ * `noRepository`: the scope reads Git, and no workspace folder lies in a Git repository.
  */
-export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFolder";
+export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFolder" | "noRepository";
 
 export interface TestSnapshot {
   summary: string;
@@ -56,7 +71,9 @@ export interface TestSnapshot {
 
 export type ViewMessage =
   | { type: "ready" }
-  | ({ type: "search"; query: string } & FileFields)
+  | ({ type: "search"; query: string; scope: SearchScope } & FileFields)
+  /** Asks for a branch to search. The host answers with `branchPicked` unless the person cancels. */
+  | { type: "pickBranch" }
   | { type: "open"; uri: string; line: number; range?: Range; preserveFocus: boolean }
   | { type: "copy"; text: string }
   /** Copies the whole line, since the view holds an excerpt of a long line. */
@@ -67,6 +84,8 @@ export type ViewMessage =
 
 export type HostMessage =
   | { type: "focus" }
+  | { type: "git"; git: GitInfo }
+  | { type: "branchPicked"; branch: string }
   | { type: "searchStarted"; searchId: number }
   | { type: "results"; searchId: number; files: FileResult[] }
   | { type: "hint"; searchId: number; hint: Hint }
@@ -74,7 +93,8 @@ export type HostMessage =
   /** Answers the excerpt request `requestId`. Empty when the file cannot be read. */
   | { type: "excerpt"; requestId: number; lines: ResultLine[] }
   /** Fields left out keep what the view holds. */
-  | { type: "testSearch"; query: string; fields?: FileFields }
+  | { type: "testSearch"; query: string; fields?: FileFields; scope?: SearchScope }
+  | { type: "testOpenScopeMenu" }
   | { type: "testSnapshot" }
   | { type: "testClickRow"; index: number }
   | { type: "testClickHint" }

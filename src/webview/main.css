@@ -220,6 +220,11 @@ body {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
+/* A scope other than the working tree shows in color, so a Git search never passes for a working tree search. */
+.scope.other {
+  color: var(--vscode-charts-orange, var(--vscode-editorWarning-foreground));
+}
+
 .results {
   flex: 1;
   min-height: 0;
@@ -283,6 +288,27 @@ body {
 .label {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.commit .sha {
+  flex: none;
+  margin-right: 6px;
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-textLink-foreground);
+}
+
+.commit .label {
+  flex: 0 1 auto;
+}
+
+.commit-meta {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vscode-descriptionForeground);
 }
 
 /* The exclude button shows while the pointer rests on its row, as in the built-in Search view. */
@@ -378,6 +404,37 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.menu-item {
+  display: flex;
+  gap: 6px;
+}
+
+.menu-check {
+  flex: none;
+  width: 12px;
+}
+
+/* In a narrow view, the description gives up its width before the label does. */
+.menu-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-description {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.menu-item.disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .menu-item:focus {
