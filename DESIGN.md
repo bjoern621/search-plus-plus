@@ -105,6 +105,7 @@ Every search covers the files that the ignore files and the exclude settings of 
 - A fuzzy match looks like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
+- Clicking any line of a block opens the file at its match, with the matched text selected.
 
 ### Context menu
 

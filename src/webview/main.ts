@@ -1,4 +1,4 @@
-import type { HostMessage, ResultLine, ResultsLayout, SearchStatus, ViewMessage, ViewSettings } from "../messages";
+import type { FileResult, HostMessage, ResultLine, ResultsLayout, SearchStatus, ViewMessage, ViewSettings } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
@@ -10,7 +10,7 @@ import { QueryHighlight, renderHint } from "./queryInput";
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 import { keyPathElement, shownKeys } from "./keyPath";
 import { fitPaths, folderCuts, pathElement } from "./fitPaths";
-import { blockAround, blockDedents, cutToMatch, dedent } from "./codeLines";
+import { blockAround, blockDedents, cutToMatch, dedent, targetLine } from "./codeLines";
 
 interface ViewState extends FileFields {
   query: string;
@@ -689,9 +689,13 @@ function activate(row: Row, preserveFocus: boolean): void {
       invalidateLayout();
       return;
     case "line":
-      vscode.postMessage({ type: "open", uri: row.file.uri, line: row.line.line, range: row.line.ranges[0], preserveFocus });
+      openLine(row.file, targetLine(row.file, row.line), preserveFocus);
       return;
   }
+}
+
+function openLine(file: FileResult, line: ResultLine, preserveFocus: boolean): void {
+  vscode.postMessage({ type: "open", uri: file.uri, line: line.line, range: line.ranges[0], preserveFocus });
 }
 
 /** Picks the platform as the VS Code renderer does, which decides the default fonts of the editor. */

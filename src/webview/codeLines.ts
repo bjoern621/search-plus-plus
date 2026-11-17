@@ -1,4 +1,4 @@
-import type { ResultLine } from "../messages";
+import type { FileResult, ResultLine } from "../messages";
 import type { Row } from "./tree";
 
 /** Columns from one tab stop to the next, as `tab-size` on `.line` in main.css. */
@@ -21,6 +21,16 @@ export function indentColumns(line: ResultLine): number | undefined {
  * A block runs over the rows of one result block, meaning a match with its context, blank lines that take no row left out.
  * Every line of a block loses the same columns, so the lines keep their indentation relative to each other.
  */
+/**
+ * Finds the line that a click on `line` opens: the line itself when it matched, else the first matched line of its block.
+ * A context line outside every block, or in a block without a match, opens itself.
+ */
+export function targetLine(file: FileResult, line: ResultLine): ResultLine {
+  if (line.match) return line;
+  const block = file.blocks.find((lines) => lines.includes(line));
+  return block?.find((other) => other.match) ?? line;
+}
+
 /** Finds the first and the last row of the result block that holds the code line at `index`. */
 export function blockAround(rows: readonly Row[], index: number): { first: number; last: number } {
   const row = rows[index];
