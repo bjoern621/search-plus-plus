@@ -56,6 +56,10 @@ export class HoverCard {
     const lines = mergeExcerpt(excerpt, file);
     const hit = lines.findIndex((excerptLine) => excerptLine.line === line);
     if (!row || hit === -1) return;
+    // The card spans the rows, so it ends where the scrollbar of the results starts.
+    const rowBox = row.getBoundingClientRect();
+    this.element.style.left = `${rowBox.left}px`;
+    this.element.style.right = `${document.documentElement.clientWidth - rowBox.right}px`;
     const elements = lines.map((excerptLine) => lineElement(excerptLine, excerptLine.line === line));
     const header = document.createElement("div");
     header.className = "hover-file";
@@ -81,7 +85,6 @@ export class HoverCard {
     this.element.style.setProperty("--line-number-width", `max(${rowNumberWidth}, ${String((lines.at(-1)?.line ?? 0) + 1).length}ch)`);
     this.element.style.top = "0px";
 
-    const rowBox = row.getBoundingClientRect();
     const hitElement = elements[hit] as HTMLElement;
     const lineHeight = hitElement.offsetHeight;
     let aboveHit = hitElement.getBoundingClientRect().top - this.element.getBoundingClientRect().top;
@@ -120,15 +123,19 @@ export class HoverCard {
     const line = this.element.querySelector(".hover-line.hovered");
     if (this.element.hidden || !row || !line) return undefined;
     const card = this.element.getBoundingClientRect();
+    const rowBox = row.getBoundingClientRect();
     const textLeft = (element: Element) => element.querySelector(".text")?.getBoundingClientRect().left ?? Number.NaN;
     return {
-      rowTop: row.getBoundingClientRect().top,
+      rowTop: rowBox.top,
+      rowRight: rowBox.right,
       lineTop: line.getBoundingClientRect().top,
       rowTextLeft: textLeft(row),
       lineTextLeft: textLeft(line),
       cardTop: card.top,
       cardBottom: card.bottom,
+      cardRight: card.right,
       viewHeight: window.innerHeight,
+      viewWidth: document.documentElement.clientWidth,
       headerKeyPathCut: hiddenWidth(this.element.querySelector(".hover-key-path")),
       headerFolderCut: hiddenWidth(this.element.querySelector(".hover-folder")),
     };

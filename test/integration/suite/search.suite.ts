@@ -333,6 +333,19 @@ describe("Structural Search view", () => {
     assert.ok(box.cardTop >= 0 && box.cardBottom <= box.viewHeight, JSON.stringify(box));
   });
 
+  it("ends the hover card where the scrollbar of the results starts, the hovered line still over its row", async () => {
+    // The lines of docs/changelog.md make the results outgrow any view, so the results show a scrollbar.
+    const snapshot = await search("Entry");
+    await vscode.commands.executeCommand("structuralSearch.test.hover", snapshot.rows.findIndex((row) => row.startsWith("match 3:")));
+    await shownHover();
+    const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
+    assert.ok(box, "no hover card");
+    assert.ok(box.rowRight < box.viewWidth, JSON.stringify(box));
+    assert.ok(Math.abs(box.cardRight - box.rowRight) <= 1, JSON.stringify(box));
+    assert.ok(Math.abs(box.lineTop - box.rowTop) <= 1, JSON.stringify(box));
+    assert.ok(Math.abs(box.lineTextLeft - box.rowTextLeft) <= 1, JSON.stringify(box));
+  });
+
   it("draws code lines in the font size and the height of the file rows, whatever the editor font size", async () => {
     const editor = () => vscode.workspace.getConfiguration("editor");
     await editor().update("fontSize", 30, vscode.ConfigurationTarget.Global);

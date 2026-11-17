@@ -136,12 +136,15 @@ export interface RowMetrics {
 /** Positions in pixels from the top left corner of the view. */
 export interface HoverGeometry {
   rowTop: number;
+  rowRight: number;
   lineTop: number;
   rowTextLeft: number;
   lineTextLeft: number;
   cardTop: number;
   cardBottom: number;
+  cardRight: number;
   viewHeight: number;
+  viewWidth: number;
   /** The width of the key path in the card header that its end cut hides, 0 for a header without one. */
   headerKeyPathCut: number;
   /** The width of the folder in the card header that its start cut hides. */

@@ -104,7 +104,7 @@ Below them come the quick actions:
 - The view sits in the side bar.
   A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree.
 - The view renders in a webview, which draws the inputs and the dimmed context lines.
-  Its hover card stays inside the view, as wide as the side bar.
+  Its hover card stays inside the view, as wide as the side bar minus the scrollbar of the results.
 - The view follows the color theme of VS Code.
   Rows, inputs, menus and the hover card take the theme colors of their counterparts in the explorer, the Search view and the editor.
   High contrast themes draw hover and selection as outlines.
