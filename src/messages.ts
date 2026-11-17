@@ -105,6 +105,8 @@ export interface TestSnapshot {
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
   menu: string[];
+  /** The label of the focused item of the context menu, empty while no item holds the focus. */
+  menuFocus: string;
   /** The file and the lines of the hover card, as the rows describe them. Empty while no card shows. */
   hover: string[];
   /** Where the hovered line of the card sits against its row. Undefined while no card shows. */

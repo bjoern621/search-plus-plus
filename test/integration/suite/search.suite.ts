@@ -202,6 +202,7 @@ describe("Structural Search view", () => {
     const keys = Array.from({ length: index + 1 }, () => "ArrowDown");
     const open = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", [...keys, "Shift+F10"]);
     assert.deepEqual(open.menu, ["Exclude values.yaml", "Exclude folder charts/apim", "-", "Copy line"]);
+    assert.equal(open.menuFocus, "Exclude values.yaml");
     const closed = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["Escape"]);
     assert.deepEqual(closed.menu, []);
     assert.equal(closed.focused, index);
@@ -220,6 +221,15 @@ describe("Structural Search view", () => {
     await vscode.env.clipboard.writeText("");
     await chooseMenuItem("Copy line");
     assert.equal(await changedClipboard(""), "    tag: 4.1.0");
+  });
+
+  it("highlights no item of a context menu opened with the pointer until Down moves to one", async () => {
+    const before = await search("4.1.0");
+    const open = await openMenu(before.rows, "match 4:     tag: [4.1.0]");
+    assert.equal(open.menuFocus, "");
+    const moved = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown"]);
+    assert.equal(moved.menuFocus, "Exclude values.yaml");
+    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", ["Escape"]);
   });
 
   it("excludes the folder of a match from the context menu", async () => {

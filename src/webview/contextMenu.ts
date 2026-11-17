@@ -27,6 +27,7 @@ export class ContextMenu {
     this.list = document.createElement("div");
     this.list.className = "menu-items";
     this.list.setAttribute("role", "menu");
+    this.list.tabIndex = -1;
     this.list.setAttribute("aria-describedby", this.reasons.id);
     element.append(this.reasons, this.list);
     element.hidden = true;
@@ -51,8 +52,12 @@ export class ContextMenu {
     return !this.element.hidden;
   }
 
-  /** Opens `menu` below `anchor`, or above it when the view ends first, and focuses the first item. */
-  open(menu: MenuContent, anchor: DOMRect): void {
+  /**
+   * Opens `menu` below `anchor`, or above it when the view ends first.
+   * A menu opened from the keyboard focuses its first item, as the menus of VS Code do.
+   * A menu opened with the pointer highlights no item until the pointer or a key moves to one.
+   */
+  open(menu: MenuContent, anchor: DOMRect, fromKeyboard: boolean): void {
     this.reasons.replaceChildren(...menu.reasons.map((text) => textElement("menu-reason", text)));
     this.reasons.hidden = menu.reasons.length === 0;
     this.items = [];
@@ -76,7 +81,8 @@ export class ContextMenu {
     const height = this.element.offsetHeight;
     const below = anchor.bottom + height <= window.innerHeight;
     this.element.style.top = `${below ? anchor.bottom : Math.max(0, anchor.top - height)}px`;
-    this.items[0]?.element.focus();
+    if (fromKeyboard && this.items[0]) this.items[0].element.focus();
+    else this.list.focus();
   }
 
   /** Hides the menu. With `returnFocus`, the results take the focus back. */
@@ -94,6 +100,11 @@ export class ContextMenu {
     const reasons = Array.from(this.reasons.children).map((child) => child.textContent ?? "");
     const items = Array.from(this.list.children).map((child) => (child.getAttribute("role") === "separator" ? "-" : (this.descriptions.get(child as HTMLElement) ?? "")));
     return [...reasons, ...items];
+  }
+
+  /** Returns the label of the focused item, empty while the menu shows none. For integration tests. */
+  focusedLabel(): string {
+    return this.items.find((item) => item.element === document.activeElement)?.label ?? "";
   }
 
   /** Runs the item labelled `label`. Returns false when the menu holds no such item or the item is disabled. For integration tests. */

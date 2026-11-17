@@ -494,6 +494,10 @@ body {
   box-shadow: 0 2px 8px var(--vscode-widget-shadow);
 }
 
+.menu-items:focus {
+  outline: none;
+}
+
 .menu-reasons {
   padding: 2px 12px 4px;
   color: var(--vscode-descriptionForeground);

@@ -106,7 +106,8 @@ input.addEventListener("input", () => {
 
 detailsButton.addEventListener("click", () => setFileFieldsOpen(fileFieldsElement.hidden));
 
-scope.addEventListener("click", () => openScopeMenu());
+// A click from Enter or Space on the button counts no presses.
+scope.addEventListener("click", (event) => openScopeMenu(event.detail === 0));
 
 for (const field of [includeInput, excludeInput]) {
   field.addEventListener("keydown", (event) => {
@@ -139,7 +140,7 @@ rowsElement.addEventListener("dblclick", (event) => {
 });
 
 rowsElement.addEventListener("contextmenu", (event) => {
-  if (openMenu(rowIndexFromEvent(event))) event.preventDefault();
+  if (openMenu(rowIndexFromEvent(event), false)) event.preventDefault();
 });
 
 rowsElement.addEventListener("mouseover", (event) => {
@@ -542,7 +543,7 @@ function handleRowKey(press: KeyPress): boolean {
       if (row) activate(row, true);
       return true;
     case "menu":
-      openMenu(focusedIndex);
+      openMenu(focusedIndex, true);
       return true;
   }
 }
@@ -565,7 +566,7 @@ function scrollRowIntoView(index: number): void {
 }
 
 /** Opens the context menu of the matched line at `index`. Returns false for any other row. */
-function openMenu(index: number): boolean {
+function openMenu(index: number, fromKeyboard: boolean): boolean {
   const row = rows[index];
   if (row?.kind !== "line" || !row.line.match) return false;
   focusRow(index);
@@ -574,16 +575,16 @@ function openMenu(index: number): boolean {
   menuRow = row;
   menuScrollTop = results.scrollTop;
   hoverCard.hide();
-  contextMenu.open(matchMenu(row.file, row.line, searched?.query ?? input.value), element.getBoundingClientRect());
+  contextMenu.open(matchMenu(row.file, row.line, searched?.query ?? input.value), element.getBoundingClientRect(), fromKeyboard);
   return true;
 }
 
 /** Opens the scope menu below the scope button. */
-function openScopeMenu(): void {
+function openScopeMenu(fromKeyboard: boolean): void {
   menuRow = undefined;
   menuScrollTop = results.scrollTop;
   hoverCard.hide();
-  contextMenu.open(scopeMenu(state.scope, git), scope.getBoundingClientRect());
+  contextMenu.open(scopeMenu(state.scope, git), scope.getBoundingClientRect(), fromKeyboard);
 }
 
 function runMenuAction(action: MenuAction): void {
@@ -648,6 +649,7 @@ function snapshot(): TestSnapshot {
     keyPaths: rows.map((row) => (row.kind === "line" ? (shownKeyPath(row.line) ?? "") : "")),
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
+    menuFocus: contextMenu.focusedLabel(),
     hover: hoverCard.describe(),
     hoverGeometry: hoverCard.geometry(),
     fileRowMetrics: rowMetrics("file"),
