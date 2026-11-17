@@ -463,10 +463,11 @@ button {
 
 /*
  * Hover and selection draw one rounded outline around a group of rows and fill none of them.
- * The selection outline takes the focus color of the workbench lists, dimmed while the results lack the focus. The hover outline takes it fainter still.
+ * The selection outline takes the focus border color of the workbench, dimmed while the results lack the focus. The hover outline takes it fainter still.
+ * The list focus outline stays unused, since a theme that sets it to transparent would hide the outline.
  */
 .group-outline {
-  --outline-color: var(--vscode-list-focusOutline, var(--vscode-focusBorder));
+  --outline-color: var(--vscode-focusBorder);
   position: absolute;
   left: 2px;
   right: 2px;
