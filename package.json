@@ -1,130 +1,133 @@
 {
-  "name": "structural-search",
-  "displayName": "Structural Search",
-  "description": "Search by key paths in YAML, JSON and TOML, with typo and umlaut matching by default.",
-  "version": "0.0.1",
-  "publisher": "bjoern621",
-  "license": "MIT",
-  "private": true,
-  "engines": {
-    "vscode": "^1.100.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "main": "./dist/extension.js",
-  "activationEvents": [],
-  "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "structuralSearch",
-          "title": "Structural Search",
-          "icon": "media/search.svg"
-        }
-      ]
+    "name": "structural-search",
+    "displayName": "Structural Search",
+    "description": "Search by key paths in YAML, JSON and TOML, with typo and umlaut matching by default.",
+    "version": "0.0.1",
+    "publisher": "bjoern621",
+    "license": "MIT",
+    "private": true,
+    "engines": {
+        "vscode": "^1.100.0"
     },
-    "views": {
-      "structuralSearch": [
-        {
-          "type": "webview",
-          "id": "structuralSearch.view",
-          "name": "Structural Search"
-        }
-      ]
-    },
-    "commands": [
-      {
-        "command": "structuralSearch.focus",
-        "title": "Structural Search: Focus Search"
-      },
-      {
-        "command": "structuralSearch.viewAsTree",
-        "title": "View as Tree",
-        "category": "Structural Search",
-        "enablement": "structuralSearch.resultsLayout != tree"
-      },
-      {
-        "command": "structuralSearch.viewAsList",
-        "title": "View as List",
-        "category": "Structural Search",
-        "enablement": "structuralSearch.resultsLayout != list"
-      },
-      {
-        "command": "structuralSearch.viewAsPaths",
-        "title": "View as Paths",
-        "category": "Structural Search",
-        "enablement": "structuralSearch.resultsLayout != path"
-      }
+    "categories": [
+        "Other"
     ],
-    "submenus": [
-      {
-        "id": "structuralSearch.viewAs",
-        "label": "View As",
-        "icon": "$(list-flat)"
-      }
-    ],
-    "menus": {
-      "view/title": [
-        {
-          "submenu": "structuralSearch.viewAs",
-          "when": "view == structuralSearch.view",
-          "group": "navigation"
-        }
-      ],
-      "structuralSearch.viewAs": [
-        {
-          "command": "structuralSearch.viewAsTree",
-          "group": "navigation@1"
+    "main": "./dist/extension.js",
+    "activationEvents": [],
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "structuralSearch",
+                    "title": "Structural Search",
+                    "icon": "media/search.svg"
+                }
+            ]
         },
-        {
-          "command": "structuralSearch.viewAsList",
-          "group": "navigation@2"
+        "views": {
+            "structuralSearch": [
+                {
+                    "type": "webview",
+                    "id": "structuralSearch.view",
+                    "name": "Structural Search"
+                }
+            ]
         },
-        {
-          "command": "structuralSearch.viewAsPaths",
-          "group": "navigation@3"
+        "commands": [
+            {
+                "command": "structuralSearch.focus",
+                "title": "Structural Search: Focus Search"
+            },
+            {
+                "command": "structuralSearch.viewAsTree",
+                "title": "View as Tree",
+                "category": "Structural Search",
+                "enablement": "structuralSearch.resultsLayout != tree"
+            },
+            {
+                "command": "structuralSearch.viewAsList",
+                "title": "View as List",
+                "category": "Structural Search",
+                "enablement": "structuralSearch.resultsLayout != list"
+            },
+            {
+                "command": "structuralSearch.viewAsPaths",
+                "title": "View as Paths",
+                "category": "Structural Search",
+                "enablement": "structuralSearch.resultsLayout != path"
+            }
+        ],
+        "submenus": [
+            {
+                "id": "structuralSearch.viewAs",
+                "label": "View As",
+                "icon": "$(list-flat)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "submenu": "structuralSearch.viewAs",
+                    "when": "view == structuralSearch.view",
+                    "group": "navigation"
+                }
+            ],
+            "structuralSearch.viewAs": [
+                {
+                    "command": "structuralSearch.viewAsTree",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "structuralSearch.viewAsList",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "structuralSearch.viewAsPaths",
+                    "group": "navigation@3"
+                }
+            ]
+        },
+        "keybindings": [
+            {
+                "command": "structuralSearch.focus",
+                "key": "ctrl+shift+f",
+                "mac": "cmd+shift+f"
+            }
+        ],
+        "configuration": {
+            "title": "Structural Search",
+            "properties": {
+                "structuralSearch.contextLines": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 0,
+                    "maximum": 20,
+                    "description": "Lines shown dimmed before and after each match. Raise it to read more around a match without opening the file."
+                }
+            }
         }
-      ]
     },
-    "keybindings": [
-      {
-        "command": "structuralSearch.focus",
-        "key": "ctrl+shift+f",
-        "mac": "cmd+shift+f"
-      }
-    ],
-    "configuration": {
-      "title": "Structural Search",
-      "properties": {
-        "structuralSearch.contextLines": {
-          "type": "integer",
-          "default": 1,
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Lines shown dimmed before and after each match. Raise it to read more around a match without opening the file."
-        }
-      }
+    "scripts": {
+        "build": "node esbuild.mjs",
+        "watch": "node esbuild.mjs --watch",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run --passWithNoTests",
+        "sbom": "cyclonedx-npm --omit dev --output-reproducible --output-format JSON --output-file sbom.cdx.json",
+        "sbom:check": "node scripts/check-sbom.mjs",
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
+    },
+    "devDependencies": {
+        "@cyclonedx/cyclonedx-npm": "7.0.1",
+        "@types/node": "22.20.5",
+        "@types/vscode": "1.100.0",
+        "esbuild": "0.28.2",
+        "prettier": "3.10.1",
+        "typescript": "5.9.3",
+        "vitest": "4.1.0"
+    },
+    "dependencies": {
+        "@vscode/codicons": "0.0.45",
+        "jsonc-parser": "3.3.1"
     }
-  },
-  "scripts": {
-    "build": "node esbuild.mjs",
-    "watch": "node esbuild.mjs --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "sbom": "cyclonedx-npm --omit dev --output-reproducible --output-format JSON --output-file sbom.cdx.json",
-    "sbom:check": "node scripts/check-sbom.mjs"
-  },
-  "devDependencies": {
-    "@cyclonedx/cyclonedx-npm": "7.0.1",
-    "@types/node": "22.20.5",
-    "@types/vscode": "1.100.0",
-    "esbuild": "0.28.2",
-    "typescript": "5.9.3",
-    "vitest": "4.1.0"
-  },
-  "dependencies": {
-    "@vscode/codicons": "0.0.45",
-    "jsonc-parser": "3.3.1"
-  }
 }
