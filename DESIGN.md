@@ -63,8 +63,9 @@ Every search covers the files that the ignore files and the exclude settings of 
   The menu grays out the current layout.
   Each workspace keeps its layout across reloads, starting with the list.
 - The list and the paths show every file at the top, sorted by its path folder by folder, the files of a folder before its subfolders.
-  The list shows the folders of a file after its name, dimmed: `values.yaml` followed by `charts/apim`.
-  The paths show the path of a file relative to its workspace folder, the file name in bold: `charts/apim/values.yaml`.
+  Both show the path of a file relative to its workspace folder: `charts/apim/values.yaml`.
+  The list dims the folders before the file name.
+  The paths set the file name in bold.
   A narrow side bar drops whole folders from the front of the path and keeps the file name whole: `…/apim/values.yaml`.
   In a multi-root workspace, the folders start with the name of the workspace folder.
 - In the tree, folders nest as in the explorer, subfolders before files.

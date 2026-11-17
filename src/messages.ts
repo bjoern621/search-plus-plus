@@ -94,8 +94,8 @@ export type ViewMessage =
 /**
  * How the results show.
  * `tree`: files in their folder tree.
- * `list`: every file at the top, its folders dimmed after its name.
- * `path`: every file at the top, its name after its folders.
+ * `list`: every file at the top, its name after its dimmed folders.
+ * `path`: every file at the top, its name in bold after its folders.
  */
 export type ResultsLayout = "tree" | "list" | "path";
 

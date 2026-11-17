@@ -471,12 +471,12 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.style.setProperty("--depth", String(row.depth));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
       element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file));
-      if (resultsLayout === "path") {
-        if (row.folders !== "") element.append(pathElement("folder-path", folderCuts(row.folders)));
-        element.append(span("label file-name", row.file.name));
-      } else {
+      if (resultsLayout === "tree") {
         element.append(span("label", row.file.name));
         if (row.folders !== "") element.append(span("description", row.folders));
+      } else {
+        if (row.folders !== "") element.append(pathElement(resultsLayout === "list" ? "folder-path dimmed" : "folder-path", folderCuts(row.folders)));
+        element.append(span(resultsLayout === "list" ? "label" : "label file-name", row.file.name));
       }
       element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
