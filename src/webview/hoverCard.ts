@@ -74,11 +74,12 @@ export class HoverCard {
     name.textContent = path.slice(nameStart);
     header.append(headerPart("hover-folder", path.slice(0, nameStart)), name);
     this.element.replaceChildren(header, ...elements);
+    this.element.hidden = false;
+    fitHeader(header);
     // The numbers take the width of the numbers in the results, so the text of the hovered line starts where its row's text starts.
     const rowNumberWidth = getComputedStyle(row).getPropertyValue("--line-number-width").trim() || "2ch";
     this.element.style.setProperty("--line-number-width", `max(${rowNumberWidth}, ${String((lines.at(-1)?.line ?? 0) + 1).length}ch)`);
     this.element.style.top = "0px";
-    this.element.hidden = false;
 
     const rowBox = row.getBoundingClientRect();
     const hitElement = elements[hit] as HTMLElement;
@@ -128,8 +129,25 @@ export class HoverCard {
       cardTop: card.top,
       cardBottom: card.bottom,
       viewHeight: window.innerHeight,
+      headerKeyPathCut: hiddenWidth(this.element.querySelector(".hover-key-path")),
+      headerFolderCut: hiddenWidth(this.element.querySelector(".hover-folder")),
     };
   }
+}
+
+/**
+ * Drops the folder of a header that stays too wide once the folder has shrunk to nothing, so the key path takes the cut.
+ * The key path keeps its width before that, since flex items shrink in proportion to their width: a key path shrinking beside the folder would lose a fraction of a pixel, and its ellipsis a character.
+ */
+function fitHeader(header: HTMLElement): void {
+  if (header.scrollWidth > header.clientWidth) header.classList.add("crowded");
+}
+
+/** Measures how much of a header part its cut hides. 0 for a missing part. */
+function hiddenWidth(part: Element | null): number {
+  const text = part?.firstElementChild;
+  if (!part || !text) return 0;
+  return Math.max(0, text.getBoundingClientRect().width - part.getBoundingClientRect().width);
 }
 
 /** A part of the header that gets cut from the left once the header runs out of room, so its end stays in view. */

@@ -132,6 +132,10 @@ export interface HoverGeometry {
   cardTop: number;
   cardBottom: number;
   viewHeight: number;
+  /** The width of the key path in the card header that its end cut hides, 0 for a header without one. */
+  headerKeyPathCut: number;
+  /** The width of the folder in the card header that its start cut hides. */
+  headerFolderCut: number;
 }
 
 export type ViewMessage =

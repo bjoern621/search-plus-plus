@@ -132,6 +132,16 @@ describe("Structural Search view", () => {
     assert.equal((await shownHover())[0], "gateway.image.tag · charts/apim/values.yaml");
   });
 
+  it("cuts the folder of a long hover card header and leaves the key path whole", async () => {
+    const snapshot = await search("service.loadBalancer");
+    await vscode.commands.executeCommand("structuralSearch.test.hover", snapshot.rows.indexOf("match 2:   [loadBalancer]: sticky"));
+    await shownHover();
+    const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
+    assert.ok(box, "no hover card");
+    assert.ok(box.headerFolderCut > 0, JSON.stringify(box));
+    assert.equal(box.headerKeyPathCut, 0);
+  });
+
   it("drops the results of an excluded folder at once and leaves the folder out of later searches", async () => {
     const before = await search("4.1.0");
     const snapshot = await excludeRow(before.rows, "folder docs");

@@ -598,8 +598,16 @@ body {
   direction: rtl;
 }
 
-.hover-folder {
-  flex-shrink: 1000;
+.hover-key-path {
+  flex-shrink: 0;
+}
+
+.hover-file.crowded .hover-folder {
+  display: none;
+}
+
+.hover-file.crowded .hover-key-path {
+  flex-shrink: 1;
 }
 
 .hover-file-name {
