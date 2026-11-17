@@ -50,6 +50,8 @@ It shows a scope other than the working tree in color, so a history search never
 - One line before and one after the match frame it, dimmed.
   The settings change the number of context lines.
 - Context of two close matches merges into one block.
+- A thin divider above a code line marks the lines skipped since the code line above it in the same file, so lines 16 and 33 never read as neighbors.
+  It adds no height and takes the color of the separators in menus (`menu.separatorBackground`), which VS Code defines for every kind of theme.
 - Up and Down move between folders, files and matched lines and pass over the context lines, since the built-in Search view shows none.
   As in the built-in Search view, Up and Down in the query input walk the search history.
   Ctrl+Down moves into the results, through files to include and files to exclude while they show.

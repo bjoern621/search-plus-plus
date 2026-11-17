@@ -359,6 +359,20 @@ body {
   display: none;
 }
 
+/*
+ * A divider above a code line marks the lines of the file skipped since the code line above, so line 16 and line 33 never read as neighbors.
+ * It takes the color that menus draw between groups of items and adds no height to the row.
+ */
+.line.after-gap::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  border-top: 1px solid var(--vscode-menu-separatorBackground);
+  pointer-events: none;
+}
+
 .row:hover,
 .line:hover {
   background: var(--vscode-list-hoverBackground);

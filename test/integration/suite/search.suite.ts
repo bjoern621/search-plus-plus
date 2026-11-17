@@ -77,6 +77,13 @@ describe("Structural Search view", () => {
     ]);
   });
 
+  it("draws a divider above a code line that skips lines of its file and none above the next line or the first line of a file", async () => {
+    const snapshot = await search("/^gateway|replicas|version/");
+    const lines = snapshot.rows.flatMap((row, index) => (row.startsWith("match ") || row.startsWith("context ") ? [`${snapshot.gapsAbove[index] ? "—" : ""}${row.split(":")[0]}`] : []));
+    assert.deepEqual(lines, ["context 1", "match 2", "match 1", "context 2", "—context 4", "match 5"]);
+    assert.deepEqual(new Set(snapshot.rows.flatMap((row, index) => (row.startsWith("folder ") || row.startsWith("file ") ? [snapshot.gapsAbove[index]] : []))), new Set([false]));
+  });
+
   it("runs a query between slashes as a regex through ripgrep", async () => {
     const snapshot = await search("/tag: \\d+\\.\\d+/");
     assert.equal(snapshot.hint, "Searching as a regex.");

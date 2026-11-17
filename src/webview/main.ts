@@ -532,6 +532,7 @@ function rowElement(row: Row, index: number): HTMLElement {
     case "line": {
       element.classList.add("line");
       if (row.line.match) element.classList.add("match");
+      if (skipsLines(index)) element.classList.add("after-gap");
       const text = span("text", row.line.offset > 0 ? "…" : "");
       for (const part of highlightParts(row.line)) {
         if (part.marked) text.append(span("mark", part.text, "mark"));
@@ -543,6 +544,14 @@ function rowElement(row: Row, index: number): HTMLElement {
       return element;
     }
   }
+}
+
+/** True for a code line whose number does not follow the code line above it in the same file. */
+function skipsLines(index: number): boolean {
+  const row = rows[index];
+  const above = rows[index - 1];
+  if (row?.kind !== "line" || above?.kind !== "line" || above.file !== row.file) return false;
+  return row.line.line !== above.line.line + 1;
 }
 
 /** The line that the workbench trees draw brighter: the column of a row and the rows below it that the line passes. */
@@ -771,6 +780,7 @@ function snapshot(): TestSnapshot {
     iconLefts: rows.map((_, index) => leftOf(index, ".file-icon")),
     rowStartLefts: rows.map((_, index) => leftOf(index, ":is(.twisty, .number)")),
     guides: rows.map((_, index) => describeGuides(index)),
+    gapsAbove: rows.map((_, index) => document.getElementById(`row-${index}`)?.classList.contains("after-gap") ?? null),
     labelLefts: rows.map((_, index) => leftOf(index, ".label")),
     keyPaths: rows.map((row) => {
       const keys = row.kind === "line" ? shownKeys(row.line) : undefined;

@@ -113,6 +113,8 @@ export interface TestSnapshot {
   rowStartLefts: (number | null)[];
   /** The tree lines of each drawn row, a character per column: `│` passes the row, `├` and `└` join it to its parent. Empty for a row without lines, null for a row not drawn. */
   guides: (string | null)[];
+  /** Whether each drawn row shows the divider that marks skipped lines above it. Null for a row not drawn. */
+  gapsAbove: (boolean | null)[];
   /** The left edge of the label of each folder or file row, null for any other row and a row not drawn. */
   labelLefts: (number | null)[];
   /** The key path that each row shows after its line text, empty for a row without one. */
