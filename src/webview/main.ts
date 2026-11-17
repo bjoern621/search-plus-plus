@@ -143,6 +143,8 @@ rowsElement.addEventListener("contextmenu", (event) => {
 });
 
 rowsElement.addEventListener("mouseover", (event) => {
+  // The render that focuses the row of an opening menu puts a new element under the pointer, which fires a mouseover.
+  if (contextMenu.isOpen) return;
   const row = rows[rowIndexFromEvent(event)];
   if (row?.kind !== "line" || !row.line.match) {
     hoverCard.hide();

@@ -7,6 +7,8 @@ import { type SearchScope, WORKING_TREE } from "../../../src/search/scope";
 
 const EXTENSION_ID = "bjoern621.structural-search";
 const EDITOR_WAIT_DURATION_MS = 5_000;
+/** Longer than the delay before the hover card asks for its excerpt, with time left for the answer. */
+const HOVER_WAIT_DURATION_MS = 1_000;
 
 /** Searches `scope` with `fields` in files to include and exclude. */
 function search(query: string, fields: FileFields = NO_FILE_FIELDS, scope: SearchScope = WORKING_TREE): Thenable<TestSnapshot> {
@@ -243,6 +245,18 @@ describe("Structural Search view", () => {
       "match 4:     tag: [4.1.0]",
       "context 5:   replicas: 2",
     ]);
+  });
+
+  it("keeps the hover card hidden while a context menu shows", async () => {
+    const before = await search("4.1.0");
+    const index = before.rows.indexOf("match 4:     tag: [4.1.0]");
+    await openMenu(before.rows, "match 4:     tag: [4.1.0]");
+    await vscode.commands.executeCommand("structuralSearch.test.hover", index);
+    await new Promise((resolve) => setTimeout(resolve, HOVER_WAIT_DURATION_MS));
+    const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot");
+    assert.deepEqual(snapshot.hover, []);
+    assert.notDeepEqual(snapshot.menu, []);
+    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", ["Escape"]);
   });
 
   it("lays the hovered line of the card over its row, the lines around it above and below", async () => {
