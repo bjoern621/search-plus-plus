@@ -77,7 +77,7 @@ A query enters the search history on Enter or once no other search replaced it f
   Tabs count to the next tab stop, so lines that mix tabs and spaces still line up.
 - A match line whose match would end past the edge of the row loses the text before the match.
   The row keeps its indentation, then `…`, then the text from a word boundary about a third of the row before the match.
-  Where the indentation alone would push the match past the edge, that row drops it.
+  The row keeps its indentation in every case, so it lines up with the other rows of its block.
   Rows that fit keep their whole text, and a resize cuts anew.
   The hover card shows the lines of the file as they stand.
 - Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
