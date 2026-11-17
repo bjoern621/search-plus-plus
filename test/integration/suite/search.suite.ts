@@ -497,6 +497,14 @@ describe("Structural Search icons", () => {
     assert.deepEqual(rowIcons(snapshot), { "folder charts/apim": "", "file Chart.yaml": "_yml", "file values.yaml": "_yml", "folder docs": "", "file upgrade.md": "_markdown" });
   });
 
+  it("starts the folder names where the file icons start with Seti, as the built-in Search view does", async () => {
+    const snapshot = await search("4.1.0");
+    const folder = snapshot.rows.indexOf("folder charts/apim");
+    const file = snapshot.rows.indexOf("file values.yaml");
+    assert.equal(snapshot.iconLefts[folder], null);
+    assert.equal(snapshot.labelLefts[folder], snapshot.iconLefts[file]);
+  });
+
   it("switches to the light icons of Seti with a light color theme, without a new search", async () => {
     await search("4.1.0");
     await workbench().update("colorTheme", "Default Light Modern", vscode.ConfigurationTarget.Global);
@@ -520,6 +528,10 @@ describe("Structural Search icons", () => {
     await workbench().update("iconTheme", null, vscode.ConfigurationTarget.Global);
     const icons = await changedIcons((current) => current["file values.yaml"] === "");
     assert.deepEqual(new Set(Object.values(icons)), new Set([""]));
+
+    const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot");
+    const folder = snapshot.rows.indexOf("folder charts/apim");
+    assert.equal(snapshot.labelLefts[folder], snapshot.labelLefts[snapshot.rows.indexOf("file values.yaml")], "the folder name leaves the alignment of the file names");
   });
 });
 

@@ -56,6 +56,7 @@ It shows a scope other than the working tree in color, so a history search never
 - Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
   The theme picks the icon by file name, extension, language and the open or closed state of a folder.
   A compacted folder row such as `charts/apim` shows the icon of its last folder.
+  A theme that gives a folder no icon, such as Seti, leaves its row without an icon slot, so the folder name starts where the file icons start, as in the built-in Search view.
   With the icon theme set to None, rows keep an empty icon slot, so the labels stay aligned.
 - A match of a key in a YAML, JSON or TOML file shows its key path after the line, such as `gateway.image.tag`, once the query uses the key path language.
   Such a query holds two or more keys (an index counts as a key), `**`, `*`, `?`, a class, a group, quotes or an escaped operator.

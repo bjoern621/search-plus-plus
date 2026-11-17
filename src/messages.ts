@@ -101,6 +101,10 @@ export interface TestSnapshot {
   rows: string[];
   /** The icon definition id of each row, empty for a row without icon. */
   icons: string[];
+  /** The left edge of the icon slot of each row, null for a row not drawn or without a slot. */
+  iconLefts: (number | null)[];
+  /** The left edge of the label of each folder or file row, null for any other row and a row not drawn. */
+  labelLefts: (number | null)[];
   /** The key path that each row shows after its line text, empty for a row without one. */
   keyPaths: string[];
   /** Index of the row drawn with the focus, -1 without one. */

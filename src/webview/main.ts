@@ -505,7 +505,8 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = row.label;
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), iconTheme.element(row.icon), span("label", row.label));
+      const icon = iconTheme.folderElement(row.icon);
+      element.append(span("twisty", row.collapsed ? "▶" : "▼"), ...(icon ? [icon] : []), span("label", row.label));
       if (row.folder !== "") element.append(excludeButton(`Exclude folder ${row.folder}`, folderEntry(row.folder)));
       return element;
     case "file": {
@@ -697,6 +698,8 @@ function snapshot(): TestSnapshot {
     fileFieldsOpen: !fileFieldsElement.hidden,
     rows: rows.map(describeRow),
     icons: rows.map(rowIcon),
+    iconLefts: rows.map((_, index) => leftOf(index, ".file-icon")),
+    labelLefts: rows.map((_, index) => leftOf(index, ".label")),
     keyPaths: rows.map((row) => (row.kind === "line" ? (shownKeyPath(row.line) ?? "") : "")),
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
@@ -723,6 +726,12 @@ function themeColor(variable: string): string {
   const color = getComputedStyle(probe).color;
   probe.remove();
   return color;
+}
+
+/** The left edge of the part `selector` of the drawn row at `index`. Null for a row not drawn or without that part. */
+function leftOf(index: number, selector: string): number | null {
+  const part = rowsElement.querySelector(`[data-index="${index}"] ${selector}`);
+  return part ? part.getBoundingClientRect().left : null;
 }
 
 function rowMetrics(kind: Row["kind"]): RowMetrics | undefined {
