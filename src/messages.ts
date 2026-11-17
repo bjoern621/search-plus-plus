@@ -106,9 +106,7 @@ export type ViewMessage =
   | { type: "open"; uri: string; line: number; range?: Range; preserveFocus: boolean }
   | { type: "copy"; text: string }
   /** Copies the whole line, since the view holds an excerpt of a long line. */
-  | { type: "copyLine"; uri: string; line: number }
-  /** Asks for the lines around `line` for the hover card. */
-  | { type: "excerpt"; requestId: number; uri: string; line: number };
+  | { type: "copyLine"; uri: string; line: number };
 
 /** Workbench settings that the view follows. */
 export interface ViewSettings {
@@ -132,6 +130,4 @@ export type HostMessage =
   | { type: "hint"; searchId: number; hint: Hint }
   | { type: "searchDone"; searchId: number; status: SearchStatus; limit: number }
   /** Sets the file icon theme and the icons of the files that the view holds, keyed by file URI. Without a theme, rows show empty icon slots. */
-  | { type: "icons"; theme: IconTable | undefined; files: Record<string, FileIcons> }
-  /** Answers the excerpt request `requestId`. Empty when the file cannot be read. */
-  | { type: "excerpt"; requestId: number; lines: ResultLine[] };
+  | { type: "icons"; theme: IconTable | undefined; files: Record<string, FileIcons> };

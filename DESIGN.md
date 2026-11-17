@@ -33,7 +33,6 @@ The level decides how far the view keeps the feature from the query input.
 | Wildcard `*` | Core | works without a control |
 | Query highlighting | Core | colors in the query input |
 | Exclude buttons on folders and files | Frequent | on hover over a result |
-| Larger excerpt around a match | Frequent | on hover over a match |
 | Context menu on a match | Frequent | on right-click on a match |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Scope | Rare | menu at the end of the results summary line |
@@ -79,7 +78,6 @@ A query enters the search history on Enter or once no other search replaced it f
   The row keeps its indentation, then `…`, then the text from a word boundary about a third of the row before the match.
   The row keeps its indentation in every case, so it lines up with the other rows of its block.
   Rows that fit keep their whole text, and a resize cuts anew.
-  The hover card shows the lines of the file as they stand.
 - Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
   The theme picks the icon by file name, extension, language and the open or closed state of a folder.
   A compacted folder row such as `charts/apim` shows the icon of its last folder.
@@ -99,13 +97,6 @@ A query enters the search history on Enter or once no other search replaced it f
 - A fuzzy match looks like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
-- Hovering a match shows a larger excerpt of its file in a card.
-  The card names the file above its lines, after the key path of the match where the row shows one: `gateway.image.tag · charts/apim/values.yaml`.
-  A header too long for the card loses its folder first, then cuts its key path as the row does, so the file name stays in view.
-  Its copy of the hovered line covers the row in place, in the same font and size, so the code keeps its place while the lines before it appear above and the lines after it below.
-  Near an edge of the view, the card drops the lines on that side that would leave the view.
-  Once no line is left to drop there, the card moves into the view.
-  Clicks pass through the card to the rows beneath it.
 
 ### Context menu
 
@@ -132,9 +123,8 @@ Below them come the quick actions:
 - The view sits in the side bar.
   A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree.
 - The view renders in a webview, which draws the inputs and the dimmed context lines.
-  Its hover card stays inside the view, as wide as the side bar minus the scrollbar of the results.
 - The view follows the color theme of VS Code.
-  Rows, inputs, menus and the hover card take the theme colors of their counterparts in the explorer, the Search view and the editor.
+  Rows, inputs and menus take the theme colors of their counterparts in the explorer, the Search view and the editor.
   High contrast themes draw hover and selection as outlines.
 - Twisties, buttons and menu checks take their icons from the codicon font of the workbench (`@vscode/codicons`), so they match the icons of the built-in views.
   A twisty sits where the workbench trees place theirs, with the chevron 16px wide and 6px before the file icon.

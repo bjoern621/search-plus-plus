@@ -85,15 +85,6 @@ export function contextSpans(matchLines: readonly number[], lineCount: number, c
   return spans;
 }
 
-/** Returns the lines from `radius` before `center` to `radius` after it, clipped at the file edges, all as context lines. */
-export function excerptLines(lines: readonly string[], center: number, radius: number): ResultLine[] {
-  const excerpt: ResultLine[] = [];
-  for (let line = Math.max(0, center - radius); line <= Math.min(lines.length - 1, center + radius); line++) {
-    excerpt.push(resultLine(line, lines[line] ?? "", undefined));
-  }
-  return excerpt;
-}
-
 function resultLine(line: number, text: string, match: LineMatch | undefined): ResultLine {
   const ranges = match?.ranges ?? [];
   const offset = excerptOffset(text, ranges);

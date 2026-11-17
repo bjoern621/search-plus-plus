@@ -37,9 +37,9 @@ function keyPathCuts(keys: readonly string[]): string[] {
 const keysOfElement = new WeakMap<Element, readonly string[]>();
 
 /** The key path after the line text, whole until `fitKeyPaths` cuts it. */
-export function keyPathElement(keys: readonly string[], className = "key-path"): HTMLElement {
+export function keyPathElement(keys: readonly string[]): HTMLElement {
   const element = document.createElement("span");
-  element.className = className;
+  element.className = "key-path";
   const isolated = document.createElement("bdi");
   isolated.textContent = keyPathText(keys);
   element.append(isolated);

@@ -7,10 +7,10 @@ import { activeIconThemeId, colorKind, iconThemeExtensionFolders, type LoadedIco
 import type { FileIcons, FileResult, HostMessage, IconTable, SearchStatus, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
-import { HOVER_EXCERPT_RADIUS_LINES, RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config";
+import { RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config";
 import { parseQuery } from "./query";
 import { readSearchText, unsavedTexts } from "./search/reader";
-import { excerptLines, splitLines } from "./search/results";
+import { splitLines } from "./search/results";
 import { searchRoots } from "./search/roots";
 import type { SearchOutcome, SearchRunner } from "./search/runner";
 import { type SearchScope, WORKING_TREE } from "./search/scope";
@@ -202,9 +202,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       case "copyLine":
         void this.copyLine(message.uri, message.line);
         return;
-      case "excerpt":
-        void this.sendExcerpt(message.requestId, message.uri, message.line);
-        return;
       default:
         assertNever(message);
     }
@@ -244,12 +241,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     const lineText = text === undefined ? undefined : splitLines(text)[line];
     if (lineText === undefined) return;
     await vscode.env.clipboard.writeText(lineText);
-  }
-
-  private async sendExcerpt(requestId: number, uri: string, line: number): Promise<void> {
-    const text = await this.readText(vscode.Uri.parse(uri));
-    const lines = text === undefined ? [] : excerptLines(splitLines(text), line, HOVER_EXCERPT_RADIUS_LINES);
-    this.post({ type: "excerpt", requestId, lines });
   }
 
   private withIcons(file: FileResult): FileResult {
@@ -342,7 +333,6 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 </div>
 <div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
 <div id="menu" class="menu"></div>
-<div id="hover" class="hover" hidden></div>
 <script nonce="${nonce}" src="${script}"></script>
 </body>
 </html>`;

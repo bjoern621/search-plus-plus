@@ -21,9 +21,6 @@ export const LINE_EXCERPT_LEAD_CHARS = 40;
 export const TREE_INDENT_MIN_PX = 4;
 export const TREE_INDENT_MAX_PX = 40;
 
-/** Lines that the hover card on a match shows before and after it. */
-export const HOVER_EXCERPT_RADIUS_LINES = 5;
-
 /** The Git history scope reads this many commits back from HEAD, since `git log --patch` takes longer with every commit. */
 export const HISTORY_COMMIT_LIMIT = 200;
 

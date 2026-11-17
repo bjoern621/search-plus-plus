@@ -1,10 +1,9 @@
-import type { FileResult, HostMessage, ResultLine, SearchStatus, ViewMessage, ViewSettings } from "../messages";
+import type { HostMessage, ResultLine, SearchStatus, ViewMessage, ViewSettings } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
 import { ContextMenu } from "./contextMenu";
-import { HoverCard } from "./hoverCard";
 import { firstFocusableRow, type KeyPress, rowCommand } from "./keyboard";
 import { matchMenu, type MenuAction } from "./menu";
 import { FileIconTheme } from "./fileIcons";
@@ -49,8 +48,6 @@ const scopeLabelElement = document.getElementById("scope-label") as HTMLSpanElem
 const results = document.getElementById("results") as HTMLDivElement;
 const rowsElement = document.getElementById("rows") as HTMLDivElement;
 const contextMenu = new ContextMenu(document.getElementById("menu") as HTMLDivElement, runMenuAction, () => results.focus());
-const hoverElement = document.getElementById("hover") as HTMLDivElement;
-const hoverCard = new HoverCard(hoverElement, (requestId, uri, line) => vscode.postMessage({ type: "excerpt", requestId, uri, line }), renderedMatch);
 
 const tree = new ResultTree();
 const iconTheme = new FileIconTheme();
@@ -85,8 +82,6 @@ let hoveredIndex = -1;
 let menuRow: Extract<Row, { kind: "line" }> | undefined;
 /** The scroll position at which the context menu opened. A scroll event that leaves it unchanged keeps the menu open. */
 let menuScrollTop = 0;
-/** The scroll position at which the hover card got its match. */
-let hoverScrollTop = 0;
 
 const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, scope: WORKING_TREE, ...vscode.getState() };
 includeInput.value = state.include;
@@ -165,21 +160,9 @@ rowsElement.addEventListener("mouseover", (event) => {
   // The render that focuses the row of an opening menu puts a new element under the pointer, which fires a mouseover.
   if (contextMenu.isOpen) return;
   hoverRow(rowIndexFromEvent(event));
-  const row = rows[rowIndexFromEvent(event)];
-  if (row?.kind !== "line" || !row.line.match) {
-    hoverCard.hide();
-    return;
-  }
-  hoverScrollTop = results.scrollTop;
-  hoverCard.schedule(row.file, row.line.line);
 });
 
-results.addEventListener("mouseleave", () => {
-  hoverCard.hide();
-  hoverRow(-1);
-});
-document.addEventListener("keydown", () => hoverCard.hide(), true);
-window.addEventListener("blur", () => hoverCard.hide());
+results.addEventListener("mouseleave", () => hoverRow(-1));
 
 // The context menu key fires a contextmenu event on the results after the keydown that opened the menu.
 results.addEventListener("contextmenu", (event) => {
@@ -188,7 +171,6 @@ results.addEventListener("contextmenu", (event) => {
 
 results.addEventListener("scroll", () => {
   if (results.scrollTop !== menuScrollTop) contextMenu.close(false);
-  if (results.scrollTop !== hoverScrollTop) hoverCard.hide();
   scheduleRender();
 });
 new ResizeObserver(() => scheduleRender()).observe(results);
@@ -229,9 +211,6 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       iconTheme.set(message.theme);
       tree.setIcons(message.files);
       invalidateLayout();
-      return;
-    case "excerpt":
-      hoverCard.show(message.requestId, message.lines);
       return;
     case "searchDone":
       if (message.searchId !== searchId) return;
@@ -392,7 +371,6 @@ function startSearch(id: number): void {
   status = "running";
   cappedAt = undefined;
   tree.clear();
-  hoverCard.hide();
   collapsed.clear();
   focusedIndex = -1;
   results.removeAttribute("aria-activedescendant");
@@ -743,7 +721,6 @@ function openMenu(index: number, fromKeyboard: boolean): boolean {
   if (!element) return false;
   menuRow = row;
   menuScrollTop = results.scrollTop;
-  hoverCard.hide();
   contextMenu.open(matchMenu(row.file, row.line, searched?.query ?? input.value), element.getBoundingClientRect(), fromKeyboard);
   return true;
 }
@@ -752,7 +729,6 @@ function openMenu(index: number, fromKeyboard: boolean): boolean {
 function openScopeMenu(fromKeyboard: boolean): void {
   menuRow = undefined;
   menuScrollTop = results.scrollTop;
-  hoverCard.hide();
   contextMenu.open(scopeMenu(state.scope, git), scope.getBoundingClientRect(), fromKeyboard);
 }
 
@@ -794,12 +770,6 @@ function activate(row: Row, preserveFocus: boolean): void {
       vscode.postMessage({ type: "open", uri: row.file.uri, line: row.line.line, range: row.line.ranges[0], preserveFocus });
       return;
   }
-}
-
-/** Returns the rendered row of the match on `line` of `file`. */
-function renderedMatch(file: FileResult, line: number): HTMLElement | undefined {
-  const index = rows.findIndex((row) => row.kind === "line" && row.file.uri === file.uri && row.line.line === line);
-  return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`) ?? undefined;
 }
 
 /** Picks the platform as the VS Code renderer does, which decides the default fonts of the editor. */
