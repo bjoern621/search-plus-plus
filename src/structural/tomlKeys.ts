@@ -6,6 +6,8 @@
  * It replaces a full TOML parser, which takes about half a second on a 1 MB lockfile.
  */
 
+import { codePointEscape } from "./codePointEscape";
+
 /** Receives a node with its key path and the file offsets of the text to highlight. It may keep `keys` during the call alone. */
 export type VisitKey = (keys: string[], start: number, end: number) => void;
 
@@ -310,7 +312,7 @@ function isEscaped(text: string, at: number): boolean {
 function unescapeBasic(body: string): string {
   return body.replace(/\\(u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|x[0-9a-fA-F]{2}|.)/g, (_, escape: string) => {
     if (escape.length > 1) {
-      return String.fromCodePoint(parseInt(escape.slice(1), 16));
+      return codePointEscape(escape.slice(1));
     }
     return BASIC_ESCAPES[escape] ?? escape;
   });

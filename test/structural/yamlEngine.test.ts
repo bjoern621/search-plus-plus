@@ -117,6 +117,11 @@ describe("yamlEngine: documents, anchors and templates", () => {
     expect(found(search(yamlEngine, "templates/deployment.yaml", "helm", text, "metadata.labels"))).toEqual(["6: metadata.labels"]);
   });
 
+  it("reads an escape outside Unicode as U+FFFD and keeps the keys after it", () => {
+    const text = '"\\UFFFFFFFF": 1\n"\\uD800": 2\nb: 3\n';
+    expect(found(search(yamlEngine, "escapes.yaml", "yaml", text, "*"))).toEqual(["1: �", "2: �", "3: b"]);
+  });
+
   it("keeps the readable keys of a broken file and throws nothing", () => {
     const text = "a: [1, 2\nb:\n  c: 1\n";
     expect(() => search(yamlEngine, "broken.yaml", "yaml", text, "**.c")).not.toThrow();

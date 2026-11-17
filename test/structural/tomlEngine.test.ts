@@ -51,6 +51,11 @@ describe("tomlEngine", () => {
     expect(found(search(tomlEngine, "broken.toml", "toml", text, "*"))).toEqual(["1: x", "3: y", "5: z"]);
   });
 
+  it("reads an escape outside Unicode as U+FFFD and keeps the keys after it", () => {
+    const text = '"\\UFFFFFFFF" = 1\n"\\uD800" = 2\nb = 3\n';
+    expect(found(search(tomlEngine, "escapes.toml", "toml", text, "*"))).toEqual(["1: �", "2: �", "3: b"]);
+  });
+
   it("reads keys after a multi-line string", () => {
     const text = "a = \"\"\"\nb = 1\n\"\"\"\nc = 2\n";
     expect(found(search(tomlEngine, "strings.toml", "toml", text, "*"))).toEqual(["1: a", "4: c"]);

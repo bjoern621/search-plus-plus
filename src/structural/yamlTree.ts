@@ -6,6 +6,8 @@
  * It replaces a full YAML parser, which takes most of a second on a 1 MB file.
  */
 
+import { codePointEscape } from "./codePointEscape";
+
 export type YamlNode =
   | { kind: "map"; entries: YamlEntry[] }
   | { kind: "seq"; items: YamlItem[] }
@@ -596,7 +598,7 @@ function unquote(quoted: string): string {
   }
   return body.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)/g, (_, escape: string) => {
     if (escape.length > 1) {
-      return String.fromCodePoint(parseInt(escape.slice(1), 16));
+      return codePointEscape(escape.slice(1));
     }
     return ESCAPES[escape] ?? escape;
   });
