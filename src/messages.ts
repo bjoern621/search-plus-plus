@@ -112,8 +112,6 @@ export type ViewMessage =
 export interface ViewSettings {
   /** `workbench.tree.indent`: how far a tree row steps right of its parent. */
   treeIndentPx: number;
-  /** False while `workbench.tree.renderIndentGuides` reads `none`. */
-  indentGuides: boolean;
   /** `search.searchOnType`: typing in the query or the file fields searches once typing pauses. */
   searchOnType: boolean;
   /** `search.searchOnTypeDebouncePeriod`: how long typing pauses before the search starts. */

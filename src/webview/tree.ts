@@ -1,28 +1,19 @@
 import type { CommitInfo, FileIcons, FileResult, ResultLine } from "../messages";
 import type { PathFilter } from "../search/globs";
 
-/**
- * How a tree row hangs from its parent: └ for the last child, ├ for any other, in the column of the parent.
- * `through` holds one entry per column left of that, true where an ancestor has a child further down, so its line passes the row.
- */
-export interface TreeLines {
-  last: boolean;
-  through: boolean[];
-}
-
 /** `depth` counts the tree rows that a row hangs from: 0 at the top, 1 below a row at the top, and so on. */
 export type Row =
-  | { kind: "commit"; key: string; depth: number; lines: TreeLines; commit: CommitInfo; collapsed: boolean }
+  | { kind: "commit"; key: string; depth: number; commit: CommitInfo; collapsed: boolean }
   /**
    * `label` joins the names of a compacted chain of folders, such as `charts/apim`.
    * `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. `icon` follows the collapsed state.
    */
-  | { kind: "folder"; key: string; depth: number; lines: TreeLines; label: string; folder: string; collapsed: boolean; icon: string | undefined }
+  | { kind: "folder"; key: string; depth: number; label: string; folder: string; collapsed: boolean; icon: string | undefined }
   /**
    * `folded` holds the chain of folders that leads to this file alone and folds into its row, such as `argocd/applications/gitlab`.
    * It stays empty for a file that shares its folder row with other results.
    */
-  | { kind: "file"; key: string; depth: number; lines: TreeLines; file: FileResult; folded: string; collapsed: boolean }
+  | { kind: "file"; key: string; depth: number; file: FileResult; folded: string; collapsed: boolean }
   | { kind: "line"; depth: number; file: FileResult; line: ResultLine };
 
 /** A folder of the results with the matched files right in it and the folders below it that hold some. */
@@ -138,7 +129,7 @@ export class ResultTree {
         commitSha = commit.sha;
         const key = `commit:${commitSha}`;
         commitCollapsed = collapsed.has(key);
-        rows.push({ kind: "commit", key, depth: 0, lines: unjoined(), commit, collapsed: commitCollapsed });
+        rows.push({ kind: "commit", key, depth: 0, commit, collapsed: commitCollapsed });
       }
       if (commit && commitCollapsed) continue;
       const depth = commit ? 1 : 0;
@@ -150,10 +141,9 @@ export class ResultTree {
       const key = `${rootKey}:`;
       const rootCollapsed = collapsed.has(key);
       const icons = firstFile(root)?.icons?.root;
-      rows.push({ kind: "folder", key, depth, lines: unjoined(), label: rootName, folder: "", collapsed: rootCollapsed, icon: rootCollapsed ? icons?.collapsed : icons?.expanded });
+      rows.push({ kind: "folder", key, depth, label: rootName, folder: "", collapsed: rootCollapsed, icon: rootCollapsed ? icons?.collapsed : icons?.expanded });
       if (!rootCollapsed) pushChildren(rows, root, rootKey, depth + 1, collapsed);
     }
-    joinTreeLines(rows);
     return rows;
   }
 
@@ -220,11 +210,6 @@ function sortedFiles(node: FolderNode): FileResult[] {
   return [...node.files].sort((a, b) => collator.compare(a.name, b.name));
 }
 
-/** Lines for a row before `joinTreeLines` places it. */
-function unjoined(): TreeLines {
-  return { last: true, through: [] };
-}
-
 /** Lays out the subfolders of `node`, then its files, at `depth`. `rootKey` names the workspace folder and, in the Git history scope, the commit. */
 function pushChildren(rows: Row[], node: FolderNode, rootKey: string, depth: number, collapsed: ReadonlySet<string>): void {
   for (const folder of sortedFolders(node)) pushFolder(rows, folder, rootKey, depth, collapsed);
@@ -233,7 +218,7 @@ function pushChildren(rows: Row[], node: FolderNode, rootKey: string, depth: num
 
 function pushFile(rows: Row[], file: FileResult, folded: string, depth: number, collapsed: ReadonlySet<string>): void {
   const fileCollapsed = collapsed.has(file.uri);
-  rows.push({ kind: "file", key: file.uri, depth, lines: unjoined(), file, folded, collapsed: fileCollapsed });
+  rows.push({ kind: "file", key: file.uri, depth, file, folded, collapsed: fileCollapsed });
   if (fileCollapsed) return;
   for (const block of file.blocks) {
     for (const line of block) if (!isBlankContext(line)) rows.push({ kind: "line", depth: depth + 1, file, line });
@@ -264,36 +249,13 @@ function pushFolder(rows: Row[], folder: FolderNode, rootKey: string, depth: num
   const key = `${rootKey}:${last.path}`;
   const folderCollapsed = collapsed.has(key);
   const icons = firstFile(last)?.icons?.folders?.[last.path.split("/").length - 1];
-  rows.push({ kind: "folder", key, depth, lines: unjoined(), label: names.join("/"), folder: last.path, collapsed: folderCollapsed, icon: folderCollapsed ? icons?.collapsed : icons?.expanded });
+  rows.push({ kind: "folder", key, depth, label: names.join("/"), folder: last.path, collapsed: folderCollapsed, icon: folderCollapsed ? icons?.collapsed : icons?.expanded });
   if (!folderCollapsed) pushChildren(rows, last, rootKey, depth + 1, collapsed);
 }
 
 function soleSubfolder(node: FolderNode): FolderNode | undefined {
   if (node.files.length > 0 || node.folders.size !== 1) return undefined;
   return node.folders.values().next().value;
-}
-
-/**
- * Sets the lines of each commit, folder and file row from the depths of the rows.
- * A row comes last among its siblings once no row at its depth follows before a row above that depth.
- * Code lines draw no lines, so a line of the tree pauses where they sit.
- */
-function joinTreeLines(rows: readonly Row[]): void {
-  const laterSibling: boolean[] = [];
-  for (let index = rows.length - 1; index >= 0; index--) {
-    const row = rows[index];
-    if (!row || row.kind === "line") continue;
-    row.lines.last = laterSibling[row.depth] !== true;
-    laterSibling[row.depth] = true;
-    laterSibling.length = row.depth + 1;
-  }
-  const open: boolean[] = [];
-  for (const row of rows) {
-    if (row.kind === "line") continue;
-    row.lines.through = open.slice(1, row.depth);
-    open[row.depth] = !row.lines.last;
-    open.length = row.depth + 1;
-  }
 }
 
 /** Commits keep the order of the log. Inside one, a parent folder sorts before its subfolders, so the rows follow the folder tree. */

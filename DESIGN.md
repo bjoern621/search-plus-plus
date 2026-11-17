@@ -66,11 +66,8 @@ A query enters the search history on Enter or once no other search replaced it f
   A folder keeps its row where the tree branches, meaning where it holds two or more folders or files, so `.claude/worktrees` stays a row above two worktrees.
   A narrow side bar cuts the dimmed folders at their end and keeps the file name whole, since the first folders tell two files of one name apart.
 - Folder and file rows step right of their parent by `workbench.tree.indent`.
-  A line runs down from each parent to its last child, with a short stub into each child, as `├` and `└` draw.
-  The line takes the indent guide colors of the workbench trees and lights the column of the focused row.
-  `workbench.tree.renderIndentGuides` set to `none` hides the lines and keeps the indentation.
+  The indentation alone shows the nesting.
 - Code lines start at the left edge at any depth, so they take the full width of the side bar.
-  The tree lines pause at code lines, since running them through the line numbers would cross the digits.
 - Each block of code lines, meaning a match with its context, drops the indentation that all its lines share.
   The least indented line starts at the left edge, and the others keep their indentation relative to it.
   Tabs count to the next tab stop, so lines that mix tabs and spaces still line up.

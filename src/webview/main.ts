@@ -69,13 +69,11 @@ let searched: ({ query: string; scope: SearchScope } & FileFields) | undefined;
 /** What the host found out about Git. Undefined until it answers. */
 let git: GitInfo | undefined;
 /** The settings of the workbench that the view follows, with their defaults until the host sends them. */
-let settings: ViewSettings = { treeIndentPx: 8, indentGuides: true, searchOnType: true, searchOnTypeDebounceMs: 300 };
+let settings: ViewSettings = { treeIndentPx: 8, searchOnType: true, searchOnTypeDebounceMs: 300 };
 let typingTimer = 0;
 let historyTimer = 0;
 /** Index of the row that holds the keyboard focus inside the results, -1 without one. */
 let focusedIndex = -1;
-/** The line of the tree that the focused row lights, set on each render. */
-let activeGuide: ActiveGuide | undefined;
 /** Index of the row under the pointer, -1 without one. */
 let hoveredIndex = -1;
 /** The line whose context menu shows. */
@@ -185,7 +183,6 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "settings":
       settings = message.settings;
       rowsElement.style.setProperty("--tree-indent", `${message.settings.treeIndentPx}px`);
-      rowsElement.classList.toggle("no-indent-guides", !message.settings.indentGuides);
       return;
     case "git":
       git = message.git;
@@ -455,7 +452,6 @@ function render(): void {
   const top = results.scrollTop;
   const first = Math.max(0, rowAt(offsets, top) - OVERSCAN_ROWS);
   const last = Math.min(rows.length, rowAt(offsets, top + results.clientHeight) + OVERSCAN_ROWS + 1);
-  activeGuide = activeGuideOf(focusedIndex);
   focusedSubtree = subtreeOf(focusedIndex);
   hoveredSubtree = subtreeOf(hoveredIndex);
   const elements: HTMLElement[] = [];
@@ -481,14 +477,14 @@ function rowElement(row: Row, index: number): HTMLElement {
     case "commit":
       element.classList.add("row", "commit");
       element.setAttribute("aria-expanded", String(!row.collapsed));
-      hangInTree(element, row, index);
+      element.style.setProperty("--depth", String(row.depth));
       element.title = `${row.commit.sha}\n${row.commit.author}, ${row.commit.date}\n${row.commit.subject}`;
       element.append(twisty(row.collapsed), span("sha", row.commit.shortSha), span("label", row.commit.subject), span("commit-meta", `${row.commit.author}, ${commitDay(row.commit)}`));
       return element;
     case "folder":
       element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
-      hangInTree(element, row, index);
+      element.style.setProperty("--depth", String(row.depth));
       element.title = row.label;
       const icon = iconTheme.folderElement(row.icon);
       element.append(twisty(row.collapsed), ...(icon ? [icon] : []), span("label", row.label));
@@ -497,7 +493,7 @@ function rowElement(row: Row, index: number): HTMLElement {
     case "file": {
       element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
-      hangInTree(element, row, index);
+      element.style.setProperty("--depth", String(row.depth));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
       element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file), span("label", row.file.name));
       if (row.folded !== "") element.append(span("folded-path", row.folded));
@@ -581,58 +577,6 @@ function hoverRow(index: number): void {
   for (const element of rowsElement.querySelectorAll<HTMLElement>("[data-index]")) {
     element.classList.toggle("in-hovered", inSubtree(hoveredSubtree, Number(element.dataset.index)));
   }
-}
-
-/** The line that the workbench trees draw brighter: the column of a row and the rows below it that the line passes. */
-interface ActiveGuide {
-  column: number;
-  /** The first and the last row of the line. */
-  first: number;
-  last: number;
-}
-
-/**
- * Finds the line that joins the focused row to its siblings, as the workbench trees light it.
- * An expanded folder or commit lights the line of its own children.
- * A code line counts as its file, since code lines draw no lines.
- */
-function activeGuideOf(focus: number): ActiveGuide | undefined {
-  let index = focus;
-  while (rows[index]?.kind === "line") index--;
-  const row = rows[index];
-  if (!row) return undefined;
-  const parent = (row.kind === "folder" || row.kind === "commit") && !row.collapsed ? index : parentIndex(index);
-  const depth = rows[parent]?.depth;
-  if (depth === undefined) return undefined;
-  let last = parent + 1;
-  while (last + 1 < rows.length && (rows[last + 1]?.depth ?? 0) > depth) last++;
-  return { column: depth, first: parent + 1, last };
-}
-
-/** The index of the nearest row above `index` that sits higher in the tree, -1 for a row at the top. */
-function parentIndex(index: number): number {
-  const depth = rows[index]?.depth ?? 0;
-  let parent = index - 1;
-  while (parent >= 0 && (rows[parent]?.depth ?? 0) >= depth) parent--;
-  return parent;
-}
-
-/** Steps a tree row right by its depth and draws the lines that join it to its parent. */
-function hangInTree(element: HTMLElement, row: Exclude<Row, { kind: "line" }>, index: number): void {
-  element.style.setProperty("--depth", String(row.depth));
-  if (row.depth === 0) return;
-  row.lines.through.forEach((passes, column) => {
-    if (passes) element.append(guide("through", column, index));
-  });
-  element.append(guide(row.lines.last ? "last" : "branch", row.depth - 1, index));
-}
-
-function guide(shape: "through" | "branch" | "last", column: number, index: number): HTMLElement {
-  const element = document.createElement("span");
-  element.className = `guide ${shape}`;
-  element.style.setProperty("--column", String(column));
-  if (activeGuide && activeGuide.column === column && index >= activeGuide.first && index <= activeGuide.last) element.classList.add("active");
-  return element;
 }
 
 /** A button that adds `entry` to files to exclude, drawn as a circle with a slash. */

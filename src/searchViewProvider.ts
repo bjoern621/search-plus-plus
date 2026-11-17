@@ -158,7 +158,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       type: "settings",
       settings: {
         treeIndentPx: indent,
-        indentGuides: tree.get<string>("renderIndentGuides") !== "none",
         searchOnType: search.get<boolean>("searchOnType", true),
         searchOnTypeDebounceMs: Math.max(search.get<number>("searchOnTypeDebouncePeriod", 300), 0),
       },
