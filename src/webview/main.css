@@ -299,7 +299,7 @@ button {
 
 /*
  * A divider above a code line marks the lines of the file skipped since the code line above, so line 16 and line 33 never read as neighbors.
- * It takes the color that menus draw between groups of items and adds no height to the row.
+ * It takes the color of the indent guides in the editor and adds no height to the row.
  */
 .line.after-gap::before {
   content: "";
@@ -307,7 +307,7 @@ button {
   top: 0;
   left: 8px;
   right: 8px;
-  border-top: 1px solid var(--vscode-menu-separatorBackground);
+  border-top: 1px solid var(--vscode-editorIndentGuide-background1);
   pointer-events: none;
 }
 

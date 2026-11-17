@@ -560,8 +560,10 @@ function placeOutline(outline: HTMLElement, index: number): void {
   outline.hidden = group === undefined;
   if (!group) return;
   const top = offsets[group.first] ?? 0;
+  // The divider of a gap below the group sits 1px below its last row. The outline covers it, so the two lines draw as one.
+  const coverDivider = skipsLines(group.last + 1) ? 1 : 0;
   outline.style.top = `${top}px`;
-  outline.style.height = `${(offsets[group.last + 1] ?? top) - top}px`;
+  outline.style.height = `${(offsets[group.last + 1] ?? top) - top + coverDivider}px`;
 }
 
 /** Moves the hover outline to the group of the row under the pointer, without a render. */
