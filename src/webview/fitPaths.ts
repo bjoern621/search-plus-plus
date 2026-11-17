@@ -35,14 +35,27 @@ export function fitPaths(elements: Iterable<HTMLElement>): void {
 
 /**
  * Lists the ways to write the folders before a file name, such as `charts/apim/`, the whole path first.
- * The cuts drop whole folders from the front: `…/apim/`, then `…/` alone.
+ * Each cut drops one more folder, and a run of dropped folders shows as one `…`.
+ * The folders that `kept` indexes drop last. The others drop from the front: `a/x/b/c/` keeping `x` cuts to `…/x/b/c/`, `…/x/…/c/`, `…/x/…/` and `…/`.
  */
-export function folderCuts(folders: string): string[] {
+export function folderCuts(folders: string, kept: readonly number[] = []): string[] {
   const names = folders.split("/");
+  const order = names.map((_, index) => index).sort((a, b) => Number(kept.includes(a)) - Number(kept.includes(b)) || a - b);
+  const dropped = new Set<number>();
   const cuts = [`${folders}/`];
-  for (let dropped = 1; dropped < names.length; dropped++) cuts.push(`…/${names.slice(dropped).join("/")}/`);
-  cuts.push("…/");
+  for (const index of order) {
+    dropped.add(index);
+    cuts.push(writeCut(names, dropped));
+  }
   return cuts;
+}
+
+function writeCut(names: readonly string[], dropped: ReadonlySet<number>): string {
+  const parts = names.flatMap((name, index) => {
+    if (!dropped.has(index)) return [name];
+    return dropped.has(index - 1) ? [] : ["…"];
+  });
+  return `${parts.join("/")}/`;
 }
 
 let canvas: CanvasRenderingContext2D | undefined;

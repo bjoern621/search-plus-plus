@@ -475,7 +475,7 @@ function rowElement(row: Row, index: number): HTMLElement {
         element.append(span("label", row.file.name));
         if (row.folders !== "") element.append(span("description", row.folders));
       } else {
-        if (row.folders !== "") element.append(pathElement(resultsLayout === "list" ? "folder-path dimmed" : "folder-path", folderCuts(row.folders)));
+        if (row.folders !== "") element.append(pathElement(resultsLayout === "list" ? "folder-path dimmed" : "folder-path", folderCuts(row.folders, row.distinctFolders)));
         element.append(span(resultsLayout === "list" ? "label" : "label file-name", row.file.name));
       }
       element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));

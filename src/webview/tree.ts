@@ -1,5 +1,6 @@
 import type { FileIcons, FileResult, ResultLine, ResultsLayout } from "../messages";
 import type { PathFilter } from "../search/globs";
+import { distinctFolderIndices } from "./distinctFolders";
 
 /** `depth` counts the tree rows that a row hangs from: 0 at the top, 1 below a row at the top, and so on. */
 export type Row =
@@ -13,8 +14,9 @@ export type Row =
    * In the tree, it holds the chain of folders that leads to this file alone and folds into its row, such as `argocd/applications/gitlab`.
    * It stays empty there for a file that shares its folder row with other results.
    * In the flat layouts, it holds the folder of the file, after the name of its workspace folder in a multi-root workspace.
+   * `distinctFolders` indexes the folders that tell the file apart from other files of its name, which a cut path keeps longest.
    */
-  | { kind: "file"; key: string; depth: number; file: FileResult; folders: string; collapsed: boolean }
+  | { kind: "file"; key: string; depth: number; file: FileResult; folders: string; distinctFolders: readonly number[]; collapsed: boolean }
   | { kind: "line"; depth: number; file: FileResult; line: ResultLine };
 
 /** A folder of the results with the matched files right in it and the folders below it that hold some. */
@@ -134,9 +136,9 @@ export class ResultTree {
 
   private flatRows(collapsed: ReadonlySet<string>): Row[] {
     const rows: Row[] = [];
-    for (const file of this.shownFiles().sort(compareFilePaths)) {
-      pushFile(rows, file, [file.root, file.folder].filter((part) => part !== "").join("/"), 0, collapsed);
-    }
+    const files = this.shownFiles().sort(compareFilePaths);
+    const distinct = distinctFoldersByFile(files);
+    for (const file of files) pushFile(rows, file, flatFolders(file), 0, collapsed, distinct.get(file) ?? []);
     return rows;
   }
 
@@ -206,9 +208,26 @@ function pushChildren(rows: Row[], node: FolderNode, rootKey: string, depth: num
   for (const file of sortedFiles(node)) pushFile(rows, file, "", depth, collapsed);
 }
 
-function pushFile(rows: Row[], file: FileResult, folders: string, depth: number, collapsed: ReadonlySet<string>): void {
+function flatFolders(file: FileResult): string {
+  return [file.root, file.folder].filter((part) => part !== "").join("/");
+}
+
+/** Groups the files by name and picks, for each file of a shared name, the folders that tell it apart. */
+function distinctFoldersByFile(files: readonly FileResult[]): Map<FileResult, number[]> {
+  const byName = new Map<string, FileResult[]>();
+  for (const file of files) byName.set(file.name, [...(byName.get(file.name) ?? []), file]);
+  const distinct = new Map<FileResult, number[]>();
+  for (const group of byName.values()) {
+    if (group.length < 2) continue;
+    const indices = distinctFolderIndices(group.map((file) => flatFolders(file).split("/")));
+    group.forEach((file, index) => distinct.set(file, indices[index] ?? []));
+  }
+  return distinct;
+}
+
+function pushFile(rows: Row[], file: FileResult, folders: string, depth: number, collapsed: ReadonlySet<string>, distinctFolders: readonly number[] = []): void {
   const fileCollapsed = collapsed.has(file.uri);
-  rows.push({ kind: "file", key: file.uri, depth, file, folders, collapsed: fileCollapsed });
+  rows.push({ kind: "file", key: file.uri, depth, file, folders, distinctFolders, collapsed: fileCollapsed });
   if (fileCollapsed) return;
   for (const block of file.blocks) {
     for (const line of block) if (!isBlankContext(line)) rows.push({ kind: "line", depth: depth + 1, file, line });

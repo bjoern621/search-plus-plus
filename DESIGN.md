@@ -67,6 +67,8 @@ Every search covers the files that the ignore files and the exclude settings of 
   The list dims the folders before the file name.
   The paths set the file name in bold.
   A narrow side bar drops whole folders from the front of the path and keeps the file name whole: `…/apim/values.yaml`.
+  Files sharing a name keep the folders that tell them apart until last, and a run of dropped folders shows as one `…`: `…/atticd-speed/…/docs.md`.
+  Those folders sit in the same section of every path, counted from the first folder or from the file, whichever tells more paths apart.
   In a multi-root workspace, the folders start with the name of the workspace folder.
 - In the tree, folders nest as in the explorer, subfolders before files.
   A chain of folders without matched files of their own shares one row, such as `charts/apim`.
