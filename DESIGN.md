@@ -39,7 +39,8 @@ The level decides how far the view keeps the feature from the query input.
 | Scope | Rare | menu at the end of the results summary line |
 | Settings for the matching defaults | Rare | behind the gear in the view title |
 
-The empty query input names both kinds of query in its placeholder: `Search text or a key path such as gateway.image.tag`.
+The empty query input names both kinds of query in its placeholder: `Text or key path: gateway.image.tag`.
+It stays short enough to show whole in a side bar of the default width.
 The summary line holds the scope button from the start, so the scope can change before the first search.
 It shows a scope other than the working tree in color, so a history search never passes for a working tree search.
 
