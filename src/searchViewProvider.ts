@@ -2,7 +2,9 @@ import * as vscode from "vscode";
 import { REVISION_SCHEME, type RevisionDocuments } from "./git/revisionDocuments";
 import { listBranches } from "./git/repository";
 import { describeGit, prepareScope, rootRepositories } from "./git/scopes";
-import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "./messages";
+import { fileIcons, IconResolver, iconTable } from "./icons/iconTheme";
+import { activeIconThemeId, colorKind, iconThemeExtensionFolders, type LoadedIconTheme, loadIconTheme } from "./icons/loadIconTheme";
+import type { FileIcons, FileResult, HostMessage, IconTable, SearchStatus, TestSnapshot, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
 import { HOVER_EXCERPT_RADIUS_LINES, RESULT_LINE_LIMIT } from "./search/config";
@@ -34,6 +36,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   private running: AbortController | undefined;
   private readonly searchDone = new vscode.EventEmitter<number>();
   private readonly snapshots = new vscode.EventEmitter<TestSnapshot>();
+  private iconTheme: LoadedIconTheme | undefined;
+  private iconResolver: IconResolver | undefined;
+  /** Counts the loads of the icon theme, so a slow load never replaces the theme of a later one. */
+  private iconThemeLoads = 0;
+  /** Maps a file URI to a result of the current search, so a theme change can resolve its icons again. */
+  private readonly shownFiles = new Map<string, FileResult>();
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -42,6 +50,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     private readonly log: (message: string) => void,
   ) {
     this.resetViewReady();
+    void this.reloadIconTheme();
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -49,7 +58,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     if (this.isViewReady) this.resetViewReady();
     view.webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "dist")],
+      localResourceRoots: this.resourceRoots(),
     };
     view.webview.html = renderHtml(view.webview, this.extensionUri);
     view.webview.onDidReceiveMessage((message: ViewMessage) => this.handle(message));
@@ -81,6 +90,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     const controller = new AbortController();
     this.running = controller;
     const searchId = ++this.searchId;
+    this.shownFiles.clear();
     this.post({ type: "searchStarted", searchId });
 
     const roots = withExcludeField(searchRoots(), fields.exclude);
@@ -98,7 +108,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
           contextLines: vscode.workspace.getConfiguration("structuralSearch").get<number>("contextLines", 1),
           fields,
           signal: controller.signal,
-          onBatch: (files) => this.post({ type: "results", searchId, files }),
+          onBatch: (files) => this.post({ type: "results", searchId, files: files.map((file) => this.withIcons(file)) }),
         });
       })
       .then(undefined, (error: unknown): { status: "aborted" | "failed" } => {
@@ -123,6 +133,28 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       default:
         assertNever(outcome);
     }
+  }
+
+  /**
+   * Loads the file icon theme that `workbench.iconTheme` names and redraws the icons of the shown results.
+   * A theme that fails to load leaves the rows without icons and writes the cause to the output channel.
+   */
+  async reloadIconTheme(): Promise<void> {
+    const load = ++this.iconThemeLoads;
+    const id = activeIconThemeId();
+    const theme = id === undefined ? undefined : await loadIconTheme(id).catch((error: unknown) => {
+      this.log(`The file icon theme ${id} failed to load, showing no icons: ${String(error)}`);
+      return undefined;
+    });
+    if (load !== this.iconThemeLoads) return;
+    this.iconTheme = theme;
+    this.applyColorTheme();
+  }
+
+  /** Picks the icons of the `light` or `highContrast` section of the theme for the active color theme and redraws them. */
+  applyColorTheme(): void {
+    this.iconResolver = this.iconTheme ? new IconResolver(this.iconTheme.document, colorKind(vscode.window.activeColorTheme.kind)) : undefined;
+    this.sendIcons();
   }
 
   /** Types `query` into the view and presses Enter, then returns what the view shows once the search ends. For integration tests. */
@@ -239,6 +271,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       case "ready":
         this.isViewReady = true;
         this.markViewReady();
+        this.sendIcons();
         void this.sendGitInfo();
         return;
       case "search":
@@ -309,6 +342,46 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: "excerpt", requestId, lines });
   }
 
+  private withIcons(file: FileResult): FileResult {
+    this.shownFiles.set(file.uri, file);
+    return { ...file, icons: this.iconsOf(file) };
+  }
+
+  private iconsOf(file: FileResult): FileIcons {
+    if (!this.iconResolver) return {};
+    const root = vscode.workspace.workspaceFolders?.[file.rootIndex];
+    const rootFolderName = root ? (root.uri.path.split("/").at(-1) ?? file.root) : file.root;
+    return fileIcons(this.iconResolver, file, rootFolderName);
+  }
+
+  /** Sends the icon table and the icons of every shown file. */
+  private sendIcons(): void {
+    const view = this.view;
+    if (!view) return;
+    if (this.iconTheme && !this.covers(this.iconTheme.extensionFolder)) {
+      // The theme comes from an extension installed after the view opened, so the view may load none of its files yet.
+      view.webview.options = { ...view.webview.options, localResourceRoots: this.resourceRoots() };
+    }
+    const files: Record<string, FileIcons> = {};
+    for (const [uri, file] of this.shownFiles) files[uri] = this.iconsOf(file);
+    this.post({ type: "icons", theme: this.iconTable(view.webview), files });
+  }
+
+  private iconTable(webview: vscode.Webview): IconTable | undefined {
+    const theme = this.iconTheme;
+    if (!theme || !this.iconResolver) return undefined;
+    return iconTable(theme.document, (path) => webview.asWebviewUri(vscode.Uri.joinPath(theme.folder, path)).toString());
+  }
+
+  /** The view loads its own script and style and the files of every installed file icon theme, so a theme change keeps the view and its results. */
+  private resourceRoots(): vscode.Uri[] {
+    return [vscode.Uri.joinPath(this.extensionUri, "dist"), ...iconThemeExtensionFolders()];
+  }
+
+  private covers(folder: vscode.Uri): boolean {
+    return (this.view?.webview.options.localResourceRoots ?? []).some((root) => root.toString() === folder.toString());
+  }
+
   private resetViewReady(): void {
     this.isViewReady = false;
     this.viewReady = new Promise((resolve) => (this.markViewReady = resolve));
@@ -334,7 +407,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; img-src ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="${style}">
 </head>

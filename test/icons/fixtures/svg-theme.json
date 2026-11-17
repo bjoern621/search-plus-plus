@@ -1,0 +1,31 @@
+{
+  "iconDefinitions": {
+    "file": { "iconPath": "./icons/file.svg" },
+    "folder": { "iconPath": "./icons/folder.svg" },
+    "folder-open": { "iconPath": "./icons/folder-open.svg" },
+    "folder-charts": { "iconPath": "./icons/folder-charts.svg" },
+    "folder-charts-open": { "iconPath": "./icons/folder-charts-open.svg" },
+    "folder-docs": { "iconPath": "./icons/folder-docs.svg" },
+    "folder-templates": { "iconPath": "./icons/folder-templates.svg" },
+    "root": { "iconPath": "./icons/root.svg" },
+    "root-open": { "iconPath": "./icons/root-open.svg" },
+    "root-infra": { "iconPath": "./icons/root-infra.svg" },
+    "yaml": { "iconPath": "./icons/yaml.svg" },
+    "helm": { "iconPath": "./icons/helm.svg" },
+    "helm-values": { "iconPath": "./icons/helm-values.svg" },
+    "settings": { "iconPath": "./icons/settings.svg" },
+    "vscode-settings": { "iconPath": "./icons/vscode-settings.svg" },
+    "json": { "iconPath": "../shared/json.svg" }
+  },
+  "file": "file",
+  "folder": "folder",
+  "folderExpanded": "folder-open",
+  "rootFolder": "root",
+  "rootFolderExpanded": "root-open",
+  "folderNames": { "charts": "folder-charts", "docs": "folder-docs", "apim/templates": "folder-templates", "broken": "missing" },
+  "folderNamesExpanded": { "charts": "folder-charts-open" },
+  "rootFolderNames": { "infra": "root-infra" },
+  "fileExtensions": { "yaml": "yaml", "values.yaml": "helm-values", "json": "json" },
+  "fileNames": { "chart.yaml": "helm", "settings.json": "settings", ".vscode/settings.json": "vscode-settings" },
+  "languageIds": {}
+}

@@ -367,6 +367,62 @@ describe("Structural Search scopes", () => {
   });
 });
 
+describe("Structural Search icons", () => {
+  const workbench = () => vscode.workspace.getConfiguration("workbench");
+
+  afterEach(async () => {
+    await workbench().update("iconTheme", undefined, vscode.ConfigurationTarget.Global);
+    await workbench().update("colorTheme", undefined, vscode.ConfigurationTarget.Global);
+  });
+
+  it("gives rows the icons of the built-in Seti theme, without folder icons, as Seti has none", async () => {
+    const snapshot = await search("4.1.0");
+    assert.deepEqual(rowIcons(snapshot), { "folder charts/apim": "", "file Chart.yaml": "_yml", "file values.yaml": "_yml", "folder docs": "", "file upgrade.md": "_markdown" });
+  });
+
+  it("switches to the light icons of Seti with a light color theme, without a new search", async () => {
+    await search("4.1.0");
+    await workbench().update("colorTheme", "Default Light Modern", vscode.ConfigurationTarget.Global);
+    const icons = await changedIcons((current) => current["file values.yaml"] !== "_yml");
+    assert.equal(icons["file values.yaml"], "_yml_light");
+    assert.equal(icons["file upgrade.md"], "_markdown_light");
+  });
+
+  it("gives rows the SVG icons of the built-in Modern theme, expanded folders open", async () => {
+    await search("4.1.0");
+    await workbench().update("iconTheme", "vscode-modern-icons", vscode.ConfigurationTarget.Global);
+    const icons = await changedIcons((current) => current["folder docs"] !== "");
+    assert.deepEqual(icons, { "folder charts/apim": "_folderOpen", "file Chart.yaml": "_file", "file values.yaml": "_file", "folder docs": "_folderOpen", "file upgrade.md": "_markdown" });
+
+    const collapsed = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["Home", "Enter"]);
+    assert.equal(rowIcons(collapsed)["folder charts/apim"], "_folder");
+  });
+
+  it("shows no icons with the icon theme None", async () => {
+    await search("4.1.0");
+    await workbench().update("iconTheme", null, vscode.ConfigurationTarget.Global);
+    const icons = await changedIcons((current) => current["file values.yaml"] === "");
+    assert.deepEqual(new Set(Object.values(icons)), new Set([""]));
+  });
+});
+
+/** Maps each folder and file row to its icon definition id. */
+function rowIcons(snapshot: TestSnapshot): Record<string, string> {
+  return Object.fromEntries(snapshot.rows.flatMap((row, index) => (row.startsWith("folder ") || row.startsWith("file ") ? [[row, snapshot.icons[index] ?? ""]] : [])));
+}
+
+/** Waits until the row icons pass `settled`, since a theme change reaches the view after the settings update resolves. Returns the last icons seen. */
+async function changedIcons(settled: (icons: Record<string, string>) => boolean): Promise<Record<string, string>> {
+  const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
+  let icons: Record<string, string> = {};
+  while (Date.now() < deadline) {
+    icons = rowIcons(await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot"));
+    if (settled(icons)) return icons;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return icons;
+}
+
 /** Waits for the hover card to show and returns what it holds. */
 async function shownHover(): Promise<string[]> {
   const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;

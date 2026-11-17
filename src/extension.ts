@@ -32,7 +32,14 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
 
   context.subscriptions.push(
     log,
-    vscode.extensions.onDidChange(() => (languages = undefined)),
+    vscode.extensions.onDidChange(() => {
+      languages = undefined;
+      void provider.reloadIconTheme();
+    }),
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("workbench.iconTheme")) void provider.reloadIconTheme();
+    }),
+    vscode.window.onDidChangeActiveColorTheme(() => provider.applyColorTheme()),
     vscode.window.registerWebviewViewProvider(SearchViewProvider.viewId, provider, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand("structuralSearch.focus", () => provider.focus()),
     vscode.workspace.registerTextDocumentContentProvider(REVISION_SCHEME, documents),

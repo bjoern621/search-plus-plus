@@ -7,7 +7,7 @@ import { ContextMenu } from "./contextMenu";
 import { HoverCard } from "./hoverCard";
 import { type KeyPress, rowCommand } from "./keyboard";
 import { matchMenu, type MenuAction } from "./menu";
-import { fileIcon } from "./icons";
+import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
@@ -49,6 +49,7 @@ const hoverElement = document.getElementById("hover") as HTMLDivElement;
 const hoverCard = new HoverCard(hoverElement, (requestId, uri, line) => vscode.postMessage({ type: "excerpt", requestId, uri, line }), renderedMatch);
 
 const tree = new ResultTree();
+const iconTheme = new FileIconTheme();
 /** Keys of the collapsed folder and file rows. */
 const collapsed = new Set<string>();
 let searchId = 0;
@@ -198,6 +199,11 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       if (message.searchId !== searchId) return;
       blockedHint = message.hint;
       refreshHint();
+      return;
+    case "icons":
+      iconTheme.set(message.theme);
+      tree.setIcons(message.files);
+      invalidateLayout();
       return;
     case "excerpt":
       hoverCard.show(message.requestId, message.lines);
@@ -462,17 +468,14 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.className = "row";
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = row.label;
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), span("folder-icon", "■"), span("label", row.label));
+      element.append(span("twisty", row.collapsed ? "▶" : "▼"), iconTheme.element(row.icon), span("label", row.label));
       if (row.folder !== "") element.append(excludeButton(`Exclude folder ${row.folder}`, folderEntry(row.folder)));
       return element;
     case "file": {
-      const icon = fileIcon(row.file.name);
-      const glyph = span("file-icon", icon.glyph);
-      glyph.style.color = icon.color;
       element.className = "row";
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), glyph, span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
+      element.append(span("twisty", row.collapsed ? "▶" : "▼"), iconTheme.element(row.file.icons?.file), span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
     }
     case "line": {
@@ -635,6 +638,7 @@ function snapshot(): TestSnapshot {
     include: includeInput.value,
     exclude: excludeInput.value,
     rows: rows.map(describeRow),
+    icons: rows.map(rowIcon),
     focused: focusedIndex,
     menu: contextMenu.describe(),
     hover: hoverCard.describe(),
@@ -651,6 +655,18 @@ function describeRow(row: Row): string {
       return `file ${row.file.name}`;
     case "line":
       return describeLine(row.line);
+  }
+}
+
+function rowIcon(row: Row): string {
+  switch (row.kind) {
+    case "folder":
+      return row.icon ?? "";
+    case "file":
+      return row.file.icons?.file ?? "";
+    case "commit":
+    case "line":
+      return "";
   }
 }
 

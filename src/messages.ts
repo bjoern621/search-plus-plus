@@ -45,6 +45,36 @@ export interface FileResult {
   blocks: ResultLine[][];
   /** The commit that changed the file. Set in the Git history scope alone. */
   commit?: CommitInfo;
+  /** Set by the view provider from the active file icon theme. */
+  icons?: FileIcons;
+}
+
+/** Icon definition ids of the active file icon theme. A missing id shows an empty icon slot. */
+export interface FileIcons {
+  file?: string;
+  /** The folder row above the file, collapsed. */
+  folder?: string;
+  folderExpanded?: string;
+}
+
+/** How the view draws an icon definition of the file icon theme. */
+export type IconLook =
+  /** An SVG or PNG file. With `currentColor`, the image masks the text color of the row. */
+  | { kind: "image"; uri: string; currentColor: boolean }
+  /** A character of an icon font. `size` holds a CSS font size such as `150%`, relative to the row text. */
+  | { kind: "glyph"; character: string; family: string; size: string; color?: string };
+
+export interface IconFontFace {
+  family: string;
+  sources: { uri: string; format: string }[];
+  weight: string;
+  style: string;
+}
+
+/** The fonts and the icon definitions of the active file icon theme, keyed by definition id. */
+export interface IconTable {
+  fonts: IconFontFace[];
+  icons: Record<string, IconLook>;
 }
 
 /**
@@ -62,6 +92,8 @@ export interface TestSnapshot {
   include: string;
   exclude: string;
   rows: string[];
+  /** The icon definition id of each row, empty for a row without icon. */
+  icons: string[];
   /** Index of the focused row, -1 without one. */
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
@@ -91,6 +123,8 @@ export type HostMessage =
   | { type: "results"; searchId: number; files: FileResult[] }
   | { type: "hint"; searchId: number; hint: Hint }
   | { type: "searchDone"; searchId: number; status: SearchStatus; limit: number }
+  /** Sets the file icon theme and the icons of the files that the view holds, keyed by file URI. Without a theme, rows show empty icon slots. */
+  | { type: "icons"; theme: IconTable | undefined; files: Record<string, FileIcons> }
   /** Answers the excerpt request `requestId`. Empty when the file cannot be read. */
   | { type: "excerpt"; requestId: number; lines: ResultLine[] }
   /** Fields left out keep what the view holds. */

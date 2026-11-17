@@ -101,6 +101,17 @@ describe("ResultTree", () => {
     tree.setFilter(undefined);
     expect(tree.fileCount).toBe(3);
   });
+
+  it("gives a folder row the icon of its state and replaces icons without a new search", () => {
+    const tree = new ResultTree();
+    const values = { ...file("charts", "values.yaml"), icons: { file: "yaml", folder: "folder", folderExpanded: "folder-open" } };
+    tree.add([values]);
+    const icons = (collapsed: Set<string>) => tree.rows(collapsed).map((row) => (row.kind === "folder" ? row.icon : row.kind === "file" ? row.file.icons?.file : ""));
+    expect(icons(new Set())).toEqual(["folder-open", "yaml", ""]);
+    expect(icons(new Set(["0:charts"]))).toEqual(["folder"]);
+    tree.setIcons({ [values.uri]: { file: "yaml-light" } });
+    expect(icons(new Set())).toEqual([undefined, "yaml-light", ""]);
+  });
 });
 
 describe("rowAt", () => {

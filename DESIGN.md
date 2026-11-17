@@ -48,6 +48,10 @@ The summary line shows a scope other than the working tree in color, so a histor
   The settings change the number of context lines.
 - Context of two close matches merges into one block.
 - Rows carry no indentation: folders, files and lines start at the same left edge, so the lines take the full width of the side bar.
+- Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
+  The theme picks the icon by file name, extension, language and the open or closed state of a folder.
+  A compacted folder row such as `charts/apim` shows the icon of its last folder.
+  With the icon theme set to None, rows keep an empty icon slot, so the labels stay aligned.
 - Results carry no ranking: files follow the folder tree, matches follow their line numbers.
 - A fuzzy match looks like an exact match.
 - Folders and files carry no result count.

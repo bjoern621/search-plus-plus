@@ -268,21 +268,22 @@ body {
   color: var(--vscode-icon-foreground);
 }
 
-.folder-icon {
-  flex: none;
-  width: 16px;
-  margin-right: 4px;
-  text-align: center;
-  color: #c09553;
-}
-
+/* Sized as the icons of the explorer: 16px images, glyphs at the size that the theme sets. */
 .file-icon {
   flex: none;
-  width: 18px;
-  margin-right: 4px;
-  font-size: 10px;
-  font-weight: 700;
+  width: 16px;
+  height: 22px;
+  margin-right: 6px;
+  line-height: 22px;
   text-align: center;
+  background: no-repeat left center / 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.file-icon.masked {
+  background: currentColor;
+  mask: no-repeat left center / 16px;
+  -webkit-mask: no-repeat left center / 16px;
 }
 
 .label {

@@ -8,7 +8,7 @@ const file = { uri: "file:///w/docs/a.md", name: "a.md" } as FileResult;
 
 function rows(collapsed = false): Row[] {
   return [
-    { kind: "folder", key: "0:docs", label: "docs", folder: "docs", collapsed: false },
+    { kind: "folder", key: "0:docs", label: "docs", folder: "docs", collapsed: false, icon: undefined },
     { kind: "file", key: file.uri, file, collapsed },
     { kind: "line", file, line },
     { kind: "line", file, line: { ...line, line: 1 } },

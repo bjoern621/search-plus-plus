@@ -1,10 +1,10 @@
-import type { CommitInfo, FileResult, ResultLine } from "../messages";
+import type { CommitInfo, FileIcons, FileResult, ResultLine } from "../messages";
 import type { PathFilter } from "../search/globs";
 
 export type Row =
   | { kind: "commit"; key: string; commit: CommitInfo; collapsed: boolean }
-  /** `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. */
-  | { kind: "folder"; key: string; label: string; folder: string; collapsed: boolean }
+  /** `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. `icon` follows the collapsed state. */
+  | { kind: "folder"; key: string; label: string; folder: string; collapsed: boolean; icon: string | undefined }
   | { kind: "file"; key: string; file: FileResult; collapsed: boolean }
   | { kind: "line"; file: FileResult; line: ResultLine };
 
@@ -81,6 +81,16 @@ export class ResultTree {
     }
   }
 
+  /** Replaces the icons of the files that `icons` names, keyed by file URI. */
+  setIcons(icons: Readonly<Record<string, FileIcons>>): void {
+    for (const group of this.groups.values()) {
+      for (const [uri, file] of group.files) {
+        const replacement = icons[uri];
+        if (replacement) group.files.set(uri, { ...file, icons: replacement });
+      }
+    }
+  }
+
   /** Empties the tree and drops its filter. */
   clear(): void {
     this.groups.clear();
@@ -105,7 +115,10 @@ export class ResultTree {
       }
       if (group.commit && commitCollapsed) continue;
       const folderCollapsed = collapsed.has(group.key);
-      if (group.label !== "") rows.push({ kind: "folder", key: group.key, label: group.label, folder: group.segments.join("/"), collapsed: folderCollapsed });
+      if (group.label !== "") {
+        const icons = files[0]?.icons;
+        rows.push({ kind: "folder", key: group.key, label: group.label, folder: group.segments.join("/"), collapsed: folderCollapsed, icon: folderCollapsed ? icons?.folder : icons?.folderExpanded });
+      }
       if (folderCollapsed) continue;
       for (const file of files.sort((a, b) => collator.compare(a.name, b.name))) {
         const fileCollapsed = collapsed.has(file.uri);
