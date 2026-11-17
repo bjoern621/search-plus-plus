@@ -2,6 +2,7 @@ import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../me
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
+import { type KeyPress, rowCommand } from "./keyboard";
 import { fileIcon } from "./icons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
@@ -53,6 +54,8 @@ let blockedHint: Hint | undefined;
 /** The query and fields of the last search, so a change of the fields can repeat it. */
 let searched: ({ query: string } & FileFields) | undefined;
 let fileFieldsTimer = 0;
+/** Index of the row that holds the keyboard focus inside the results, -1 without one. */
+let focusedIndex = -1;
 
 const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, ...vscode.getState() };
 includeInput.value = state.include;
@@ -96,12 +99,20 @@ rowsElement.addEventListener("click", (event) => {
     exclude(excludeButton.dataset.entry ?? "");
     return;
   }
-  const row = rowFromEvent(event);
-  if (row) activate(row, true);
+  const index = rowIndexFromEvent(event);
+  const row = rows[index];
+  if (!row) return;
+  focusRow(index);
+  activate(row, true);
+});
+
+results.addEventListener("keydown", (event) => {
+  if (event.target !== results) return;
+  if (handleRowKey(event)) event.preventDefault();
 });
 
 rowsElement.addEventListener("dblclick", (event) => {
-  const row = rowFromEvent(event);
+  const row = rows[rowIndexFromEvent(event)];
   if (row?.kind === "line") activate(row, false);
 });
 
@@ -150,6 +161,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       return;
     case "testExcludeRow":
       showRow(message.index)?.querySelector<HTMLElement>(".exclude")?.click();
+      return;
+    case "testPressKeys":
+      for (const key of message.keys) pressKey(key);
       return;
     case "testTypeFileFields":
       setFileFields(message);
@@ -250,6 +264,8 @@ function startSearch(id: number): void {
   cappedAt = undefined;
   tree.clear();
   collapsed.clear();
+  focusedIndex = -1;
+  results.removeAttribute("aria-activedescendant");
   results.scrollTop = 0;
   blockedHint = undefined;
   refreshHint();
@@ -278,6 +294,7 @@ function layout(): void {
   layoutStale = false;
   rows = tree.rows(collapsed);
   offsets = rowOffsets(rows);
+  if (focusedIndex >= rows.length) focusedIndex = rows.length - 1;
   rowsElement.style.height = `${offsets.at(-1) ?? 0}px`;
   const widest = rows.reduce((max, row) => (row.kind === "line" ? Math.max(max, row.line.line + 1) : max), 0);
   rowsElement.style.setProperty("--line-number-width", `${Math.max(2, String(widest).length)}ch`);
@@ -325,6 +342,8 @@ function render(): void {
 function rowElement(row: Row, index: number): HTMLElement {
   const element = document.createElement("div");
   element.dataset.index = String(index);
+  element.id = `row-${index}`;
+  if (index === focusedIndex) element.classList.add("focused");
   element.style.top = `${offsets[index] ?? 0}px`;
   element.setAttribute("role", "treeitem");
   switch (row.kind) {
@@ -387,10 +406,47 @@ function span(className: string, text: string, tag: "span" | "mark" = "span"): H
   return element;
 }
 
-function rowFromEvent(event: MouseEvent): Row | undefined {
+/** Returns the index of the row under the event, -1 outside of every row. */
+function rowIndexFromEvent(event: Event): number {
   const element = (event.target as HTMLElement).closest<HTMLElement>("[data-index]");
-  if (!element) return undefined;
-  return rows[Number(element.dataset.index)];
+  return element ? Number(element.dataset.index) : -1;
+}
+
+/** Runs the command of a key pressed on the results. Returns false for a key without a command, so the browser handles it. */
+function handleRowKey(press: KeyPress): boolean {
+  const command = rowCommand(rows, focusedIndex, press);
+  if (!command) return false;
+  const row = rows[focusedIndex];
+  switch (command.kind) {
+    case "focus":
+      focusRow(command.index);
+      return true;
+    case "activate":
+      if (row) activate(row, command.preserveFocus);
+      return true;
+    case "toggle":
+      if (row) activate(row, true);
+      return true;
+  }
+}
+
+/** Moves the keyboard focus to the row at `index` and scrolls it into view. */
+function focusRow(index: number): void {
+  focusedIndex = index;
+  layout();
+  const top = offsets[index] ?? 0;
+  const bottom = offsets[index + 1] ?? top;
+  if (top < results.scrollTop) results.scrollTop = top;
+  else if (bottom > results.scrollTop + results.clientHeight) results.scrollTop = bottom - results.clientHeight;
+  results.setAttribute("aria-activedescendant", `row-${index}`);
+  render();
+}
+
+/** Presses `key` on the results, as a person would. `Shift+` in front holds Shift. */
+function pressKey(key: string): void {
+  results.focus();
+  const shiftKey = key.startsWith("Shift+");
+  results.dispatchEvent(new KeyboardEvent("keydown", { key: shiftKey ? key.slice("Shift+".length) : key, shiftKey, bubbles: true, cancelable: true }));
 }
 
 /** A line opens its file at the match. A folder or file row collapses or expands. */
@@ -416,6 +472,7 @@ function snapshot(): TestSnapshot {
     include: includeInput.value,
     exclude: excludeInput.value,
     rows: rows.map(describeRow),
+    focused: focusedIndex,
   };
 }
 

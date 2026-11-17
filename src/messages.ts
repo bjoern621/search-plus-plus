@@ -42,6 +42,8 @@ export interface TestSnapshot {
   include: string;
   exclude: string;
   rows: string[];
+  /** Index of the focused row, -1 without one. */
+  focused: number;
 }
 
 export type ViewMessage =
@@ -62,4 +64,5 @@ export type HostMessage =
   | { type: "testClickRow"; index: number }
   | { type: "testClickHint" }
   | { type: "testExcludeRow"; index: number }
+  | { type: "testPressKeys"; keys: string[] }
   | ({ type: "testTypeFileFields" } & FileFields);

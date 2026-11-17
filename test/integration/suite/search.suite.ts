@@ -169,6 +169,19 @@ describe("Structural Search view", () => {
     await vscode.commands.executeCommand("structuralSearch.test.clickRow", index);
     assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
   });
+
+  it("moves through the rows with Down and opens the focused line with Enter", async () => {
+    const snapshot = await search("replicas");
+    const index = snapshot.rows.indexOf("match 5:   [replicas]: 2");
+    assert.notEqual(index, -1, snapshot.rows.join("\n"));
+
+    const keys = [...Array.from({ length: index + 1 }, () => "ArrowDown"), "ArrowUp", "ArrowDown"];
+    const focused = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", keys);
+    assert.equal(focused.focused, index);
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", ["Enter"]);
+    assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
+  });
 });
 
 /**

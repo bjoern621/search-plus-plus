@@ -128,6 +128,13 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     return snapshot;
   }
 
+  /** Presses `keys` on the results one after another, then returns what the view shows. A key such as `Shift+F10` holds Shift. For integration tests. */
+  async testPressKeys(keys: string[]): Promise<TestSnapshot> {
+    await this.viewReady;
+    this.post({ type: "testPressKeys", keys });
+    return this.testSnapshot();
+  }
+
   /** Clicks the result row at `index` of the snapshot rows. For integration tests. */
   async testClickRow(index: number): Promise<void> {
     await this.viewReady;
@@ -231,7 +238,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   <span id="summary-text"></span>
   <button id="scope" class="scope" aria-label="Change scope">Working tree &#x25be;</button>
 </div>
-<div id="results" class="results" role="tree" aria-label="Results"><div id="rows" class="rows"></div></div>
+<div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
 <script nonce="${nonce}" src="${script}"></script>
 </body>
 </html>`;
