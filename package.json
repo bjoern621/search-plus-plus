@@ -80,6 +80,7 @@
     "vitest": "4.1.0"
   },
   "dependencies": {
+    "@vscode/codicons": "0.0.45",
     "jsonc-parser": "3.3.1"
   }
 }

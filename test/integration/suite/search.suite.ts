@@ -58,7 +58,7 @@ describe("Structural Search view", () => {
   it("lists text matches under their folders, with context lines", async () => {
     const snapshot = await search("4.1.0");
     assert.equal(snapshot.hint, "");
-    assert.equal(snapshot.summary, "3 results in 3 files | Working tree ▾");
+    assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
     assert.deepEqual(snapshot.rows, [
       "folder charts/apim",
       "file Chart.yaml",
@@ -78,7 +78,7 @@ describe("Structural Search view", () => {
   it("runs a query between slashes as a regex through ripgrep", async () => {
     const snapshot = await search("/tag: \\d+\\.\\d+/");
     assert.equal(snapshot.hint, "Searching as a regex.");
-    assert.equal(snapshot.summary, "1 result in 1 file | Working tree ▾");
+    assert.equal(snapshot.summary, "1 result in 1 file | Working tree");
     assert.deepEqual(snapshot.rows, [
       "folder charts/apim",
       "file values.yaml",
@@ -91,7 +91,7 @@ describe("Structural Search view", () => {
   it("shows the parser's message for a regex that cannot compile and searches nothing", async () => {
     const snapshot = await search("/tag: (/");
     assert.match(snapshot.hint, /^The regex cannot compile: .+\. Fix it or drop the slashes\.$/);
-    assert.equal(snapshot.summary, " | Working tree ▾");
+    assert.equal(snapshot.summary, " | Working tree");
     assert.deepEqual(snapshot.rows, []);
   });
 
@@ -99,7 +99,7 @@ describe("Structural Search view", () => {
     await search("/4.1.0 (/");
     const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.clickHint");
     assert.equal(snapshot.hint, "");
-    assert.equal(snapshot.summary, "No results. | Working tree ▾");
+    assert.equal(snapshot.summary, "No results. | Working tree");
   });
 
   it("closes a regex on a click on the hint after a leading slash", async () => {
@@ -107,7 +107,7 @@ describe("Structural Search view", () => {
     assert.equal(before.hint, "End with a slash to search as a regex.");
     const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.clickHint");
     assert.equal(snapshot.hint, "Searching as a regex.");
-    assert.equal(snapshot.summary, "1 result in 1 file | Working tree ▾");
+    assert.equal(snapshot.summary, "1 result in 1 file | Working tree");
   });
 
   it("finds a YAML key by its key path", async () => {
@@ -182,7 +182,7 @@ describe("Structural Search view", () => {
     const before = await search("4.1.0");
     const snapshot = await excludeRow(before.rows, "folder docs");
     assert.equal(snapshot.exclude, "./docs/");
-    assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree");
     assert.ok(!snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
 
     const later = await searchKeepingFields("gateway");
@@ -195,7 +195,7 @@ describe("Structural Search view", () => {
     const before = await search("4.1.0");
     const snapshot = await excludeRow(before.rows, "file Chart.yaml");
     assert.equal(snapshot.exclude, "./charts/apim/Chart.yaml");
-    assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree");
     assert.ok(!snapshot.rows.includes("file Chart.yaml"), snapshot.rows.join("\n"));
   });
 
@@ -203,13 +203,13 @@ describe("Structural Search view", () => {
     const before = await search("4.1.0");
     await excludeRow(before.rows, "folder docs");
     const snapshot = await typeFileFields(NO_FILE_FIELDS, false);
-    assert.equal(snapshot.summary, "3 results in 3 files | Working tree ▾");
+    assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
   });
 
   it("repeats the search when an entry that it searched with leaves files to exclude", async () => {
     await search("4.1.0", { include: "", exclude: "./docs/" });
     const snapshot = await typeFileFields(NO_FILE_FIELDS, true);
-    assert.equal(snapshot.summary, "3 results in 3 files | Working tree ▾");
+    assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
     assert.ok(snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
   });
 
@@ -220,7 +220,7 @@ describe("Structural Search view", () => {
       ["file values.yaml"],
     );
     const regex = await search("/tag: \\d/", { include: "", exclude: "./charts/" });
-    assert.equal(regex.summary, "No results. | Working tree ▾");
+    assert.equal(regex.summary, "No results. | Working tree");
   });
 
   it("says in the context menu why a close spelling matched and offers to find the word as written", async () => {
@@ -238,7 +238,7 @@ describe("Structural Search view", () => {
     ]);
 
     const written = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.chooseMenuSearch", `Find "Größe" as written`);
-    assert.equal(written.summary, "1 result in 1 file | Working tree ▾");
+    assert.equal(written.summary, "1 result in 1 file | Working tree");
     assert.ok(written.rows.includes("match 3: Set the [Größe] of each volume."), written.rows.join("\n"));
   });
 
@@ -302,7 +302,7 @@ describe("Structural Search view", () => {
     const snapshot = await chooseMenuItem("Exclude folder docs");
     assert.equal(snapshot.exclude, "./docs/");
     assert.deepEqual(snapshot.menu, []);
-    assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree");
   });
 
   it("shows the lines around a match once the pointer rests on it", async () => {
@@ -447,7 +447,7 @@ describe("Structural Search scopes", () => {
 
   it("searches the files changed against the default branch, uncommitted changes included", async () => {
     const snapshot = await search("4.1.0", NO_FILE_FIELDS, { kind: "changed" });
-    assert.equal(snapshot.summary, "2 results in 2 files | Changed against main ▾");
+    assert.equal(snapshot.summary, "2 results in 2 files | Changed against main");
     assert.deepEqual(
       snapshot.rows.filter((row) => row.startsWith("file ")),
       ["file values.yaml", "file upgrade.md"],
@@ -456,7 +456,7 @@ describe("Structural Search scopes", () => {
 
   it("searches another branch without a checkout and leaves out the excluded folders", async () => {
     const raised = await search("5.0.0", NO_FILE_FIELDS, feature);
-    assert.equal(raised.summary, "1 result in 1 file | Branch feature ▾");
+    assert.equal(raised.summary, "1 result in 1 file | Branch feature");
     assert.deepEqual(raised.rows, ["folder charts/apim", "file values.yaml", "context 3:     repository: graviteeio/apim-gateway", "match 4:     tag: [5.0.0]", "context 5:   replicas: 2"]);
 
     const chart = await search("4.1.0", NO_FILE_FIELDS, feature);
@@ -470,7 +470,7 @@ describe("Structural Search scopes", () => {
     const accepting = setInterval(() => void vscode.commands.executeCommand("workbench.action.acceptSelectedQuickOpenItem"), 200);
     try {
       const snapshot = await picked;
-      assert.equal(snapshot.summary, "1 result in 1 file | Branch feature ▾");
+      assert.equal(snapshot.summary, "1 result in 1 file | Branch feature");
     } finally {
       clearInterval(accepting);
     }
@@ -478,7 +478,7 @@ describe("Structural Search scopes", () => {
 
   it("groups the lines that recent commits added under their commits, newest first", async () => {
     const snapshot = await search("4.1.0", NO_FILE_FIELDS, history);
-    assert.equal(snapshot.summary, "2 results in 2 commits | Git history ▾");
+    assert.equal(snapshot.summary, "2 results in 2 commits | Git history");
     assert.deepEqual(withoutShas(snapshot.rows), [
       "commit <sha> Raise the gateway to 4.1.0 (Ada Lovelace, 2026-11-03)",
       "folder charts/apim",
@@ -496,7 +496,7 @@ describe("Structural Search scopes", () => {
 
   it("applies files to exclude to the Git history", async () => {
     const snapshot = await search("4.1.0", { include: "", exclude: "Chart.yaml" }, history);
-    assert.equal(snapshot.summary, "1 result in 1 commit | Git history ▾");
+    assert.equal(snapshot.summary, "1 result in 1 commit | Git history");
   });
 
   it("runs a regex and a key path through the Git history", async () => {

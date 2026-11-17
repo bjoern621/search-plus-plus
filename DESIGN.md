@@ -110,6 +110,8 @@ Below them come the quick actions:
 - The view follows the color theme of VS Code.
   Rows, inputs, menus and the hover card take the theme colors of their counterparts in the explorer, the Search view and the editor.
   High contrast themes draw hover and selection as outlines.
+- Twisties, buttons and menu checks take their icons from the codicon font of the workbench (`@vscode/codicons`), so they match the icons of the built-in views.
+  A twisty sits where the workbench trees place theirs, with the chevron 16px wide and 6px before the file icon.
 - Code lines take the family and weight of the editor font at the size of the workbench font, in rows as high as the folder and file rows.
   The built-in Search view draws its result lines at that size and height as well, so code and file rows read as one list.
   Every other text takes the font of the workbench.
@@ -306,7 +308,7 @@ A menu at the end of the results summary line picks where the search runs:
 - Another branch
 - Git history
 
-The button names the scope that the search runs in, such as `Branch feature ▾`.
+The button names the scope that the search runs in, such as `Branch feature`.
 The branch and history scopes read Git without a checkout.
 Files to include, files to exclude and the exclusions in the VS Code settings apply in every scope.
 

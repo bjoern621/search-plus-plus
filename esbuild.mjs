@@ -22,6 +22,7 @@ const extensionBuilds = [
   {
     entryPoints: { webview: "src/webview/main.css" },
     outdir: "dist",
+    loader: { ".ttf": "file" },
   },
 ];
 

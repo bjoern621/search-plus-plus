@@ -418,7 +418,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
       <div id="query-highlight" class="query-highlight" aria-hidden="true"></div>
       <input id="query" class="query-input" aria-label="Search" placeholder="Text or key path: gateway.image.tag" spellcheck="false" autocomplete="off">
     </div>
-    <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields">&#x2026;</button>
+    <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields"><span class="codicon codicon-ellipsis" aria-hidden="true"></span></button>
   </div>
   <div id="file-fields" class="file-fields" hidden>
     <label class="file-field">Files to include<input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="For example *.yaml, ./charts"></label>
@@ -428,7 +428,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 </div>
 <div id="summary" class="summary">
   <span id="summary-text"></span>
-  <button id="scope" class="scope" aria-label="Change scope">Working tree &#x25be;</button>
+  <button id="scope" class="scope" aria-label="Change scope"><span id="scope-label">Working tree</span><span class="codicon codicon-chevron-down" aria-hidden="true"></span></button>
 </div>
 <div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
 <div id="menu" class="menu"></div>

@@ -173,7 +173,7 @@ function itemElement(item: MenuItem): HTMLDivElement {
   else {
     element.setAttribute("role", "menuitemradio");
     element.setAttribute("aria-checked", String(item.checked));
-    element.append(spanElement("menu-check", item.checked ? "✓" : ""));
+    element.append(spanElement(item.checked ? "menu-check codicon codicon-check" : "menu-check", ""));
   }
   if (item.disabled) element.setAttribute("aria-disabled", "true");
   element.append(spanElement("menu-label", item.label));

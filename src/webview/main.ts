@@ -44,6 +44,7 @@ const excludeInput = document.getElementById("exclude") as HTMLInputElement;
 const summary = document.getElementById("summary") as HTMLDivElement;
 const summaryText = document.getElementById("summary-text") as HTMLSpanElement;
 const scope = document.getElementById("scope") as HTMLButtonElement;
+const scopeLabelElement = document.getElementById("scope-label") as HTMLSpanElement;
 const results = document.getElementById("results") as HTMLDivElement;
 const rowsElement = document.getElementById("rows") as HTMLDivElement;
 const contextMenu = new ContextMenu(document.getElementById("menu") as HTMLDivElement, runMenuAction, () => results.focus());
@@ -444,7 +445,7 @@ function renderSummary(): void {
   const otherScope = state.scope.kind !== "workingTree";
   summaryText.textContent = summaryFor() ?? "";
   scope.hidden = status === "noFolder";
-  scope.textContent = `${scopeLabel(state.scope, git)} ▾`;
+  scopeLabelElement.textContent = scopeLabel(state.scope, git);
   scope.classList.toggle("other", otherScope);
 }
 
@@ -501,21 +502,21 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.classList.add("row", "commit");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = `${row.commit.sha}\n${row.commit.author}, ${row.commit.date}\n${row.commit.subject}`;
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), span("sha", row.commit.shortSha), span("label", row.commit.subject), span("commit-meta", `${row.commit.author}, ${commitDay(row.commit)}`));
+      element.append(twisty(row.collapsed), span("sha", row.commit.shortSha), span("label", row.commit.subject), span("commit-meta", `${row.commit.author}, ${commitDay(row.commit)}`));
       return element;
     case "folder":
       element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = row.label;
       const icon = iconTheme.folderElement(row.icon);
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), ...(icon ? [icon] : []), span("label", row.label));
+      element.append(twisty(row.collapsed), ...(icon ? [icon] : []), span("label", row.label));
       if (row.folder !== "") element.append(excludeButton(`Exclude folder ${row.folder}`, folderEntry(row.folder)));
       return element;
     case "file": {
       element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), iconTheme.element(row.file.icons?.file), span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
+      element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file), span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
     }
     case "line": {
@@ -534,9 +535,7 @@ function rowElement(row: Row, index: number): HTMLElement {
   }
 }
 
-const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-
-/** A circle with a slash, as on the exclude button of the built-in Search view. */
+/** A button that adds `entry` to files to exclude, drawn as a circle with a slash. */
 function excludeButton(label: string, entry: string): HTMLButtonElement {
   const button = document.createElement("button");
   button.className = "icon exclude";
@@ -544,16 +543,22 @@ function excludeButton(label: string, entry: string): HTMLButtonElement {
   button.title = label;
   button.setAttribute("aria-label", label);
   button.dataset.entry = entry;
-  const svg = document.createElementNS(SVG_NAMESPACE, "svg");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("aria-hidden", "true");
-  const circle = document.createElementNS(SVG_NAMESPACE, "circle");
-  for (const [name, value] of Object.entries({ cx: "8", cy: "8", r: "5.5" })) circle.setAttribute(name, value);
-  const slash = document.createElementNS(SVG_NAMESPACE, "path");
-  slash.setAttribute("d", "M4.1 11.9 11.9 4.1");
-  svg.append(circle, slash);
-  button.append(svg);
+  button.append(codicon("circle-slash"));
   return button;
+}
+
+/** A chevron that points down below an expanded row and right beside a collapsed one, as the twisties of the workbench trees. */
+function twisty(collapsed: boolean): HTMLElement {
+  const element = codicon(collapsed ? "chevron-right" : "chevron-down");
+  element.classList.add("twisty");
+  return element;
+}
+
+function codicon(name: string): HTMLElement {
+  const element = document.createElement("span");
+  element.className = `codicon codicon-${name}`;
+  element.setAttribute("aria-hidden", "true");
+  return element;
 }
 
 function span(className: string, text: string, tag: "span" | "mark" = "span"): HTMLElement {
@@ -693,7 +698,7 @@ function snapshot(): TestSnapshot {
   // Draws the rows that a pending frame would draw, since the snapshot measures them.
   render();
   return {
-    summary: summary.hidden ? "" : `${summaryText.textContent ?? ""} | ${scope.hidden ? "" : (scope.textContent ?? "")}`,
+    summary: summary.hidden ? "" : `${summaryText.textContent ?? ""} | ${scope.hidden ? "" : (scopeLabelElement.textContent ?? "")}`,
     hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
     include: includeInput.value,
     exclude: excludeInput.value,

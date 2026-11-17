@@ -9,7 +9,7 @@
         {
           "type": "application",
           "name": "npm",
-          "version": "11.19.0"
+          "version": "10.9.9"
         },
         {
           "type": "library",
@@ -133,6 +133,58 @@
   "components": [
     {
       "type": "library",
+      "name": "codicons",
+      "group": "@vscode",
+      "version": "0.0.45",
+      "bom-ref": "structural-search@0.0.1|@vscode/codicons@0.0.45",
+      "author": "Microsoft Corporation",
+      "description": "The icon font for Visual Studio Code",
+      "licenses": [
+        {
+          "license": {
+            "id": "CC-BY-4.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40vscode/codicons@0.0.45",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@vscode/codicons/-/codicons-0.0.45.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "d4a019ed708c6a0a7919dae5af86db6dc02a81c20beb6de23b5c16eab7dc49518055442f47458fedb431d526c9d758265777dd413484148250ff90be1ee55ab3"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        },
+        {
+          "url": "https://github.com/microsoft/vscode-codicons/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "git+https://github.com/microsoft/vscode-codicons.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/microsoft/vscode-codicons#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@vscode/codicons"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "jsonc-parser",
       "version": "3.3.1",
       "bom-ref": "structural-search@0.0.1|jsonc-parser@3.3.1",
@@ -151,7 +203,13 @@
         {
           "url": "https://registry.npmjs.org/jsonc-parser/-/jsonc-parser-3.3.1.tgz",
           "type": "distribution",
-          "comment": "as detected from npm-ls property \"resolved\""
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "1d4807eb92b27a3ad414fbc714f6ea398d2bb058a9dc1a39c1be2782f762d44a426165100c2e55f98ee6670b3e0cb92be0cfffcd02686a7bb548ffbcec3bf5a1"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
         },
         {
           "url": "https://github.com/microsoft/node-jsonc-parser/issues",
@@ -181,8 +239,12 @@
     {
       "ref": "structural-search@0.0.1",
       "dependsOn": [
+        "structural-search@0.0.1|@vscode/codicons@0.0.45",
         "structural-search@0.0.1|jsonc-parser@3.3.1"
       ]
+    },
+    {
+      "ref": "structural-search@0.0.1|@vscode/codicons@0.0.45"
     },
     {
       "ref": "structural-search@0.0.1|jsonc-parser@3.3.1"
