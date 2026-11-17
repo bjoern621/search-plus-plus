@@ -745,7 +745,9 @@ function scrollRowIntoView(index: number): void {
 }
 
 /** Opens the context menu of the matched line at `index`. Returns false for any other row. */
-function openMenu(index: number, fromKeyboard: boolean): boolean {
+/** A context line opens the menu of the matched line of its block, as a click on it opens that match. */
+function openMenu(clickedIndex: number, fromKeyboard: boolean): boolean {
+    const index = targetRowIndex(clickedIndex)
     const row = rows[index]
     if (row?.kind !== "line" || !row.line.match) return false
     focusRow(index)
@@ -759,6 +761,17 @@ function openMenu(index: number, fromKeyboard: boolean): boolean {
         fromKeyboard
     )
     return true
+}
+
+function targetRowIndex(index: number): number {
+    const row = rows[index]
+    if (row?.kind !== "line") return index
+    const target = targetLine(row.file, row.line)
+    const found = rows.findIndex(
+        (candidate) =>
+            candidate.kind === "line" && candidate.file === row.file && candidate.line === target
+    )
+    return found === -1 ? index : found
 }
 
 function runMenuAction(action: MenuAction): void {

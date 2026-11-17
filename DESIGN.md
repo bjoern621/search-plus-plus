@@ -112,6 +112,7 @@ Every search covers the files that the ignore files and the exclude settings of 
 ### Context menu
 
 Right-clicking a match opens a context menu.
+Right-clicking a context line opens the menu of the match in its block, so every line of a block offers the same items.
 Its top lines say why the line matched whenever a matching default stretched the query:
 
 - `Gröse: close spelling of Größe, 1 edit away.`
