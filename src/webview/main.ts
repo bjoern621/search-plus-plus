@@ -79,6 +79,8 @@ let historyTimer = 0;
 let focusedIndex = -1;
 /** The line of the tree that the focused row lights, set on each render. */
 let activeGuide: ActiveGuide | undefined;
+/** Index of the row under the pointer, -1 without one. */
+let hoveredIndex = -1;
 /** The line whose context menu shows. */
 let menuRow: Extract<Row, { kind: "line" }> | undefined;
 /** The scroll position at which the context menu opened. A scroll event that leaves it unchanged keeps the menu open. */
@@ -162,6 +164,7 @@ rowsElement.addEventListener("contextmenu", (event) => {
 rowsElement.addEventListener("mouseover", (event) => {
   // The render that focuses the row of an opening menu puts a new element under the pointer, which fires a mouseover.
   if (contextMenu.isOpen) return;
+  hoverRow(rowIndexFromEvent(event));
   const row = rows[rowIndexFromEvent(event)];
   if (row?.kind !== "line" || !row.line.match) {
     hoverCard.hide();
@@ -171,7 +174,10 @@ rowsElement.addEventListener("mouseover", (event) => {
   hoverCard.schedule(row.file, row.line.line);
 });
 
-results.addEventListener("mouseleave", () => hoverCard.hide());
+results.addEventListener("mouseleave", () => {
+  hoverCard.hide();
+  hoverRow(-1);
+});
 document.addEventListener("keydown", () => hoverCard.hide(), true);
 window.addEventListener("blur", () => hoverCard.hide());
 
@@ -523,6 +529,8 @@ function render(): void {
   const first = Math.max(0, rowAt(offsets, top) - OVERSCAN_ROWS);
   const last = Math.min(rows.length, rowAt(offsets, top + results.clientHeight) + OVERSCAN_ROWS + 1);
   activeGuide = activeGuideOf(focusedIndex);
+  focusedSubtree = subtreeOf(focusedIndex);
+  hoveredSubtree = subtreeOf(hoveredIndex);
   const elements: HTMLElement[] = [];
   for (let index = first; index < last; index++) {
     const row = rows[index];
@@ -538,6 +546,8 @@ function rowElement(row: Row, index: number): HTMLElement {
   element.dataset.index = String(index);
   element.id = `row-${index}`;
   if (index === focusedIndex) element.classList.add("focused");
+  if (inSubtree(focusedSubtree, index)) element.classList.add("in-focused");
+  if (inSubtree(hoveredSubtree, index)) element.classList.add("in-hovered");
   element.style.top = `${offsets[index] ?? 0}px`;
   element.setAttribute("role", "treeitem");
   switch (row.kind) {
@@ -612,6 +622,38 @@ function skipsLines(index: number): boolean {
   const above = rows[index - 1];
   if (row?.kind !== "line" || above?.kind !== "line" || above.file !== row.file) return false;
   return row.line.line !== above.line.line + 1;
+}
+
+/** The rows below a folder, file or commit row, which take its hover and its selection. */
+interface Subtree {
+  first: number;
+  last: number;
+}
+
+let focusedSubtree: Subtree | undefined;
+let hoveredSubtree: Subtree | undefined;
+
+/** Finds the rows below the row at `index`. Undefined for a code line and for a collapsed row. */
+function subtreeOf(index: number): Subtree | undefined {
+  const row = rows[index];
+  if (!row || row.kind === "line") return undefined;
+  let last = index;
+  while (last + 1 < rows.length && (rows[last + 1]?.depth ?? 0) > row.depth) last++;
+  return last > index ? { first: index + 1, last } : undefined;
+}
+
+function inSubtree(subtree: Subtree | undefined, index: number): boolean {
+  return subtree !== undefined && index >= subtree.first && index <= subtree.last;
+}
+
+/** Lights the rows below the row under the pointer, on the rows in view, without a render. */
+function hoverRow(index: number): void {
+  if (index === hoveredIndex) return;
+  hoveredIndex = index;
+  hoveredSubtree = subtreeOf(index);
+  for (const element of rowsElement.querySelectorAll<HTMLElement>("[data-index]")) {
+    element.classList.toggle("in-hovered", inSubtree(hoveredSubtree, Number(element.dataset.index)));
+  }
 }
 
 /** The line that the workbench trees draw brighter: the column of a row and the rows below it that the line passes. */

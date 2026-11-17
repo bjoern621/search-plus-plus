@@ -378,8 +378,10 @@ button {
   pointer-events: none;
 }
 
+/* The rows below a hovered folder, file or commit take its hover. */
 .row:hover,
-.line:hover {
+.line:hover,
+.in-hovered {
   background: var(--vscode-list-hoverBackground);
   color: var(--vscode-list-hoverForeground, var(--row-foreground));
 }
@@ -535,26 +537,35 @@ button {
 }
 
 /* The focused row carries the selection, as in the explorer: bright while the results hold the focus, dim after. */
+/* The rows below a focused folder, file or commit take its selection, without the outline. */
 .focused,
-.focused:hover {
+.focused:hover,
+.in-focused,
+.in-focused:hover {
   background: var(--vscode-list-inactiveSelectionBackground);
   color: var(--vscode-list-inactiveSelectionForeground, var(--row-foreground));
+}
+
+.results:focus .focused,
+.results:focus .in-focused {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground, var(--row-foreground));
 }
 
 .results:focus .focused {
   outline: 1px solid var(--vscode-list-focusAndSelectionOutline, var(--vscode-list-focusOutline, var(--vscode-focusBorder)));
   outline-offset: -1px;
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground, var(--row-foreground));
 }
 
 /* The translucent match fill turns grey on the selection, so the match takes the color that the workbench lists give a highlight on a focused row. */
-.results:focus .focused .mark {
+.results:focus .focused .mark,
+.results:focus .in-focused .mark {
   outline-color: var(--vscode-list-focusHighlightForeground);
   color: var(--vscode-list-focusHighlightForeground);
 }
 
-.results:focus .focused .twisty {
+.results:focus .focused .twisty,
+.results:focus .in-focused .twisty {
   color: var(--vscode-list-activeSelectionIconForeground, var(--vscode-icon-foreground));
 }
 
