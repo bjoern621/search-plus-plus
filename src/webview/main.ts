@@ -15,7 +15,6 @@ import { fitKeyPaths, keyPathCuts, keyPathElement, keyPathText, shownKeys } from
 import { blockDedents, cutToMatch, dedent } from "./codeLines";
 
 interface ViewState extends FileFields {
-  useExcludeSettingsAndIgnoreFiles: boolean;
   query: string;
   history: string[];
   fileFieldsOpen: boolean;
@@ -43,11 +42,8 @@ const detailsButton = document.getElementById("details") as HTMLButtonElement;
 const fileFieldsElement = document.getElementById("file-fields") as HTMLDivElement;
 const includeInput = document.getElementById("include") as HTMLInputElement;
 const excludeInput = document.getElementById("exclude") as HTMLInputElement;
-const excludeSettingsToggle = document.getElementById("exclude-settings") as HTMLButtonElement;
 const summary = document.getElementById("summary") as HTMLDivElement;
 const summaryText = document.getElementById("summary-text") as HTMLSpanElement;
-const summaryNote = document.getElementById("summary-note") as HTMLSpanElement;
-const summaryEnable = document.getElementById("summary-enable") as HTMLButtonElement;
 const scope = document.getElementById("scope") as HTMLButtonElement;
 const scopeLabelElement = document.getElementById("scope-label") as HTMLSpanElement;
 const results = document.getElementById("results") as HTMLDivElement;
@@ -90,10 +86,9 @@ let menuScrollTop = 0;
 /** The scroll position at which the hover card got its match. */
 let hoverScrollTop = 0;
 
-const state: ViewState = { query: "", history: [], include: "", exclude: "", useExcludeSettingsAndIgnoreFiles: true, fileFieldsOpen: false, scope: WORKING_TREE, ...vscode.getState() };
+const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, scope: WORKING_TREE, ...vscode.getState() };
 includeInput.value = state.include;
 excludeInput.value = state.exclude;
-setExcludeSettingsToggle(state.useExcludeSettingsAndIgnoreFiles);
 /** Position in the history while Up and Down walk it. `history.length` stands for the text being typed. */
 let historyIndex = state.history.length;
 setQuery(state.query);
@@ -136,17 +131,6 @@ for (const field of [includeInput, excludeInput]) {
   });
   field.addEventListener("input", () => applyFileFields());
 }
-
-// A click from Enter or Space on the toggle leaves the focus on it, as in the built-in Search view.
-excludeSettingsToggle.addEventListener("click", (event) => {
-  useExcludeSettings(!state.useExcludeSettingsAndIgnoreFiles);
-  if (event.detail !== 0) excludeInput.focus();
-});
-
-summaryEnable.addEventListener("click", () => {
-  setFileFieldsOpen(true);
-  useExcludeSettings(true);
-});
 
 rowsElement.addEventListener("click", (event) => {
   const excludeButton = (event.target as HTMLElement).closest<HTMLElement>(".exclude");
@@ -282,12 +266,6 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "testChooseMenuItem":
       contextMenu.chooseLabel(message.label);
       return;
-    case "testToggleExcludeSettings":
-      excludeSettingsToggle.click();
-      return;
-    case "testClickSummaryNote":
-      summaryEnable.click();
-      return;
     case "testTypeFileFields":
       setFileFields(message);
       applyFileFields();
@@ -322,7 +300,7 @@ function remember(query: string): void {
 /** Searches for `query` at once. A search that no other search replaces for a while adds its query to the history. */
 function searchWithFields(query: string): void {
   window.clearTimeout(typingTimer);
-  const fields = currentFileFields();
+  const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
   searched = { query, scope: state.scope, ...fields };
   vscode.postMessage({ type: "search", query, scope: state.scope, ...fields });
   window.clearTimeout(historyTimer);
@@ -347,7 +325,7 @@ function searchOnType(): void {
  */
 function applyFileFields(): void {
   saveState();
-  const fields = currentFileFields();
+  const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
   if (searched && fields.include === searched.include && onlyAdded(searched.exclude, fields.exclude)) {
     tree.setFilter(new PathFilter(fields));
     invalidateLayout();
@@ -366,25 +344,7 @@ function exclude(entry: string): void {
 function setFileFields(fields: FileFields): void {
   includeInput.value = fields.include;
   excludeInput.value = fields.exclude;
-  setExcludeSettingsToggle(fields.useExcludeSettingsAndIgnoreFiles !== false);
   saveState();
-}
-
-function currentFileFields(): FileFields {
-  return { include: includeInput.value, exclude: excludeInput.value, useExcludeSettingsAndIgnoreFiles: state.useExcludeSettingsAndIgnoreFiles };
-}
-
-/** Turns the exclude settings and ignore files on or off and searches again at once, as the built-in Search view does. */
-function useExcludeSettings(on: boolean): void {
-  setExcludeSettingsToggle(on);
-  saveState();
-  searchWithFields(input.value);
-}
-
-function setExcludeSettingsToggle(on: boolean): void {
-  state.useExcludeSettingsAndIgnoreFiles = on;
-  excludeSettingsToggle.classList.toggle("active", on);
-  excludeSettingsToggle.setAttribute("aria-pressed", String(on));
 }
 
 /** Sets the scope of later searches and repeats the last search in it. */
@@ -525,7 +485,6 @@ function layout(): void {
 function renderSummary(): void {
   const otherScope = state.scope.kind !== "workingTree";
   summaryText.textContent = summaryFor() ?? "";
-  summaryNote.hidden = !(searched?.useExcludeSettingsAndIgnoreFiles === false && tree.fileCount > 0 && summaryText.textContent !== "");
   scope.hidden = status === "noFolder";
   scopeLabelElement.textContent = scopeLabel(state.scope, git);
   scope.classList.toggle("other", otherScope);
@@ -875,8 +834,6 @@ function snapshot(): TestSnapshot {
     hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
     include: includeInput.value,
     exclude: excludeInput.value,
-    useExcludeSettingsAndIgnoreFiles: state.useExcludeSettingsAndIgnoreFiles,
-    summaryNote: summaryNote.hidden ? "" : (summaryNote.textContent ?? ""),
     fileFieldsOpen: !fileFieldsElement.hidden,
     rows: rows.map(describeRow),
     icons: rows.map(rowIcon),

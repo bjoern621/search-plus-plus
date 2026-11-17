@@ -14,7 +14,7 @@ import { structuralEngines } from "./structural";
 export function activate(context: vscode.ExtensionContext): StructuralSearchApi {
   const log = vscode.window.createOutputChannel("Structural Search", { log: true });
   const rgPath = findRipgrep(vscode.env.appRoot);
-  if (!rgPath) log.warn(`No ripgrep found under ${vscode.env.appRoot}, listing files through VS Code without ignore files`);
+  if (!rgPath) log.warn(`No ripgrep found under ${vscode.env.appRoot}, listing files through VS Code`);
 
   const registry = new EngineRegistry();
   registry.register(textEngine);
@@ -67,8 +67,6 @@ function registerTestCommands(context: vscode.ExtensionContext, provider: Search
     vscode.commands.registerCommand("structuralSearch.test.chooseMenuItem", (label: string) => provider.testChooseMenuItem(label)),
     vscode.commands.registerCommand("structuralSearch.test.chooseMenuSearch", (label: string) => provider.testChooseMenuSearch(label)),
     vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
-    vscode.commands.registerCommand("structuralSearch.test.toggleExcludeSettings", () => provider.testToggleExcludeSettings()),
-    vscode.commands.registerCommand("structuralSearch.test.clickSummaryNote", () => provider.testClickSummaryNote()),
   );
 }
 

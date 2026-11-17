@@ -102,10 +102,6 @@ export interface TestSnapshot {
   hint: string;
   include: string;
   exclude: string;
-  /** The state of the exclude settings and ignore files toggle in files to exclude. */
-  useExcludeSettingsAndIgnoreFiles: boolean;
-  /** The note after the result count that the exclude settings and ignore files are off, empty while it hides. */
-  summaryNote: string;
   /** True while files to include and files to exclude show. */
   fileFieldsOpen: boolean;
   rows: string[];
@@ -226,8 +222,6 @@ export type HostMessage =
   | { type: "testSnapshot" }
   | { type: "testClickRow"; index: number }
   | { type: "testClickHint" }
-  | { type: "testToggleExcludeSettings" }
-  | { type: "testClickSummaryNote" }
   | { type: "testExcludeRow"; index: number }
   | { type: "testPressKeys"; keys: string[] }
   | { type: "testOpenMenu"; index: number }

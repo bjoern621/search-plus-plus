@@ -151,7 +151,7 @@ class RunningSearch {
 
   /**
    * Searches the files that Git holds, batch by batch.
-   * The exclude settings and the files to include and exclude fields pick the files, as on disk.
+   * The files to include and exclude fields pick the files, as on disk.
    */
   private async searchRevisions(source: RevisionSource): Promise<void> {
     const fieldFilter = new PathFilter(this.request.fields);

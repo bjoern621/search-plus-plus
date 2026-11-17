@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,9 +53,7 @@ function git(env, ...args) {
 }
 
 try {
-  // The fixture keeps its ignore file under another name, so the repository's own Git leaves its ignored folder tracked.
   await cp(join(here, "fixture"), workspace, { recursive: true });
-  await rename(join(workspace, "gitignore"), join(workspace, ".gitignore"));
   await commitFixtureHistory();
 
   await runTests({

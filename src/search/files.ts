@@ -11,9 +11,8 @@ export interface RootFile {
 }
 
 /**
- * Lists the files of every root that the exclude settings and ignore files leave in.
+ * Lists every file of every root, ignored and excluded files included, minus the `.git` folders.
  * A root on disk gets listed by ripgrep. Without ripgrep, or on another file system, `workspace.findFiles` lists it.
- * `findFiles` honors the exclude settings but no ignore files.
  * A root that cannot be listed, such as a folder deleted since the workspace opened, adds no files and a log line.
  */
 export async function collectFiles(roots: readonly SearchRoot[], rgPath: string | undefined, signal: AbortSignal, log: (message: string) => void): Promise<RootFile[]> {

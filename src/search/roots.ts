@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import type { SearchRoot } from "./workspaceEngine";
-import { enabledGlobs, type ExcludeSetting, type WalkSettings } from "./walk";
+import type { WalkSettings } from "./walk";
 
 /** Describes each workspace folder with the settings that pick its files. */
 export function searchRoots(): SearchRoot[] {
@@ -14,14 +14,17 @@ export function searchRoots(): SearchRoot[] {
   }));
 }
 
+/**
+ * Picks the files of one workspace folder.
+ * Every search covers the files that the ignore files and the exclude settings hide, minus the `.git` folders.
+ */
 function walkSettings(folder: vscode.WorkspaceFolder): WalkSettings {
-  const files = vscode.workspace.getConfiguration("files", folder.uri);
   const search = vscode.workspace.getConfiguration("search", folder.uri);
   return {
-    excludeGlobs: enabledGlobs(files.get<ExcludeSetting>("exclude"), search.get<ExcludeSetting>("exclude")),
-    useIgnoreFiles: search.get<boolean>("useIgnoreFiles", true),
-    useParentIgnoreFiles: search.get<boolean>("useParentIgnoreFiles", false),
-    useGlobalIgnoreFiles: search.get<boolean>("useGlobalIgnoreFiles", false),
+    excludeGlobs: ["**/.git"],
+    useIgnoreFiles: false,
+    useParentIgnoreFiles: false,
+    useGlobalIgnoreFiles: false,
     followSymlinks: search.get<boolean>("followSymlinks", true),
   };
 }

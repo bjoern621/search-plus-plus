@@ -326,10 +326,6 @@ Groups don't nest, since VS Code closes a group at the first `}`.
   The context menu of its matches excludes the folder.
 - Excluding adds the folder or file to files to exclude and drops its results without a new search.
 - Removing the entry from files to exclude brings its results back.
-- The toggle at the end of files to exclude turns the exclude settings and the ignore files off, as in the built-in Search view.
-  The search then reads the ignored folders and the folders that `files.exclude` and `search.exclude` name.
-  The entries of files to exclude still apply.
-- While the toggle is off, the summary line says so after the result count, with a button that turns it back on.
 
 ## Scope
 
@@ -342,7 +338,8 @@ A menu at the end of the results summary line picks where the search runs:
 
 The button names the scope that the search runs in, such as `Branch feature`.
 The branch and history scopes read Git without a checkout.
-Files to include, files to exclude and the exclusions in the VS Code settings apply in every scope.
+Files to include and files to exclude apply in every scope.
+Every search covers the files that the ignore files and the exclude settings of VS Code hide.
 
 - The changed files scope searches the files that differ from the merge base with `main` or `master`, uncommitted and untracked files included.
 - The branch scope lists the branches in a quick pick, the most recent commit first.

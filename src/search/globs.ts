@@ -2,11 +2,6 @@
 export interface FileFields {
   include: string;
   exclude: string;
-  /**
-   * The toggle in files to exclude, as in the built-in Search view.
-   * False leaves out the `files.exclude` and `search.exclude` settings and the ignore files. Undefined counts as true.
-   */
-  useExcludeSettingsAndIgnoreFiles?: boolean;
 }
 
 export const NO_FILE_FIELDS: FileFields = { include: "", exclude: "" };
