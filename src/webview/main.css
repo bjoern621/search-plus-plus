@@ -3,7 +3,7 @@
 
 html,
 body {
-  height: 100%;
+    height: 100%;
 }
 
 /*
@@ -11,24 +11,24 @@ body {
  * The body stays transparent, so the view takes the background of the side bar or the panel that holds it.
  */
 body {
-  --small-font-size: var(--vscode-bodyFontSize-small, 12px);
-  --x-small-font-size: var(--vscode-bodyFontSize-xSmall, 11px);
-  --corner-radius: var(--vscode-cornerRadius-small, 4px);
-  --widget-corner-radius: var(--vscode-cornerRadius-medium, 6px);
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  font-weight: var(--vscode-font-weight);
+    --small-font-size: var(--vscode-bodyFontSize-small, 12px);
+    --x-small-font-size: var(--vscode-bodyFontSize-xSmall, 11px);
+    --corner-radius: var(--vscode-cornerRadius-small, 4px);
+    --widget-corner-radius: var(--vscode-cornerRadius-medium, 6px);
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    font-weight: var(--vscode-font-weight);
 }
 
 /* Buttons take the pointer, as the buttons of the workbench action bars do. Text inputs keep the text cursor. */
 button {
-  cursor: pointer;
+    cursor: pointer;
 }
 
 /*
@@ -36,254 +36,254 @@ button {
  * The webview variable carries the setting alone, so a font missing on the system would fall back to the browser's serif font.
  */
 :root {
-  --code-font-family: var(--vscode-editor-font-family), "Droid Sans Mono", "monospace", monospace;
+    --code-font-family: var(--vscode-editor-font-family), "Droid Sans Mono", "monospace", monospace;
 }
 
 :root[data-platform="mac"] {
-  --code-font-family: var(--vscode-editor-font-family), Menlo, Monaco, "Courier New", monospace;
+    --code-font-family: var(--vscode-editor-font-family), Menlo, Monaco, "Courier New", monospace;
 }
 
 :root[data-platform="windows"] {
-  --code-font-family: var(--vscode-editor-font-family), Consolas, "Courier New", monospace;
+    --code-font-family: var(--vscode-editor-font-family), Consolas, "Courier New", monospace;
 }
 
 [hidden] {
-  display: none !important;
+    display: none !important;
 }
 
 .query {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 8px 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 8px 0 12px;
 }
 
 .query-row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
 }
 
 .input {
-  flex: 1;
-  min-width: 0;
-  height: 26px;
-  box-sizing: border-box;
-  padding: 0 6px;
-  border: 1px solid var(--vscode-input-border, transparent);
-  border-radius: var(--corner-radius);
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  font: inherit;
+    flex: 1;
+    min-width: 0;
+    height: 26px;
+    box-sizing: border-box;
+    padding: 0 6px;
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: var(--corner-radius);
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font: inherit;
 }
 
 .input::placeholder {
-  color: var(--vscode-input-placeholderForeground);
+    color: var(--vscode-input-placeholderForeground);
 }
 
 .input:focus {
-  outline: none;
-  border-color: var(--vscode-focusBorder);
+    outline: none;
+    border-color: var(--vscode-focusBorder);
 }
 
 .query-box {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  height: 26px;
-  box-sizing: border-box;
-  border: 1px solid var(--vscode-input-border, transparent);
-  border-radius: var(--corner-radius);
-  background: var(--vscode-input-background);
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 26px;
+    box-sizing: border-box;
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: var(--corner-radius);
+    background: var(--vscode-input-background);
 }
 
 .query-box:focus-within {
-  border-color: var(--vscode-focusBorder);
+    border-color: var(--vscode-focusBorder);
 }
 
 .query:has(.hint.blocked) .query-box {
-  border-color: var(--vscode-inputValidation-errorBorder);
+    border-color: var(--vscode-inputValidation-errorBorder);
 }
 
 /* The highlight layer and the input share font, padding and centering, so each colored character sits under its typed one. */
 .query-highlight,
 .query-input {
-  box-sizing: border-box;
-  padding: 0 6px;
-  font: inherit;
-  letter-spacing: normal;
+    box-sizing: border-box;
+    padding: 0 6px;
+    font: inherit;
+    letter-spacing: normal;
 }
 
 .query-highlight {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  white-space: pre;
-  color: var(--vscode-input-foreground);
-  pointer-events: none;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: pre;
+    color: var(--vscode-input-foreground);
+    pointer-events: none;
 }
 
 .query-input {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  color: transparent;
-  caret-color: var(--vscode-input-foreground);
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--vscode-input-foreground);
 }
 
 .query-input:focus {
-  outline: none;
+    outline: none;
 }
 
 .query-input::placeholder {
-  color: var(--vscode-input-placeholderForeground);
+    color: var(--vscode-input-placeholderForeground);
 }
 
 .query-input::selection {
-  background: var(--vscode-editor-selectionBackground);
-  color: var(--vscode-input-foreground);
+    background: var(--vscode-editor-selectionBackground);
+    color: var(--vscode-input-foreground);
 }
 
 /* No token color of the theme reaches a webview. The names in the debug watch take the keyword color of the default themes. */
 .query-operator {
-  color: var(--vscode-debugTokenExpression-name);
+    color: var(--vscode-debugTokenExpression-name);
 }
 
 .query-escape {
-  color: var(--vscode-editorLineNumber-foreground);
+    color: var(--vscode-editorLineNumber-foreground);
 }
 
 .icon {
-  flex: none;
-  box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--corner-radius);
-  background: none;
-  color: var(--vscode-icon-foreground);
+    flex: none;
+    box-sizing: border-box;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--corner-radius);
+    background: none;
+    color: var(--vscode-icon-foreground);
 }
 
 .icon:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+    background: var(--vscode-toolbar-hoverBackground);
 }
 
 .icon.active {
-  border-color: var(--vscode-inputOption-activeBorder, transparent);
-  background: var(--vscode-inputOption-activeBackground);
-  color: var(--vscode-inputOption-activeForeground);
+    border-color: var(--vscode-inputOption-activeBorder, transparent);
+    background: var(--vscode-inputOption-activeBackground);
+    color: var(--vscode-inputOption-activeForeground);
 }
 
 .icon:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
 }
 
 .file-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-right: 24px;
 }
 
 .file-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  color: var(--vscode-descriptionForeground);
-  font-size: var(--x-small-font-size);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--vscode-descriptionForeground);
+    font-size: var(--x-small-font-size);
 }
 
 .file-field .input {
-  flex: none;
-  font-size: var(--vscode-font-size);
+    flex: none;
+    font-size: var(--vscode-font-size);
 }
 
 .hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: 24px;
-  color: var(--vscode-descriptionForeground);
-  font-size: var(--small-font-size);
-  line-height: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 24px;
+    color: var(--vscode-descriptionForeground);
+    font-size: var(--small-font-size);
+    line-height: 16px;
 }
 
 .hint.highlight {
-  color: var(--vscode-textLink-foreground);
+    color: var(--vscode-textLink-foreground);
 }
 
 /* A hint that stopped the search reads as the validation message of an input. */
 .hint.blocked {
-  padding: 2px 6px;
-  border: 1px solid var(--vscode-inputValidation-errorBorder);
-  border-radius: var(--corner-radius);
-  background: var(--vscode-inputValidation-errorBackground);
-  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
+    padding: 2px 6px;
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: var(--corner-radius);
+    background: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
 }
 
 .hint-badge {
-  flex: none;
-  padding: 0 3px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font-family: var(--code-font-family);
-  font-size: var(--x-small-font-size);
-  line-height: 14px;
+    flex: none;
+    padding: 0 3px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font-family: var(--code-font-family);
+    font-size: var(--x-small-font-size);
+    line-height: 14px;
 }
 
 .hint-run {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .hint-run:hover {
-  text-decoration: underline;
+    text-decoration: underline;
 }
 
 .hint-run:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
+    outline: 1px solid var(--vscode-focusBorder);
 }
 
 .summary {
-  padding: 8px 8px 4px 12px;
-  color: var(--vscode-descriptionForeground);
-  font-size: var(--small-font-size);
+    padding: 8px 8px 4px 12px;
+    color: var(--vscode-descriptionForeground);
+    font-size: var(--small-font-size);
 }
 
 .results {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .rows {
-  position: relative;
+    position: relative;
 }
 
 .row,
 .line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  padding: 0 8px;
-  overflow: hidden;
-  white-space: nowrap;
-  cursor: pointer;
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 8px;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
 /*
@@ -292,10 +292,10 @@ button {
  * Code lines keep the left edge at any depth, so the code takes the full width of the side bar.
  */
 .row {
-  --row-foreground: var(--vscode-foreground);
-  height: 22px;
-  padding-left: calc(8px + var(--depth, 0) * var(--tree-indent, 8px));
-  color: var(--row-foreground);
+    --row-foreground: var(--vscode-foreground);
+    height: 22px;
+    padding-left: calc(8px + var(--depth, 0) * var(--tree-indent, 8px));
+    color: var(--row-foreground);
 }
 
 /*
@@ -303,44 +303,44 @@ button {
  * It takes the color of the indent guides in the editor and adds no height to the row.
  */
 .line.after-gap::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 8px;
-  right: 8px;
-  border-top: 1px solid var(--vscode-editorIndentGuide-background1);
-  pointer-events: none;
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 8px;
+    right: 8px;
+    border-top: 1px solid var(--vscode-editorIndentGuide-background1);
+    pointer-events: none;
 }
 
 /* Placed as the twisties of the workbench trees: 16px wide, 6px before the icon, the chevron moved 3px right. */
 .twisty {
-  flex: none;
-  width: 16px;
-  margin-right: 6px;
-  transform: translateX(3px);
+    flex: none;
+    width: 16px;
+    margin-right: 6px;
+    transform: translateX(3px);
 }
 
 /* Sized as the icons of the explorer: 16px images, glyphs at the size that the theme sets. */
 .file-icon {
-  flex: none;
-  width: 16px;
-  height: 22px;
-  margin-right: 6px;
-  line-height: 22px;
-  text-align: center;
-  background: no-repeat left center / 16px;
-  -webkit-font-smoothing: antialiased;
+    flex: none;
+    width: 16px;
+    height: 22px;
+    margin-right: 6px;
+    line-height: 22px;
+    text-align: center;
+    background: no-repeat left center / 16px;
+    -webkit-font-smoothing: antialiased;
 }
 
 .file-icon.masked {
-  background: currentColor;
-  mask: no-repeat left center / 16px;
-  -webkit-mask: no-repeat left center / 16px;
+    background: currentColor;
+    mask: no-repeat left center / 16px;
+    -webkit-mask: no-repeat left center / 16px;
 }
 
 .label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /*
@@ -348,7 +348,7 @@ button {
  * A narrow view cuts them at the end and keeps the file name whole, since the first folders tell two files of one name apart.
  */
 .row .label:has(+ .description) {
-  flex: none;
+    flex: none;
 }
 
 /*
@@ -356,60 +356,59 @@ button {
  * A narrow view drops whole folders from their front and keeps the file name whole.
  */
 .folder-path {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .folder-path + .label {
-  flex: none;
+    flex: none;
 }
 
 /* The list dims the folders as the descriptions of the workbench trees, at the size of the file name, so the path reads as one text. */
 .folder-path.dimmed {
-  opacity: 0.7;
+    opacity: 0.7;
 }
 
 .label.file-name {
-  font-weight: bold;
+    font-weight: bold;
 }
 
 .description {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin-left: 0.5em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.9em;
-  opacity: 0.7;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: 0.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9em;
+    opacity: 0.7;
 }
 
 /* The exclude button shows while the pointer rests on its row, as in the built-in Search view. */
 .exclude {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    visibility: hidden;
 }
 
 .row:hover .exclude {
-  visibility: visible;
+    visibility: visible;
 }
-
 
 /* Code lines take the editor font at the size of the workbench font, so they read as one list with the file rows, as in the Search view. */
 .line {
-  --row-foreground: var(--vscode-foreground);
-  height: 22px;
-  line-height: 22px;
-  color: var(--row-foreground);
-  font-family: var(--code-font-family);
-  font-size: var(--vscode-font-size);
-  font-weight: var(--vscode-editor-font-weight);
-  font-feature-settings: var(--vscode-editor-font-feature-settings);
-  white-space: pre;
-  tab-size: 4;
+    --row-foreground: var(--vscode-foreground);
+    height: 22px;
+    line-height: 22px;
+    color: var(--row-foreground);
+    font-family: var(--code-font-family);
+    font-size: var(--vscode-font-size);
+    font-weight: var(--vscode-editor-font-weight);
+    font-feature-settings: var(--vscode-editor-font-feature-settings);
+    white-space: pre;
+    tab-size: 4;
 }
 
 /*
@@ -417,65 +416,65 @@ button {
  * They stay dimmed on hover and on the selection, as an ignored file does in the explorer.
  */
 .line:not(.match) {
-  color: color-mix(in srgb, var(--row-foreground) 65%, transparent);
+    color: color-mix(in srgb, var(--row-foreground) 65%, transparent);
 }
 
 .vscode-high-contrast .line {
-  color: var(--row-foreground);
+    color: var(--row-foreground);
 }
 
 /* The key path grows up to its full width in the room that the line text leaves. The script cuts it to that room at key boundaries. */
 .key-path {
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: max-content;
-  margin-left: auto;
-  padding-left: 12px;
-  overflow: hidden;
-  white-space: nowrap;
-  color: var(--vscode-descriptionForeground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--small-font-size);
-  font-weight: var(--vscode-font-weight);
-  font-feature-settings: normal;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: max-content;
+    margin-left: auto;
+    padding-left: 12px;
+    overflow: hidden;
+    white-space: nowrap;
+    color: var(--vscode-descriptionForeground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--small-font-size);
+    font-weight: var(--vscode-font-weight);
+    font-feature-settings: normal;
 }
 
 .number {
-  flex: none;
-  width: var(--line-number-width, 2ch);
-  margin-right: 8px;
-  text-align: right;
-  color: var(--vscode-editorLineNumber-foreground);
+    flex: none;
+    width: var(--line-number-width, 2ch);
+    margin-right: 8px;
+    text-align: right;
+    color: var(--vscode-editorLineNumber-foreground);
 }
 
 /* The `…` before a cut line hangs into the gap after the line number, so the text keeps the column of the lines around it. */
 .cut-mark {
-  display: flex;
-  flex: none;
-  justify-content: flex-end;
-  width: 0;
+    display: flex;
+    flex: none;
+    justify-content: flex-end;
+    width: 0;
 }
 
 .text {
-  overflow: hidden;
-  text-overflow: ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .mark {
-  border-radius: 2px;
-  outline: 1px solid var(--vscode-editor-findMatchHighlightBorder, transparent);
-  outline-offset: -1px;
-  background: var(--vscode-editor-findMatchHighlightBackground);
-  color: inherit;
+    border-radius: 2px;
+    outline: 1px solid var(--vscode-editor-findMatchHighlightBorder, transparent);
+    outline-offset: -1px;
+    background: var(--vscode-editor-findMatchHighlightBackground);
+    color: inherit;
 }
 
 .vscode-high-contrast .mark {
-  outline-style: dashed;
-  background: none;
+    outline-style: dashed;
+    background: none;
 }
 
 .results:focus {
-  outline: none;
+    outline: none;
 }
 
 /*
@@ -484,82 +483,82 @@ button {
  * The selection outline takes the text color, so it stands out more than the hover outline.
  */
 .group-outline {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  box-sizing: border-box;
-  border: 1px solid transparent;
-  border-radius: var(--widget-corner-radius);
-  pointer-events: none;
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-radius: var(--widget-corner-radius);
+    pointer-events: none;
 }
 
 .group-outline.hovered {
-  border-color: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-list-hoverBackground);
 }
 
 /* The selection outline shows after a key press in the results and hides on a click, as a :focus-visible outline does. */
 .group-outline.focused {
-  visibility: hidden;
+    visibility: hidden;
 }
 
 .results.keyboard-focus:focus .group-outline.focused {
-  visibility: visible;
-  border-color: var(--vscode-foreground);
+    visibility: visible;
+    border-color: var(--vscode-foreground);
 }
 
 /* High contrast themes leave the list fills unset and outline a row with the contrast border. */
 .vscode-high-contrast .group-outline.hovered,
 .vscode-high-contrast .group-outline.focused {
-  border-color: var(--vscode-contrastActiveBorder);
+    border-color: var(--vscode-contrastActiveBorder);
 }
 
 .vscode-high-contrast .group-outline.hovered {
-  border-style: dashed;
+    border-style: dashed;
 }
 
 .menu {
-  position: fixed;
-  z-index: 10;
-  box-sizing: border-box;
-  padding: 4px 0;
-  border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
-  border-radius: var(--widget-corner-radius);
-  background: var(--vscode-menu-background);
-  color: var(--vscode-menu-foreground);
-  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+    position: fixed;
+    z-index: 10;
+    box-sizing: border-box;
+    padding: 4px 0;
+    border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
+    border-radius: var(--widget-corner-radius);
+    background: var(--vscode-menu-background);
+    color: var(--vscode-menu-foreground);
+    box-shadow: 0 2px 8px var(--vscode-widget-shadow);
 }
 
 .menu-items:focus {
-  outline: none;
+    outline: none;
 }
 
 .menu-reasons {
-  padding: 2px 12px 4px;
-  color: var(--vscode-descriptionForeground);
-  font-size: var(--small-font-size);
-  line-height: 18px;
+    padding: 2px 12px 4px;
+    color: var(--vscode-descriptionForeground);
+    font-size: var(--small-font-size);
+    line-height: 18px;
 }
 
 .menu-item {
-  margin: 0 4px;
-  padding: 0 8px;
-  border-radius: var(--corner-radius);
-  line-height: 24px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    margin: 0 4px;
+    padding: 0 8px;
+    border-radius: var(--corner-radius);
+    line-height: 24px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .menu-item:focus {
-  outline: 1px solid var(--vscode-menu-selectionBorder, transparent);
-  outline-offset: -1px;
-  background: var(--vscode-menu-selectionBackground);
-  color: var(--vscode-menu-selectionForeground);
+    outline: 1px solid var(--vscode-menu-selectionBorder, transparent);
+    outline-offset: -1px;
+    background: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
 }
 
 .menu-separator {
-  height: 1px;
-  margin: 4px 0;
-  background: var(--vscode-menu-separatorBackground, var(--vscode-widget-border));
+    height: 1px;
+    margin: 4px 0;
+    background: var(--vscode-menu-separatorBackground, var(--vscode-widget-border));
 }

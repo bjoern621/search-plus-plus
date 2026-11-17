@@ -1,7 +1,7 @@
-import type { Query, TextPiece } from "../search/types";
-import { parseKeyPath } from "./keyPathParser";
+import type { Query, TextPiece } from "../search/types"
+import { parseKeyPath } from "./keyPathParser"
 
-const WORD_CHAR = /^[\p{L}\p{M}\p{N}]$/u;
+const WORD_CHAR = /^[\p{L}\p{M}\p{N}]$/u
 
 /**
  * Parses the text of the query input.
@@ -9,27 +9,27 @@ const WORD_CHAR = /^[\p{L}\p{M}\p{N}]$/u;
  * Every other query turns into a text query with its pieces and, where the key path grammar allows, its key path.
  */
 export function parseQuery(raw: string): Query {
-  if (isRegexQuery(raw)) {
-    return { kind: "regex", raw, source: raw.slice(1, -1) };
-  }
-  const parsed = parseKeyPath(raw);
-  const pieces = parseTextPieces(raw);
-  if ("error" in parsed) {
-    return { kind: "text", raw, pieces, keyPathError: parsed.error };
-  }
-  return { kind: "text", raw, pieces, keyPath: parsed.pattern };
+    if (isRegexQuery(raw)) {
+        return { kind: "regex", raw, source: raw.slice(1, -1) }
+    }
+    const parsed = parseKeyPath(raw)
+    const pieces = parseTextPieces(raw)
+    if ("error" in parsed) {
+        return { kind: "text", raw, pieces, keyPathError: parsed.error }
+    }
+    return { kind: "text", raw, pieces, keyPath: parsed.pattern }
 }
 
 /** True when the query starts with a slash and ends with a second, unescaped one. */
 export function isRegexQuery(raw: string): boolean {
-  if (raw.length < 2 || !raw.startsWith("/") || !raw.endsWith("/")) {
-    return false;
-  }
-  let backslashes = 0;
-  for (let i = raw.length - 2; i > 0 && raw[i] === "\\"; i--) {
-    backslashes++;
-  }
-  return backslashes % 2 === 0;
+    if (raw.length < 2 || !raw.startsWith("/") || !raw.endsWith("/")) {
+        return false
+    }
+    let backslashes = 0
+    for (let i = raw.length - 2; i > 0 && raw[i] === "\\"; i--) {
+        backslashes++
+    }
+    return backslashes % 2 === 0
 }
 
 /**
@@ -39,69 +39,69 @@ export function isRegexQuery(raw: string): boolean {
  * A quote left open quotes the rest of the query.
  */
 export function parseTextPieces(raw: string): TextPiece[] {
-  const pieces = new TextPieceBuilder();
-  const chars = Array.from(raw);
-  let quoted = false;
-  for (let i = 0; i < chars.length; i++) {
-    const char = chars[i]!;
-    if (char === "\\") {
-      const escaped = chars[i + 1];
-      pieces.addLiteral(escaped ?? char);
-      i++;
-      continue;
+    const pieces = new TextPieceBuilder()
+    const chars = Array.from(raw)
+    let quoted = false
+    for (let i = 0; i < chars.length; i++) {
+        const char = chars[i]!
+        if (char === "\\") {
+            const escaped = chars[i + 1]
+            pieces.addLiteral(escaped ?? char)
+            i++
+            continue
+        }
+        if (char === '"') {
+            quoted = !quoted
+            pieces.breakWord()
+            continue
+        }
+        if (char === "*" && !quoted) {
+            pieces.addWildcard()
+            continue
+        }
+        if (WORD_CHAR.test(char)) {
+            pieces.addWordChar(char, quoted)
+            continue
+        }
+        pieces.addLiteral(char)
     }
-    if (char === '"') {
-      quoted = !quoted;
-      pieces.breakWord();
-      continue;
-    }
-    if (char === "*" && !quoted) {
-      pieces.addWildcard();
-      continue;
-    }
-    if (WORD_CHAR.test(char)) {
-      pieces.addWordChar(char, quoted);
-      continue;
-    }
-    pieces.addLiteral(char);
-  }
-  return pieces.pieces;
+    return pieces.pieces
 }
 
 class TextPieceBuilder {
-  readonly pieces: TextPiece[] = [];
-  private wordOpen = false;
+    readonly pieces: TextPiece[] = []
+    private wordOpen = false
 
-  addWordChar(char: string, exact: boolean): void {
-    const last = this.pieces[this.pieces.length - 1];
-    if (this.wordOpen && last?.kind === "word" && last.exact === exact) {
-      last.value += char;
-      return;
+    addWordChar(char: string, exact: boolean): void {
+        const last = this.pieces[this.pieces.length - 1]
+        if (this.wordOpen && last?.kind === "word" && last.exact === exact) {
+            last.value += char
+            return
+        }
+        this.pieces.push({ kind: "word", value: char, exact })
+        this.wordOpen = true
     }
-    this.pieces.push({ kind: "word", value: char, exact });
-    this.wordOpen = true;
-  }
 
-  addLiteral(text: string): void {
-    this.wordOpen = false;
-    const last = this.pieces[this.pieces.length - 1];
-    if (last?.kind === "literal") {
-      last.value += text;
-      return;
+    addLiteral(text: string): void {
+        this.wordOpen = false
+        const last = this.pieces[this.pieces.length - 1]
+        if (last?.kind === "literal") {
+            last.value += text
+            return
+        }
+        this.pieces.push({ kind: "literal", value: text })
     }
-    this.pieces.push({ kind: "literal", value: text });
-  }
 
-  addWildcard(): void {
-    this.wordOpen = false;
-    if (this.pieces[this.pieces.length - 1]?.kind === "wildcard") {
-      return;
+    addWildcard(): void {
+        this.wordOpen = false
+        if (this.pieces[this.pieces.length - 1]?.kind === "wildcard") {
+            return
+        }
+        this.pieces.push({ kind: "wildcard" })
     }
-    this.pieces.push({ kind: "wildcard" });
-  }
 
-  /** Keeps the next word character from joining the word before a quote. */
-  breakWord(): void {
-    this.wordOpen = false;
-  }
+    /** Keeps the next word character from joining the word before a quote. */
+    breakWord(): void {
+        this.wordOpen = false
+    }
 }

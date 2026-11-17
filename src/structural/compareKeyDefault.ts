@@ -1,8 +1,8 @@
-import { compareWord, foldCaseAndUmlauts } from "../matching";
-import { reasonsForFoldedMatch } from "../matching/compareWord";
-import type { CompareKey, KeyMatch } from "../query/types";
+import { compareWord, foldCaseAndUmlauts } from "../matching"
+import { reasonsForFoldedMatch } from "../matching/compareWord"
+import type { CompareKey, KeyMatch } from "../query/types"
 
-const DIGITS = /^\d+$/;
+const DIGITS = /^\d+$/
 
 /**
  * Compares a key path literal with a key under the matching defaults: case-insensitive, with umlaut variants.
@@ -11,17 +11,17 @@ const DIGITS = /^\d+$/;
  * A quoted literal matches as written.
  */
 export const compareKeyDefault: CompareKey = (literal, keyText, how): KeyMatch | undefined => {
-  if (how.exact) {
-    return compareWord(literal, keyText, true);
-  }
-  if (how.fuzzy && !DIGITS.test(literal)) {
-    return compareWord(literal, keyText, false);
-  }
-  if (literal === keyText) {
-    return { reasons: [] };
-  }
-  if (foldCaseAndUmlauts(literal) !== foldCaseAndUmlauts(keyText)) {
-    return undefined;
-  }
-  return { reasons: reasonsForFoldedMatch(literal, keyText) };
-};
+    if (how.exact) {
+        return compareWord(literal, keyText, true)
+    }
+    if (how.fuzzy && !DIGITS.test(literal)) {
+        return compareWord(literal, keyText, false)
+    }
+    if (literal === keyText) {
+        return { reasons: [] }
+    }
+    if (foldCaseAndUmlauts(literal) !== foldCaseAndUmlauts(keyText)) {
+        return undefined
+    }
+    return { reasons: reasonsForFoldedMatch(literal, keyText) }
+}

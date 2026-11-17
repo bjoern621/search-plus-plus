@@ -16,27 +16,27 @@ Structural search feels like typing plain text.
 Each feature gets one of three levels.
 The level decides how far the view keeps the feature from the query input.
 
-| Level | Place in the view |
-|---|---|
-| Core | visible at all times |
+| Level    | Place in the view                 |
+| -------- | --------------------------------- |
+| Core     | visible at all times              |
 | Frequent | one click away, or shown on hover |
-| Rare | in a menu or in the settings |
+| Rare     | in a menu or in the settings      |
 
-| Feature | Level | Place |
-|---|---|---|
-| Query input | Core | top of the view |
-| Results as a list of files | Core | under the query input |
-| Key path search | Core | works without a control |
-| Matching defaults | Core | work without a control |
-| Context lines around each match | Core | one line before and after, dimmed, a line of whitespace left out |
-| Hints on the query | Core | one line under the query input, shown when they apply |
-| Wildcard `*` | Core | works without a control |
-| Query highlighting | Core | colors in the query input |
-| Exclude buttons on folders and files | Frequent | on hover over a result |
-| Context menu on a match | Frequent | on right-click on a match |
-| Results as paths or a folder tree | Frequent | View As menu in the view title |
-| Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
-| Settings for the matching defaults | Rare | behind the gear in the view title |
+| Feature                              | Level    | Place                                                                          |
+| ------------------------------------ | -------- | ------------------------------------------------------------------------------ |
+| Query input                          | Core     | top of the view                                                                |
+| Results as a list of files           | Core     | under the query input                                                          |
+| Key path search                      | Core     | works without a control                                                        |
+| Matching defaults                    | Core     | work without a control                                                         |
+| Context lines around each match      | Core     | one line before and after, dimmed, a line of whitespace left out               |
+| Hints on the query                   | Core     | one line under the query input, shown when they apply                          |
+| Wildcard `*`                         | Core     | works without a control                                                        |
+| Query highlighting                   | Core     | colors in the query input                                                      |
+| Exclude buttons on folders and files | Frequent | on hover over a result                                                         |
+| Context menu on a match              | Frequent | on right-click on a match                                                      |
+| Results as paths or a folder tree    | Frequent | View As menu in the view title                                                 |
+| Files to include and exclude         | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
+| Settings for the matching defaults   | Rare     | behind the gear in the view title                                              |
 
 The empty query input shows the placeholder `Search`, as the built-in Search view does.
 The file fields show examples in their placeholders, such as `Examples: *.yaml, ./charts`.
@@ -120,13 +120,13 @@ Its top lines say why the line matched whenever a matching default stretched the
 
 Below them come the quick actions:
 
-| Action | Shown for | Effect |
-|---|---|---|
-| Find "(word)" as written | a match that a matching default stretched | puts the query word in quotes and searches again |
-| Exclude (file) | every match | adds the file to files to exclude |
-| Exclude folder (folder) | every match | adds the folder to files to exclude |
-| Copy line | every match | copies the line of the match |
-| Copy key path | a key path match | copies the key path of the matched node, such as `global.values.gravitee.enabled` |
+| Action                   | Shown for                                 | Effect                                                                            |
+| ------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------- |
+| Find "(word)" as written | a match that a matching default stretched | puts the query word in quotes and searches again                                  |
+| Exclude (file)           | every match                               | adds the file to files to exclude                                                 |
+| Exclude folder (folder)  | every match                               | adds the folder to files to exclude                                               |
+| Copy line                | every match                               | copies the line of the match                                                      |
+| Copy key path            | a key path match                          | copies the key path of the matched node, such as `global.values.gravitee.enabled` |
 
 ## Place in VS Code
 
@@ -162,12 +162,13 @@ A query matches with these defaults:
 - Case-insensitive.
 - Inside words: `grav` finds `gravitee`.
 - Umlauts: each umlaut and its spelled-out form match each other in both directions.
-  - `ä` and `ae`
-  - `ö` and `oe`
-  - `ü` and `ue`
-  - `ß` and `ss`
+    - `ä` and `ae`
+    - `ö` and `oe`
+    - `ü` and `ue`
+    - `ß` and `ss`
 
-  `Größe` finds `Groesse`, and `Groesse` finds `Größe`.
+    `Größe` finds `Groesse`, and `Groesse` finds `Größe`.
+
 - Fuzzy: each word of the query also matches a word a few edits away.
 
 A word in double quotes matches as written: case-sensitive, without umlaut variants and without fuzzy matches.
@@ -188,11 +189,11 @@ Fuzzy matching copies the `AUTO` fuzziness of [Elasticsearch](https://www.elasti
 An edit inserts, deletes or replaces one character, or swaps two neighbouring characters (Damerau-Levenshtein distance).
 The length of a query word sets the edits that it allows:
 
-| Word length | Edits allowed |
-|---|---|
-| 1 to 2 characters | 0 |
-| 3 to 5 characters | 1 |
-| 6 or more characters | 2 |
+| Word length          | Edits allowed |
+| -------------------- | ------------- |
+| 1 to 2 characters    | 0             |
+| 3 to 5 characters    | 1             |
+| 6 or more characters | 2             |
 
 ## Regex
 
@@ -217,12 +218,12 @@ The query input colors each character by its role, so you see which characters t
 
 A hint takes one line under the query input and names what the query does or how to change it.
 
-| Query | Hint |
-|---|---|
-| between two slashes | Searching as a regex. (highlighted) |
-| starts with a slash, ends without one | End with a slash to search as a regex. |
-| breaks the key path grammar | The key path skips this query because a bracket ([) stays open. Close it with ]. |
-| regex that does not compile | The regex cannot compile: (parser's message). Fix it or drop the slashes. |
+| Query                                 | Hint                                                                             |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| between two slashes                   | Searching as a regex. (highlighted)                                              |
+| starts with a slash, ends without one | End with a slash to search as a regex.                                           |
+| breaks the key path grammar           | The key path skips this query because a bracket ([) stays open. Close it with ]. |
+| regex that does not compile           | The regex cannot compile: (parser's message). Fix it or drop the slashes.        |
 
 A hint that suggests a query runs it on click.
 
@@ -263,6 +264,7 @@ Structural search matches by the structure of a file: keys in YAML, JSON and TOM
 A dotted key path takes the [VS Code glob syntax](https://code.visualstudio.com/docs/editor/glob-patterns), with `.` in place of `/`.
 The files to include field takes the same syntax, so VS Code users know it already.
 Two characters depart from VS Code globs to name a key that holds a dot or an operator:
+
 - `\` escapes the next character.
 - `"` quotes a run of characters.
 
@@ -300,19 +302,19 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 - A segment made of `**` alone matches zero or more keys.
   Several `**` in a row act as one.
 - Every other segment matches exactly one key:
-  - A literal matches itself under the matching defaults: case-insensitive, with umlaut variants.
-  - A segment made of literals alone also matches a key a few edits away, as in fuzzy matching.
-    `Global.Values.Gravite.Enabled` finds `global.values.gravitee.enabled`.
-  - An escape matches the character after the `\`.
-  - A quoted piece matches its characters as written, without the matching defaults: `"a.*"` matches the key `a.*` alone.
-    `**."enabled"` leaves out `enable` and `Enabled`.
-  - `*` matches zero or more characters.
-  - `?` matches one character.
-  - A class matches one character out of its items.
-    `a-z` covers every character from `a` to `z`.
-    A leading `!` or `^` negates the class.
-  - A group matches when one of its alternatives matches.
-    An alternative may span several keys: `{gateway.enabled,portal}`.
+    - A literal matches itself under the matching defaults: case-insensitive, with umlaut variants.
+    - A segment made of literals alone also matches a key a few edits away, as in fuzzy matching.
+      `Global.Values.Gravite.Enabled` finds `global.values.gravitee.enabled`.
+    - An escape matches the character after the `\`.
+    - A quoted piece matches its characters as written, without the matching defaults: `"a.*"` matches the key `a.*` alone.
+      `**."enabled"` leaves out `enable` and `Enabled`.
+    - `*` matches zero or more characters.
+    - `?` matches one character.
+    - A class matches one character out of its items.
+      `a-z` covers every character from `a` to `z`.
+      A leading `!` or `^` negates the class.
+    - A group matches when one of its alternatives matches.
+      An alternative may span several keys: `{gateway.enabled,portal}`.
 
 ### Examples
 

@@ -1,50 +1,62 @@
-import type { FileResult, ResultLine } from "../messages";
-import type { MatchReason } from "../search/types";
-import { fileEntry, folderEntry } from "./exclusions";
-import { keyPathText } from "./keyPath";
+import type { FileResult, ResultLine } from "../messages"
+import type { MatchReason } from "../search/types"
+import { fileEntry, folderEntry } from "./exclusions"
+import { keyPathText } from "./keyPath"
 
 export type MenuAction =
-  | { kind: "search"; query: string }
-  | { kind: "exclude"; entry: string }
-  | { kind: "copyLine" }
-  | { kind: "copy"; text: string };
+    | { kind: "search"; query: string }
+    | { kind: "exclude"; entry: string }
+    | { kind: "copyLine" }
+    | { kind: "copy"; text: string }
 
 export interface MenuItem {
-  label: string;
-  action: MenuAction;
+    label: string
+    action: MenuAction
 }
 
 /** A menu: lines that explain it, then groups of actions with a separator between them. */
 export interface MenuContent {
-  reasons: string[];
-  groups: MenuItem[][];
+    reasons: string[]
+    groups: MenuItem[][]
 }
 
 /** Lays out the context menu of the matched `line`. `query` holds the text of the search that found it. Its reasons say why the line matched. */
 export function matchMenu(file: FileResult, line: ResultLine, query: string): MenuContent {
-  const reasons = line.reasons ?? [];
-  const groups: MenuItem[][] = [];
-  const asWritten = findAsWritten(reasons, query);
-  if (asWritten) groups.push([asWritten]);
+    const reasons = line.reasons ?? []
+    const groups: MenuItem[][] = []
+    const asWritten = findAsWritten(reasons, query)
+    if (asWritten) groups.push([asWritten])
 
-  const exclusions: MenuItem[] = [{ label: `Exclude ${file.name}`, action: { kind: "exclude", entry: fileEntry(file) } }];
-  if (file.folder !== "") exclusions.push({ label: `Exclude folder ${file.folder}`, action: { kind: "exclude", entry: folderEntry(file.folder) } });
-  groups.push(exclusions);
+    const exclusions: MenuItem[] = [
+        { label: `Exclude ${file.name}`, action: { kind: "exclude", entry: fileEntry(file) } }
+    ]
+    if (file.folder !== "")
+        exclusions.push({
+            label: `Exclude folder ${file.folder}`,
+            action: { kind: "exclude", entry: folderEntry(file.folder) }
+        })
+    groups.push(exclusions)
 
-  const copies: MenuItem[] = [{ label: "Copy line", action: { kind: "copyLine" } }];
-  if (line.keyPath) copies.push({ label: "Copy key path", action: { kind: "copy", text: keyPathText(line.keyPath) } });
-  groups.push(copies);
+    const copies: MenuItem[] = [{ label: "Copy line", action: { kind: "copyLine" } }]
+    if (line.keyPath)
+        copies.push({
+            label: "Copy key path",
+            action: { kind: "copy", text: keyPathText(line.keyPath) }
+        })
+    groups.push(copies)
 
-  return { reasons: reasonLines(reasons, line.keyPath ?? []), groups };
+    return { reasons: reasonLines(reasons, line.keyPath ?? []), groups }
 }
 
 /** The first word that a matching default stretched, in quotes in the query, so the search takes it as written. */
 function findAsWritten(reasons: readonly MatchReason[], query: string): MenuItem | undefined {
-  const reason = ["fuzzy", "umlaut", "case"].map((kind) => reasons.find((candidate) => candidate.kind === kind)).find((candidate) => candidate !== undefined);
-  if (!reason) return undefined;
-  const quoted = quoteWord(query, reason.query);
-  if (quoted === undefined) return undefined;
-  return { label: `Find "${reason.query}" as written`, action: { kind: "search", query: quoted } };
+    const reason = ["fuzzy", "umlaut", "case"]
+        .map((kind) => reasons.find((candidate) => candidate.kind === kind))
+        .find((candidate) => candidate !== undefined)
+    if (!reason) return undefined
+    const quoted = quoteWord(query, reason.query)
+    if (quoted === undefined) return undefined
+    return { label: `Find "${reason.query}" as written`, action: { kind: "search", query: quoted } }
 }
 
 /**
@@ -52,27 +64,27 @@ function findAsWritten(reasons: readonly MatchReason[], query: string): MenuItem
  * Returns `undefined` when `query` holds no such occurrence.
  */
 export function quoteWord(query: string, word: string): string | undefined {
-  let quoted = false;
-  for (let i = 0; i < query.length; i++) {
-    const char = query[i];
-    if (char === "\\") {
-      i++;
-      continue;
+    let quoted = false
+    for (let i = 0; i < query.length; i++) {
+        const char = query[i]
+        if (char === "\\") {
+            i++
+            continue
+        }
+        if (char === '"') {
+            quoted = !quoted
+            continue
+        }
+        if (quoted || !query.startsWith(word, i)) continue
+        const end = i + word.length
+        if (isWordChar(query[i - 1]) || isWordChar(query[end])) continue
+        return `${query.slice(0, i)}"${word}"${query.slice(end)}`
     }
-    if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (quoted || !query.startsWith(word, i)) continue;
-    const end = i + word.length;
-    if (isWordChar(query[i - 1]) || isWordChar(query[end])) continue;
-    return `${query.slice(0, i)}"${word}"${query.slice(end)}`;
-  }
-  return undefined;
+    return undefined
 }
 
 function isWordChar(char: string | undefined): boolean {
-  return char !== undefined && /[\p{L}\p{N}]/u.test(char);
+    return char !== undefined && /[\p{L}\p{N}]/u.test(char)
 }
 
 /**
@@ -80,35 +92,40 @@ function isWordChar(char: string | undefined): boolean {
  * Case differences share one line, such as `Keys global, values and enabled: case differs.`
  */
 export function reasonLines(reasons: readonly MatchReason[], keyPath: readonly string[]): string[] {
-  const keys = new Set(keyPath);
-  const lines: string[] = [];
-  const caseKeys: string[] = [];
-  const caseWords: string[] = [];
-  for (const reason of reasons) {
-    const isKey = keys.has(reason.found);
-    switch (reason.kind) {
-      case "fuzzy":
-        lines.push(`${isKey ? "Key " : ""}${reason.found}: close spelling of ${reason.query}, ${reason.edits} ${reason.edits === 1 ? "edit" : "edits"} away.`);
-        break;
-      case "umlaut":
-        lines.push(`${isKey ? "Key " : ""}${reason.found}: ${umlautCount(reason.found) < umlautCount(reason.query) ? "spelled-out umlaut" : "umlaut spelling"} of ${reason.query}.`);
-        break;
-      case "case":
-        (isKey ? caseKeys : caseWords).push(reason.found);
-        break;
+    const keys = new Set(keyPath)
+    const lines: string[] = []
+    const caseKeys: string[] = []
+    const caseWords: string[] = []
+    for (const reason of reasons) {
+        const isKey = keys.has(reason.found)
+        switch (reason.kind) {
+            case "fuzzy":
+                lines.push(
+                    `${isKey ? "Key " : ""}${reason.found}: close spelling of ${reason.query}, ${reason.edits} ${reason.edits === 1 ? "edit" : "edits"} away.`
+                )
+                break
+            case "umlaut":
+                lines.push(
+                    `${isKey ? "Key " : ""}${reason.found}: ${umlautCount(reason.found) < umlautCount(reason.query) ? "spelled-out umlaut" : "umlaut spelling"} of ${reason.query}.`
+                )
+                break
+            case "case":
+                ;(isKey ? caseKeys : caseWords).push(reason.found)
+                break
+        }
     }
-  }
-  if (caseKeys.length > 0) lines.push(`${caseKeys.length === 1 ? "Key" : "Keys"} ${listText(caseKeys)}: case differs.`);
-  if (caseWords.length > 0) lines.push(`${listText(caseWords)}: case differs.`);
-  return lines;
+    if (caseKeys.length > 0)
+        lines.push(`${caseKeys.length === 1 ? "Key" : "Keys"} ${listText(caseKeys)}: case differs.`)
+    if (caseWords.length > 0) lines.push(`${listText(caseWords)}: case differs.`)
+    return lines
 }
 
 function umlautCount(text: string): number {
-  return [...text].filter((char) => "äöüÄÖÜß".includes(char)).length;
+    return [...text].filter((char) => "äöüÄÖÜß".includes(char)).length
 }
 
 /** Joins words as in a sentence: `a`, `a and b`, `a, b and c`. */
 function listText(words: readonly string[]): string {
-  if (words.length <= 1) return words.join("");
-  return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+    if (words.length <= 1) return words.join("")
+    return `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`
 }
