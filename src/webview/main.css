@@ -522,10 +522,14 @@ body {
   background: var(--vscode-menu-separatorBackground, var(--vscode-widget-border));
 }
 
+/* The card lets the pointer through, so clicks and the pointer reach the rows that it covers. */
 .hover {
   position: fixed;
+  left: 0;
+  right: 0;
   z-index: 9;
   box-sizing: border-box;
+  pointer-events: none;
   padding: 4px 0;
   border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-widget-border, transparent));
   border-radius: var(--widget-corner-radius);
@@ -535,8 +539,9 @@ body {
   overflow: hidden;
 }
 
+/* The border plus the left padding of the card match the padding of a row, so the line numbers of both start together. */
 .hover-file {
-  padding: 0 8px 4px;
+  padding: 0 8px 4px 7px;
   color: var(--vscode-descriptionForeground);
   font-size: var(--small-font-size);
   line-height: 18px;
@@ -547,7 +552,7 @@ body {
 
 .hover-line {
   display: flex;
-  padding: 0 8px;
+  padding: 0 8px 0 7px;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-editor-font-family);
   font-size: var(--vscode-editor-font-size);

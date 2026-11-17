@@ -56,7 +56,12 @@ The summary line shows a scope other than the working tree in color, so a histor
 - A fuzzy match looks like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
-- Hovering a match shows a larger excerpt of its file.
+- Hovering a match shows a larger excerpt of its file in a card.
+  The card names the file above its lines.
+  Its copy of the hovered line covers the row in place, in the same font and size, so the code keeps its place while the lines before it appear above and the lines after it below.
+  Near an edge of the view, the card drops the lines on that side that would leave the view.
+  Once no line is left to drop there, the card moves into the view.
+  Clicks pass through the card to the rows beneath it.
 
 ### Context menu
 
@@ -83,7 +88,7 @@ Below them come the quick actions:
 - The view sits in the side bar.
   A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree.
 - The view renders in a webview, which draws the inputs and the dimmed context lines.
-  Its hover card stays as wide as the side bar.
+  Its hover card stays inside the view, as wide as the side bar.
 - The view follows the color theme of VS Code.
   Rows, inputs, menus and the hover card take the theme colors of their counterparts in the explorer, the Search view and the editor.
   High contrast themes draw hover and selection as outlines.

@@ -100,6 +100,21 @@ export interface TestSnapshot {
   menu: string[];
   /** The file and the lines of the hover card, as the rows describe them. Empty while no card shows. */
   hover: string[];
+  /** Where the hovered line of the card sits against its row. Undefined while no card shows. */
+  hoverGeometry: HoverGeometry | undefined;
+  /** The height of a code line in pixels. */
+  lineHeight: number;
+}
+
+/** Positions in pixels from the top left corner of the view. */
+export interface HoverGeometry {
+  rowTop: number;
+  lineTop: number;
+  rowTextLeft: number;
+  lineTextLeft: number;
+  cardTop: number;
+  cardBottom: number;
+  viewHeight: number;
 }
 
 export type ViewMessage =

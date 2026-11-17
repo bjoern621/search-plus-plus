@@ -1,11 +1,8 @@
-import type { FileResult, ResultLine } from "../messages";
+import type { FileResult, HoverGeometry, ResultLine } from "../messages";
 import { describeLine, highlightParts, relativePath } from "./tree";
 
 /** Time that the pointer rests on a match before the hover card asks for its excerpt. */
 const HOVER_DELAY_DURATION_MS = 500;
-/** Space between the card and the edges of the view, as in the mockup. */
-const CARD_LEFT_PX = 12;
-const CARD_RIGHT_PX = 8;
 
 /** Puts the lines that the results hold into an excerpt, so its matches keep their marks. */
 export function mergeExcerpt(excerpt: readonly ResultLine[], file: FileResult): ResultLine[] {
@@ -24,6 +21,7 @@ interface Target {
 /**
  * Shows a larger excerpt of the file around a match once the pointer rests on it.
  * The card names the file, then the lines around the match, the hovered line marked.
+ * The hovered line of the card covers its row exactly, so the code keeps its place while the lines around it appear.
  */
 export class HoverCard {
   private target: Target | undefined;
@@ -46,25 +44,44 @@ export class HoverCard {
     this.timer = window.setTimeout(() => this.requestExcerpt(++this.requestId, file.uri, line), HOVER_DELAY_DURATION_MS);
   }
 
-  /** Shows the excerpt that answers request `requestId`. An answer to an older request changes nothing. */
+  /**
+   * Shows the excerpt that answers request `requestId`. An answer to an older request changes nothing.
+   * Near an edge of the view, the card drops the lines on that side before it moves, since a move would shift the hovered line off its row.
+   */
   show(requestId: number, excerpt: readonly ResultLine[]): void {
     if (requestId !== this.requestId || !this.target || excerpt.length === 0) return;
     const { file, line } = this.target;
-    const anchor = this.findRow(file, line);
-    if (!anchor) return;
-    this.lines = mergeExcerpt(excerpt, file);
+    const row = this.findRow(file, line);
+    const lines = mergeExcerpt(excerpt, file);
+    const hit = lines.findIndex((excerptLine) => excerptLine.line === line);
+    if (!row || hit === -1) return;
     const header = document.createElement("div");
     header.className = "hover-file";
     header.textContent = [file.root, relativePath(file)].filter((part) => part !== "").join("/");
-    this.element.replaceChildren(header, ...this.lines.map((excerptLine) => lineElement(excerptLine, excerptLine.line === line)));
-    this.element.style.setProperty("--line-number-width", `${Math.max(2, String((this.lines.at(-1)?.line ?? 0) + 1).length)}ch`);
+    const elements = lines.map((excerptLine) => lineElement(excerptLine, excerptLine.line === line));
+    this.element.replaceChildren(header, ...elements);
+    // The numbers take the width of the numbers in the results, so the text of the hovered line starts where its row's text starts.
+    const rowNumberWidth = getComputedStyle(row).getPropertyValue("--line-number-width").trim() || "2ch";
+    this.element.style.setProperty("--line-number-width", `max(${rowNumberWidth}, ${String((lines.at(-1)?.line ?? 0) + 1).length}ch)`);
+    this.element.style.top = "0px";
     this.element.hidden = false;
-    this.element.style.left = `${CARD_LEFT_PX}px`;
-    this.element.style.right = `${CARD_RIGHT_PX}px`;
-    const box = anchor.getBoundingClientRect();
-    const height = this.element.offsetHeight;
-    const below = box.bottom + height <= window.innerHeight;
-    this.element.style.top = `${below ? box.bottom : Math.max(0, box.top - height)}px`;
+
+    const rowBox = row.getBoundingClientRect();
+    const hitElement = elements[hit] as HTMLElement;
+    const lineHeight = hitElement.offsetHeight;
+    let aboveHit = hitElement.getBoundingClientRect().top - this.element.getBoundingClientRect().top;
+    const dropBefore = Math.min(hit, Math.max(0, Math.ceil((aboveHit - rowBox.top) / lineHeight)));
+    aboveHit -= dropBefore * lineHeight;
+    let top = Math.max(0, rowBox.top - aboveHit);
+    let height = this.element.offsetHeight - dropBefore * lineHeight;
+    const after = lines.length - hit - 1;
+    const dropAfter = Math.min(after, Math.max(0, Math.ceil((top + height - window.innerHeight) / lineHeight)));
+    height -= dropAfter * lineHeight;
+    if (top + height > window.innerHeight) top = Math.max(0, window.innerHeight - height);
+
+    for (const element of [...elements.slice(0, dropBefore), ...elements.slice(elements.length - dropAfter)]) element.remove();
+    this.lines = lines.slice(dropBefore, lines.length - dropAfter);
+    this.element.style.top = `${top}px`;
   }
 
   /** Hides the card and drops a pending request. */
@@ -80,6 +97,24 @@ export class HoverCard {
   describe(): string[] {
     if (this.element.hidden) return [];
     return [this.element.querySelector(".hover-file")?.textContent ?? "", ...this.lines.map(describeLine)];
+  }
+
+  /** Measures where the hovered line of the card sits against its row. For integration tests. */
+  geometry(): HoverGeometry | undefined {
+    const row = this.target && this.findRow(this.target.file, this.target.line);
+    const line = this.element.querySelector(".hover-line.hovered");
+    if (this.element.hidden || !row || !line) return undefined;
+    const card = this.element.getBoundingClientRect();
+    const textLeft = (element: Element) => element.querySelector(".text")?.getBoundingClientRect().left ?? Number.NaN;
+    return {
+      rowTop: row.getBoundingClientRect().top,
+      lineTop: line.getBoundingClientRect().top,
+      rowTextLeft: textLeft(row),
+      lineTextLeft: textLeft(line),
+      cardTop: card.top,
+      cardBottom: card.bottom,
+      viewHeight: window.innerHeight,
+    };
   }
 }
 

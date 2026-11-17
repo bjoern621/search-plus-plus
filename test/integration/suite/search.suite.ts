@@ -229,6 +229,37 @@ describe("Structural Search view", () => {
     ]);
   });
 
+  it("lays the hovered line of the card over its row, the lines around it above and below", async () => {
+    const snapshot = await search("4.1.0");
+    await vscode.commands.executeCommand("structuralSearch.test.hover", snapshot.rows.indexOf("match 4:     tag: [4.1.0]"));
+    await shownHover();
+    const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
+    assert.ok(box, "no hover card");
+    assert.ok(Math.abs(box.lineTop - box.rowTop) <= 1, JSON.stringify(box));
+    assert.ok(Math.abs(box.lineTextLeft - box.rowTextLeft) <= 1, JSON.stringify(box));
+    assert.ok(box.cardTop < box.rowTop, JSON.stringify(box));
+  });
+
+  it("drops the lines of the card that would leave the view, keeping the hovered line over its row", async () => {
+    const editor = () => vscode.workspace.getConfiguration("editor");
+    await editor().update("fontSize", 60, vscode.ConfigurationTarget.Global);
+    try {
+      await changedLineHeight(81);
+      const snapshot = await search("4.1.0");
+      // Hovering scrolls the row to the top of the results, so the card has less room above the row than its lines before the match take.
+      await vscode.commands.executeCommand("structuralSearch.test.hover", snapshot.rows.indexOf("match 4:     tag: [4.1.0]"));
+      const hover = await shownHover();
+      const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
+      assert.ok(box, "no hover card");
+      assert.ok(hover.includes("match 4:     tag: [4.1.0]"), hover.join("\n"));
+      assert.notEqual(hover[1], "context 1: gateway:", `${hover.join("\n")}\n${JSON.stringify(box)}`);
+      assert.ok(Math.abs(box.lineTop - box.rowTop) <= 1, JSON.stringify(box));
+      assert.ok(box.cardTop >= 0 && box.cardBottom <= box.viewHeight, JSON.stringify(box));
+    } finally {
+      await editor().update("fontSize", undefined, vscode.ConfigurationTarget.Global);
+    }
+  });
+
   it("merges the matches of a registered engine into the lines of the others", async () => {
     const registration = api.registerEngine({
       id: "test.firstWord",
@@ -432,6 +463,17 @@ async function shownHover(): Promise<string[]> {
     hover = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hover;
   }
   return hover;
+}
+
+/** Waits until code lines in the view take `expected` pixels, since a font change reaches the view after the settings update resolves. */
+async function changedLineHeight(expected: number): Promise<void> {
+  const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
+  let lineHeight = 0;
+  while (Date.now() < deadline && lineHeight !== expected) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    lineHeight = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).lineHeight;
+  }
+  assert.equal(lineHeight, expected);
 }
 
 /** Waits for the clipboard to change from `before` and returns its text. */

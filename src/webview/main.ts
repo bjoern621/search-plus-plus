@@ -156,13 +156,7 @@ rowsElement.addEventListener("mouseover", (event) => {
   hoverCard.schedule(row.file, row.line.line);
 });
 
-// The card covers the rows below its match, so the pointer may move from the match into the card.
-results.addEventListener("mouseleave", (event) => {
-  if (!hoverElement.contains(event.relatedTarget as Node | null)) hoverCard.hide();
-});
-hoverElement.addEventListener("mouseleave", (event) => {
-  if (!rowsElement.contains(event.relatedTarget as Node | null)) hoverCard.hide();
-});
+results.addEventListener("mouseleave", () => hoverCard.hide());
 document.addEventListener("keydown", () => hoverCard.hide(), true);
 window.addEventListener("blur", () => hoverCard.hide());
 
@@ -658,6 +652,8 @@ function snapshot(): TestSnapshot {
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
     hover: hoverCard.describe(),
+    hoverGeometry: hoverCard.geometry(),
+    lineHeight: lineHeightPx,
   };
 }
 
