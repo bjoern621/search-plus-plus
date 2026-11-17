@@ -1,0 +1,9 @@
+defaults: &defaults
+  replicas: 2
+  image:
+    tag: "1.0"
+prod:
+  <<: *defaults
+  replicas: 5
+staging:
+  settings: *defaults

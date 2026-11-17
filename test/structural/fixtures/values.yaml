@@ -1,0 +1,32 @@
+# Helm values for the gravitee chart
+global:
+  values:
+    gravitee:
+      enabled: true
+      enable: false
+      Enabled: yes
+values:
+  gateway:
+    enabled: true
+  portal:
+    enabled: false
+  ui:
+    enabled: true
+gateway:
+  image:
+    repository: graviteeio/apim-gateway
+    tag: "4.5.2"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+ingress:
+  hosts:
+    - apim.example.com
+    - portal.example.com
+metadata:
+  labels:
+    "app.kubernetes.io/name": apim
+    größe: 3
