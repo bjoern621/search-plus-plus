@@ -207,7 +207,7 @@ body {
   padding: 0 3px;
   border: 1px solid currentColor;
   border-radius: 3px;
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
   font-size: var(--x-small-font-size);
   line-height: 14px;
 }
@@ -335,7 +335,7 @@ body {
 .commit .sha {
   flex: none;
   margin-right: 6px;
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
   color: var(--vscode-textLink-foreground);
 }
 
@@ -380,7 +380,7 @@ body {
   height: 22px;
   line-height: 22px;
   color: var(--row-foreground);
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
   font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
   font-feature-settings: var(--vscode-editor-font-feature-settings);
@@ -620,7 +620,7 @@ body {
   display: flex;
   padding: 0 7px;
   color: var(--vscode-descriptionForeground);
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--vscode-editor-font-family), "Droid Sans Mono", monospace;
   font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
   font-feature-settings: var(--vscode-editor-font-feature-settings);
