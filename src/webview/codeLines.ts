@@ -18,11 +18,17 @@ export function indentColumns(line: ResultLine): number | undefined {
 
 /**
  * Finds the columns to remove from each row, so the least indented line of a block starts at the left edge.
- * A block runs over code lines of one file that follow each other without a gap, meaning a match with its context.
+ * A block runs over the rows of one result block, meaning a match with its context, blank lines that take no row left out.
  * Every line of a block loses the same columns, so the lines keep their indentation relative to each other.
  */
 export function blockDedents(rows: readonly Row[]): number[] {
   const dedents = rows.map(() => 0);
+  const blockOf = new Map<ResultLine, readonly ResultLine[]>();
+  const continuesBlock = (above: Row | undefined, row: Row | undefined): boolean => {
+    if (above?.kind !== "line" || row?.kind !== "line" || above.file !== row.file) return false;
+    if (!blockOf.has(above.line)) for (const block of row.file.blocks) for (const line of block) blockOf.set(line, block);
+    return blockOf.get(above.line) === blockOf.get(row.line);
+  };
   let start = 0;
   while (start < rows.length) {
     if (rows[start]?.kind !== "line") {
@@ -41,10 +47,6 @@ export function blockDedents(rows: readonly Row[]): number[] {
     start = end;
   }
   return dedents;
-}
-
-function continuesBlock(above: Row | undefined, row: Row | undefined): boolean {
-  return above?.kind === "line" && row?.kind === "line" && above.file === row.file && row.line.line === above.line.line + 1;
 }
 
 /** Removes `columns` of indentation and writes the rest of it as spaces, so tabs keep their width. The ranges keep pointing at the same text. */

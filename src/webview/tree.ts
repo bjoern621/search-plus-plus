@@ -235,7 +235,14 @@ function pushFile(rows: Row[], file: FileResult, folded: string, depth: number, 
   const fileCollapsed = collapsed.has(file.uri);
   rows.push({ kind: "file", key: file.uri, depth, lines: unjoined(), file, folded, collapsed: fileCollapsed });
   if (fileCollapsed) return;
-  for (const block of file.blocks) for (const line of block) rows.push({ kind: "line", depth: depth + 1, file, line });
+  for (const block of file.blocks) {
+    for (const line of block) if (!isBlankContext(line)) rows.push({ kind: "line", depth: depth + 1, file, line });
+  }
+}
+
+/** A context line of whitespace alone takes no row. */
+function isBlankContext(line: ResultLine): boolean {
+  return line.ranges.length === 0 && line.text.trim() === "";
 }
 
 /**

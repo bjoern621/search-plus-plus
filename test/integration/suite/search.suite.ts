@@ -71,7 +71,6 @@ describe("Structural Search view", () => {
       "match 4:     tag: [4.1.0]",
       "context 5:   replicas: 2",
       "file upgrade.md (docs)",
-      "context 2: ",
       "match 3: Move the gateway to [4.1.0] before the portal.",
     ]);
   });
@@ -420,7 +419,6 @@ describe("Structural Search view", () => {
       const snapshot = await search("gateway");
       assert.deepEqual(snapshot.rows.slice(snapshot.rows.indexOf("file upgrade.md (docs)")), [
         "file upgrade.md (docs)",
-        "context 2: ",
         "match 3: [Move] the [gateway] to 4.1.0 before the portal.",
       ]);
     } finally {

@@ -28,7 +28,7 @@ The level decides how far the view keeps the feature from the query input.
 | Results in a folder tree | Core | under the query input |
 | Key path search | Core | works without a control |
 | Matching defaults | Core | work without a control |
-| Context lines around each match | Core | one line before and after, dimmed |
+| Context lines around each match | Core | one line before and after, dimmed, a line of whitespace left out |
 | Hints on the query | Core | one line under the query input, shown when they apply |
 | Wildcard `*` | Core | works without a control |
 | Query highlighting | Core | colors in the query input |
