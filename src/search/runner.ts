@@ -6,6 +6,7 @@ import { BATCH_INTERVAL_DURATION_MS, FILE_READ_CONCURRENCY, RESULT_LINE_LIMIT } 
 import { collectFiles } from "./files";
 import { type FileFields, PathFilter } from "./globs";
 import type { LanguageIndex } from "./languages";
+import { LineFeedLineMap } from "./lineFeedLines";
 import { mergeLineMatches } from "./merge";
 import { readSearchText, unsavedTexts } from "./reader";
 import type { EngineRegistry } from "./registry";
@@ -171,7 +172,7 @@ class RunningSearch {
   /** Searches one file from Git. In the history scope, a match counts on a line that the commit added or changed alone. */
   private async searchRevisionFile(revision: RevisionFile, workspaceLists: readonly LineMatch[][]): Promise<void> {
     const file: FileInfo = { uri: revision.uri, relativePath: revision.relativePath, languageId: this.languageOf(revision.relativePath) };
-    const lists = [...workspaceLists];
+    const lists = workspaceEditorLines(revision.text, workspaceLists);
     for (const engine of this.fileEngines.filter((candidate) => this.accepts(candidate, file))) {
       if (this.signal.aborted) return;
       const found = await this.searchWith(engine, { ...file, text: revision.text });
@@ -207,7 +208,7 @@ class RunningSearch {
     const text = await readSearchText(vscode.Uri.parse(file.uri), this.unsaved);
     if (text === undefined || this.signal.aborted) return;
 
-    const lists = [...item.lists];
+    const lists = workspaceEditorLines(text, item.lists);
     for (const engine of engines) {
       const found = await this.searchWith(engine, { ...file, text });
       if (found) lists.push(found);
@@ -257,6 +258,13 @@ class RunningSearch {
   private fileUri(root: SearchRoot, relativePath: string): string {
     return vscode.Uri.joinPath(vscode.Uri.parse(root.uri), relativePath).toString();
   }
+}
+
+/** Moves the matches of workspace engines, which count lines as ripgrep does, to the lines of the editor. */
+function workspaceEditorLines(text: string, lists: readonly LineMatch[][]): LineMatch[][] {
+  if (lists.length === 0) return [];
+  const lineFeeds = new LineFeedLineMap(text);
+  return lists.map((list) => lineFeeds.toEditorLines(list));
 }
 
 /** Drops matches that point outside the file and ranges that point outside their line, since engines from other extensions may send them. */

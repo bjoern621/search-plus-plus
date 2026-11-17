@@ -1,14 +1,19 @@
+import { LINE_BREAK } from "../search/results";
 import type { Range } from "../search/types";
 
-/** Maps offsets into a file text to lines, which end at `\n` or `\r\n` as the plain text engine splits them. */
+/** Maps offsets into a file text to lines, which end at every `LINE_BREAK` as `splitLines` splits them. */
 export class LineIndex {
   /** Per line, the offset of its first character. */
   private readonly starts: number[] = [0];
+  /** Per line, the offset of its line break, or the text length on the last line. */
+  private readonly ends: number[] = [];
 
-  constructor(private readonly text: string) {
-    for (let offset = text.indexOf("\n"); offset !== -1; offset = text.indexOf("\n", offset + 1)) {
-      this.starts.push(offset + 1);
+  constructor(text: string) {
+    for (const lineBreak of text.matchAll(LINE_BREAK)) {
+      this.ends.push(lineBreak.index);
+      this.starts.push(lineBreak.index + lineBreak[0].length);
     }
+    this.ends.push(text.length);
   }
 
   /** The 0-based line that holds `offset`. An offset at a line break belongs to the line that it ends. */
@@ -32,16 +37,6 @@ export class LineIndex {
    */
   rangeInLine(line: number, start: number, end: number): Range {
     const lineStart = this.starts[line]!;
-    const lineEnd = this.lineEnd(line);
-    return { start: start - lineStart, end: Math.min(end, lineEnd) - lineStart };
-  }
-
-  /** The offset of the first line break character after `line`, or the text length on the last line. */
-  private lineEnd(line: number): number {
-    const next = this.starts[line + 1];
-    if (next === undefined) {
-      return this.text.length;
-    }
-    return this.text[next - 2] === "\r" ? next - 2 : next - 1;
+    return { start: start - lineStart, end: Math.min(end, this.ends[line]!) - lineStart };
   }
 }

@@ -16,6 +16,7 @@ export interface SearchRoot {
 /**
  * Searches all workspace folders in one run, such as one ripgrep process per folder.
  * Built-in engines alone take this shape. The API takes a `SearchEngine`, which searches file by file.
+ * Its matches count lines as ripgrep does, ended by `\n` alone. The runner moves them to the lines of the editor.
  */
 export interface WorkspaceSearchEngine {
   readonly id: string;

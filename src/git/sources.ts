@@ -1,5 +1,6 @@
 import type { CommitInfo } from "../messages";
 import { BINARY_SNIFF_LENGTH_BYTES, FILE_SIZE_LIMIT_BYTES, HISTORY_COMMIT_LIMIT, REVISION_BATCH_FILE_COUNT, REVISION_BATCH_SIZE_BYTES } from "../search/config";
+import { LineFeedLineMap } from "../search/lineFeedLines";
 import type { PathTest, RevisionFile, RevisionSource } from "../search/revisions";
 import type { SearchRoot } from "../search/workspaceEngine";
 import { GitBlobReader } from "./blobReader";
@@ -25,7 +26,8 @@ interface ListedFile {
   /** Undefined when the listing gave no size. */
   sizeBytes: number | undefined;
   ref: string;
-  matchableLines?: ReadonlySet<number>;
+  /** Counted as git counts lines, ended by `\n` alone. */
+  lineFeedMatchableLines?: readonly number[];
   commit?: CommitInfo;
 }
 
@@ -86,7 +88,7 @@ export class HistorySource implements RevisionSource {
             object: `${commit.commit.sha}:${place.repository.prefix}${file.path}`,
             sizeBytes: undefined,
             ref: commit.commit.sha,
-            matchableLines: new Set(file.addedLines),
+            lineFeedMatchableLines: file.addedLines,
             commit: commit.commit,
           })),
       );
@@ -190,8 +192,12 @@ function revisionFile(place: RootRepository, file: ListedFile, object: CatFileOb
   if (object?.kind !== "found" || object.type !== "blob") return [];
   if (object.bytes.length > FILE_SIZE_LIMIT_BYTES || object.bytes.subarray(0, BINARY_SNIFF_LENGTH_BYTES).includes(0)) return [];
   const uri = revisionUri(place.repository.top, file.ref, `${place.repository.prefix}${file.relativePath}`).toString();
-  const result: RevisionFile = { root: place.root, relativePath: file.relativePath, uri, text: decoder.decode(object.bytes) };
-  if (file.matchableLines) result.matchableLines = file.matchableLines;
+  const text = decoder.decode(object.bytes);
+  const result: RevisionFile = { root: place.root, relativePath: file.relativePath, uri, text };
+  if (file.lineFeedMatchableLines) {
+    const lineFeeds = new LineFeedLineMap(text);
+    result.matchableLines = new Set(file.lineFeedMatchableLines.flatMap((line) => lineFeeds.editorLines(line)));
+  }
   if (file.commit) result.commit = file.commit;
   return [result];
 }

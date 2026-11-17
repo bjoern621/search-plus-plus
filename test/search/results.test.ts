@@ -72,8 +72,8 @@ describe("buildFileResult", () => {
 });
 
 describe("splitLines", () => {
-  it("ends lines at LF and at CRLF", () => {
-    expect(splitLines("a\r\nb\nc")).toEqual(["a", "b", "c"]);
+  it("ends lines at LF, at CRLF and at a lone CR, as VS Code does", () => {
+    expect(splitLines("a\r\nb\nc\rd")).toEqual(["a", "b", "c", "d"]);
   });
 
   it("starts no empty line after a final line ending", () => {

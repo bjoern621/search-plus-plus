@@ -112,7 +112,7 @@ export function historyLogArgs(commitCount: number): string[] {
 export interface ChangedFile {
   /** As `git log --relative` prints it: relative to the folder that git ran in, with `/` as separator. */
   path: string;
-  /** 0-based lines of the new file that the commit added or changed, in ascending order. */
+  /** 0-based lines of the new file that the commit added or changed, in ascending order. Git ends a line at `\n` alone. */
   addedLines: number[];
 }
 

@@ -35,7 +35,7 @@ export type Query =
     };
 
 export interface LineMatch {
-  /** 0-based line number. */
+  /** 0-based line number, with lines ended by `\n`, `\r\n` or a lone `\r` as in VS Code. */
   line: number;
   ranges: Range[];
   reasons: MatchReason[];

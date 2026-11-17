@@ -18,13 +18,15 @@ export interface ResultPlace {
   languageId: string;
 }
 
+/** The line endings that VS Code ends a line at: `\r\n`, `\n` and a lone `\r`. */
+export const LINE_BREAK = /\r\n|\r|\n/g;
+
 /**
- * Splits a text into lines as ripgrep counts them.
- * `\n` ends a line, and a `\r` before it belongs to the line ending.
+ * Splits a text into lines as VS Code counts them, at every `LINE_BREAK`.
  * A final line ending starts no empty line.
  */
 export function splitLines(text: string): string[] {
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(LINE_BREAK);
   if (lines.length > 1 && lines.at(-1) === "") lines.pop();
   return lines;
 }
