@@ -348,3 +348,46 @@ body {
   outline: 1px solid var(--vscode-list-focusOutline, var(--vscode-focusBorder));
   outline-offset: -1px;
 }
+
+.menu {
+  position: fixed;
+  z-index: 10;
+  box-sizing: border-box;
+  padding: 4px 0;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
+  border-radius: 5px;
+  background: var(--vscode-menu-background);
+  color: var(--vscode-menu-foreground);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  font-size: 13px;
+}
+
+.menu-reasons {
+  padding: 2px 12px 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.menu-item {
+  margin: 0 4px;
+  padding: 0 8px;
+  border-radius: 3px;
+  line-height: 24px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-item:focus {
+  outline: none;
+  background: var(--vscode-menu-selectionBackground);
+  color: var(--vscode-menu-selectionForeground);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-widget-border));
+}

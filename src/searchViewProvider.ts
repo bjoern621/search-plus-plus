@@ -4,6 +4,8 @@ import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
 import { RESULT_LINE_LIMIT } from "./search/config";
 import { parseQuery } from "./query";
+import { readSearchText, unsavedTexts } from "./search/reader";
+import { splitLines } from "./search/results";
 import { searchRoots } from "./search/roots";
 import type { SearchRunner } from "./search/runner";
 import type { SearchRoot } from "./search/workspaceEngine";
@@ -135,6 +137,26 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     return this.testSnapshot();
   }
 
+  /** Right-clicks the row at `index` of the snapshot rows, then returns what the view shows. For integration tests. */
+  async testOpenMenu(index: number): Promise<TestSnapshot> {
+    await this.viewReady;
+    this.post({ type: "testOpenMenu", index });
+    return this.testSnapshot();
+  }
+
+  /** Clicks the item labelled `label` in the open context menu, then returns what the view shows. For integration tests. */
+  async testChooseMenuItem(label: string): Promise<TestSnapshot> {
+    await this.viewReady;
+    this.post({ type: "testChooseMenuItem", label });
+    return this.testSnapshot();
+  }
+
+  /** Clicks the item labelled `label` in the open context menu, then returns what the view shows once the search that it starts ends. For integration tests. */
+  async testChooseMenuSearch(label: string): Promise<TestSnapshot> {
+    await this.viewReady;
+    return this.afterSearch({ type: "testChooseMenuItem", label });
+  }
+
   /** Clicks the result row at `index` of the snapshot rows. For integration tests. */
   async testClickRow(index: number): Promise<void> {
     await this.viewReady;
@@ -173,6 +195,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       case "open":
         void this.open(message);
         return;
+      case "copy":
+        void vscode.env.clipboard.writeText(message.text);
+        return;
+      case "copyLine":
+        void this.copyLine(message.uri, message.line);
+        return;
       case "testSnapshot":
         this.snapshots.fire(message.snapshot);
         return;
@@ -188,6 +216,14 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       preview: message.preserveFocus,
       preserveFocus: message.preserveFocus,
     });
+  }
+
+  /** Copies line `line` of the file as the editor holds it, unsaved changes included. Nothing happens if the file has no such line. */
+  private async copyLine(uri: string, line: number): Promise<void> {
+    const text = await readSearchText(vscode.Uri.parse(uri), unsavedTexts());
+    const lineText = text === undefined ? undefined : splitLines(text)[line];
+    if (lineText === undefined) return;
+    await vscode.env.clipboard.writeText(lineText);
   }
 
   private resetViewReady(): void {
@@ -239,6 +275,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   <button id="scope" class="scope" aria-label="Change scope">Working tree &#x25be;</button>
 </div>
 <div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
+<div id="menu" class="menu"></div>
 <script nonce="${nonce}" src="${script}"></script>
 </body>
 </html>`;

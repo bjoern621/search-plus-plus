@@ -47,6 +47,9 @@ function registerTestCommands(context: vscode.ExtensionContext, provider: Search
     vscode.commands.registerCommand("structuralSearch.test.snapshot", () => provider.testSnapshot()),
     vscode.commands.registerCommand("structuralSearch.test.clickRow", (index: number) => provider.testClickRow(index)),
     vscode.commands.registerCommand("structuralSearch.test.pressKeys", (keys: string[]) => provider.testPressKeys(keys)),
+    vscode.commands.registerCommand("structuralSearch.test.openMenu", (index: number) => provider.testOpenMenu(index)),
+    vscode.commands.registerCommand("structuralSearch.test.chooseMenuItem", (label: string) => provider.testChooseMenuItem(label)),
+    vscode.commands.registerCommand("structuralSearch.test.chooseMenuSearch", (label: string) => provider.testChooseMenuSearch(label)),
     vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
   );
 }

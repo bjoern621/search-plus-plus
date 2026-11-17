@@ -43,6 +43,13 @@ describe("rowCommand", () => {
     expect(rowCommand(rows(), 2, press("ArrowRight"))).toBeUndefined();
   });
 
+  it("opens the menu of a matched line with the context menu key or Shift+F10", () => {
+    expect(rowCommand(rows(), 2, press("ContextMenu"))).toEqual({ kind: "menu" });
+    expect(rowCommand(rows(), 2, press("F10", true))).toEqual({ kind: "menu" });
+    expect(rowCommand(rows(), 2, press("F10"))).toBeUndefined();
+    expect(rowCommand(rows(), 1, press("ContextMenu"))).toBeUndefined();
+  });
+
   it("ignores every key without rows or without a focused row", () => {
     expect(rowCommand([], -1, press("ArrowDown"))).toBeUndefined();
     expect(rowCommand(rows(), -1, press("Enter"))).toBeUndefined();

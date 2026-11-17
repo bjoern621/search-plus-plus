@@ -4,7 +4,8 @@ import type { Row } from "./tree";
 export type RowCommand =
   | { kind: "focus"; index: number }
   | { kind: "activate"; preserveFocus: boolean }
-  | { kind: "toggle" };
+  | { kind: "toggle" }
+  | { kind: "menu" };
 
 export interface KeyPress {
   key: string;
@@ -14,6 +15,7 @@ export interface KeyPress {
 /**
  * Maps a key pressed on the results to a command on the focused row at `index`, as the tree of the built-in Search view does.
  * Up and Down move the focus, Left and Right collapse, expand or move to the parent, Enter opens, Space opens and keeps the focus.
+ * The context menu key or Shift+F10 opens the menu of a matched line.
  * `index` -1 means that no row holds the focus. Returns `undefined` for a key without a command.
  */
 export function rowCommand(rows: readonly Row[], index: number, press: KeyPress): RowCommand | undefined {
@@ -42,8 +44,16 @@ export function rowCommand(rows: readonly Row[], index: number, press: KeyPress)
       if (row.kind === "line") return undefined;
       if (row.collapsed) return { kind: "toggle" };
       return index + 1 < rows.length ? { kind: "focus", index: index + 1 } : undefined;
+    case "ContextMenu":
+      return isMatch(row) ? { kind: "menu" } : undefined;
+    case "F10":
+      return press.shiftKey && isMatch(row) ? { kind: "menu" } : undefined;
   }
   return undefined;
+}
+
+function isMatch(row: Row): boolean {
+  return row.kind === "line" && row.line.match;
 }
 
 /** Moves the focus from a line to its file row and from a file row to its folder row. */

@@ -86,7 +86,10 @@ export function contextSpans(matchLines: readonly number[], lineCount: number, c
 function resultLine(line: number, text: string, match: LineMatch | undefined): ResultLine {
   const ranges = match?.ranges ?? [];
   const offset = excerptOffset(text, ranges);
-  return { line, text: text.slice(offset, offset + LINE_EXCERPT_LENGTH_CHARS), offset, match: match !== undefined, ranges };
+  const result: ResultLine = { line, text: text.slice(offset, offset + LINE_EXCERPT_LENGTH_CHARS), offset, match: match !== undefined, ranges };
+  if (match && match.reasons.length > 0) result.reasons = match.reasons;
+  if (match?.keyPath) result.keyPath = match.keyPath;
+  return result;
 }
 
 /** A long line starts its excerpt shortly before its first match, so the match stays in view. */

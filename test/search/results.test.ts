@@ -48,6 +48,13 @@ describe("buildFileResult", () => {
     ]);
   });
 
+  it("hands the reasons and the key path of a match to its line", () => {
+    const reasons = [{ kind: "fuzzy" as const, query: "enabeld", found: "enabled", edits: 1 }];
+    const result = buildFileResult(place, ["gravitee:", "  enabled: true"], [{ line: 1, ranges: [{ start: 2, end: 9 }], reasons, keyPath: ["gravitee", "enabled"] }], 1);
+    expect(result.blocks[0]?.[1]).toMatchObject({ reasons, keyPath: ["gravitee", "enabled"] });
+    expect(result.blocks[0]?.[0]).not.toHaveProperty("reasons");
+  });
+
   it("starts the excerpt of a long line shortly before its first match", () => {
     const long = `${"x".repeat(1000)}needle${"y".repeat(1000)}`;
     const result = buildFileResult(place, [long], [{ line: 0, ranges: [{ start: 1000, end: 1006 }], reasons: [] }], 0);

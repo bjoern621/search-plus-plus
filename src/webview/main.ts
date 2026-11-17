@@ -2,7 +2,9 @@ import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../me
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
+import { ContextMenu } from "./contextMenu";
 import { type KeyPress, rowCommand } from "./keyboard";
+import { matchMenu, type MenuAction } from "./menu";
 import { fileIcon } from "./icons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
@@ -38,6 +40,7 @@ const summaryText = document.getElementById("summary-text") as HTMLSpanElement;
 const scope = document.getElementById("scope") as HTMLButtonElement;
 const results = document.getElementById("results") as HTMLDivElement;
 const rowsElement = document.getElementById("rows") as HTMLDivElement;
+const contextMenu = new ContextMenu(document.getElementById("menu") as HTMLDivElement, runMenuAction, () => results.focus());
 
 const tree = new ResultTree();
 /** Keys of the collapsed folder and file rows. */
@@ -56,6 +59,10 @@ let searched: ({ query: string } & FileFields) | undefined;
 let fileFieldsTimer = 0;
 /** Index of the row that holds the keyboard focus inside the results, -1 without one. */
 let focusedIndex = -1;
+/** The line whose context menu shows. */
+let menuRow: Extract<Row, { kind: "line" }> | undefined;
+/** The scroll position at which the context menu opened. A scroll event that leaves it unchanged keeps the menu open. */
+let menuScrollTop = 0;
 
 const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, ...vscode.getState() };
 includeInput.value = state.include;
@@ -116,7 +123,19 @@ rowsElement.addEventListener("dblclick", (event) => {
   if (row?.kind === "line") activate(row, false);
 });
 
-results.addEventListener("scroll", () => scheduleRender());
+rowsElement.addEventListener("contextmenu", (event) => {
+  if (openMenu(rowIndexFromEvent(event))) event.preventDefault();
+});
+
+// The context menu key fires a contextmenu event on the results after the keydown that opened the menu.
+results.addEventListener("contextmenu", (event) => {
+  if (event.target === results) event.preventDefault();
+});
+
+results.addEventListener("scroll", () => {
+  if (results.scrollTop !== menuScrollTop) contextMenu.close(false);
+  scheduleRender();
+});
 new ResizeObserver(() => scheduleRender()).observe(results);
 
 window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
@@ -164,6 +183,12 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       return;
     case "testPressKeys":
       for (const key of message.keys) pressKey(key);
+      return;
+    case "testOpenMenu":
+      showRow(message.index)?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+      return;
+    case "testChooseMenuItem":
+      contextMenu.chooseLabel(message.label);
       return;
     case "testTypeFileFields":
       setFileFields(message);
@@ -427,6 +452,9 @@ function handleRowKey(press: KeyPress): boolean {
     case "toggle":
       if (row) activate(row, true);
       return true;
+    case "menu":
+      openMenu(focusedIndex);
+      return true;
   }
 }
 
@@ -442,11 +470,44 @@ function focusRow(index: number): void {
   render();
 }
 
-/** Presses `key` on the results, as a person would. `Shift+` in front holds Shift. */
+/** Opens the context menu of the matched line at `index`. Returns false for any other row. */
+function openMenu(index: number): boolean {
+  const row = rows[index];
+  if (row?.kind !== "line" || !row.line.match) return false;
+  focusRow(index);
+  const element = rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`);
+  if (!element) return false;
+  menuRow = row;
+  menuScrollTop = results.scrollTop;
+  contextMenu.open(matchMenu(row.file, row.line, searched?.query ?? input.value), element.getBoundingClientRect());
+  return true;
+}
+
+function runMenuAction(action: MenuAction): void {
+  switch (action.kind) {
+    case "search":
+      setQuery(action.query);
+      submit();
+      return;
+    case "exclude":
+      exclude(action.entry);
+      return;
+    case "copyLine":
+      if (menuRow) vscode.postMessage({ type: "copyLine", uri: menuRow.file.uri, line: menuRow.line.line });
+      return;
+    case "copy":
+      vscode.postMessage({ type: "copy", text: action.text });
+      return;
+  }
+}
+
+/** Presses `key` on the focused element of the results or the context menu, as a person would. `Shift+` in front holds Shift. */
 function pressKey(key: string): void {
-  results.focus();
+  const inMenu = document.activeElement?.closest(".menu");
+  if (!inMenu) results.focus();
+  const target = inMenu ? (document.activeElement as HTMLElement) : results;
   const shiftKey = key.startsWith("Shift+");
-  results.dispatchEvent(new KeyboardEvent("keydown", { key: shiftKey ? key.slice("Shift+".length) : key, shiftKey, bubbles: true, cancelable: true }));
+  target.dispatchEvent(new KeyboardEvent("keydown", { key: shiftKey ? key.slice("Shift+".length) : key, shiftKey, bubbles: true, cancelable: true }));
 }
 
 /** A line opens its file at the match. A folder or file row collapses or expands. */
@@ -473,6 +534,7 @@ function snapshot(): TestSnapshot {
     exclude: excludeInput.value,
     rows: rows.map(describeRow),
     focused: focusedIndex,
+    menu: contextMenu.describe(),
   };
 }
 

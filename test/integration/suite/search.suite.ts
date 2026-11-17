@@ -17,6 +17,17 @@ function searchKeepingFields(query: string): Thenable<TestSnapshot> {
   return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.search", query);
 }
 
+/** Right-clicks the row `row` of `rows` and returns what the view shows. */
+function openMenu(rows: string[], row: string): Thenable<TestSnapshot> {
+  const index = rows.indexOf(row);
+  assert.notEqual(index, -1, rows.join("\n"));
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.openMenu", index);
+}
+
+function chooseMenuItem(label: string): Thenable<TestSnapshot> {
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.chooseMenuItem", label);
+}
+
 function typeFileFields(fields: FileFields, startsSearch: boolean): Thenable<TestSnapshot> {
   return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.typeFileFields", fields, startsSearch);
 }
@@ -142,6 +153,60 @@ describe("Structural Search view", () => {
     assert.equal(regex.summary, "No results. | Working tree ▾");
   });
 
+  it("says in the context menu why a close spelling matched and offers to find the word as written", async () => {
+    const before = await search("Größe");
+    const snapshot = await openMenu(before.rows, "match 5: A typo reads [Gröse].");
+    assert.deepEqual(snapshot.menu, [
+      "Gröse: close spelling of Größe, 1 edit away.",
+      "-",
+      `Find "Größe" as written`,
+      "-",
+      "Exclude sizing.md",
+      "Exclude folder docs",
+      "-",
+      "Copy line",
+    ]);
+
+    const written = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.chooseMenuSearch", `Find "Größe" as written`);
+    assert.equal(written.summary, "1 result in 1 file | Working tree ▾");
+    assert.ok(written.rows.includes("match 3: Set the [Größe] of each volume."), written.rows.join("\n"));
+  });
+
+  it("opens the context menu of the focused match with Shift+F10 and closes it with Escape", async () => {
+    const before = await search("replicas");
+    const index = before.rows.indexOf("match 5:   [replicas]: 2");
+    const keys = Array.from({ length: index + 1 }, () => "ArrowDown");
+    const open = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", [...keys, "Shift+F10"]);
+    assert.deepEqual(open.menu, ["Exclude values.yaml", "Exclude folder charts/apim", "-", "Copy line"]);
+    const closed = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["Escape"]);
+    assert.deepEqual(closed.menu, []);
+    assert.equal(closed.focused, index);
+  });
+
+  it("copies the line and the key path of a match from the context menu", async () => {
+    const before = await search("gateway.imag.tag");
+    const menu = await openMenu(before.rows, "match 4:     [tag]: 4.1.0");
+    assert.equal(menu.menu[0], "Key image: close spelling of imag, 1 edit away.");
+
+    await vscode.env.clipboard.writeText("");
+    await chooseMenuItem("Copy key path");
+    assert.equal(await changedClipboard(""), "gateway.image.tag");
+
+    await openMenu(before.rows, "match 4:     [tag]: 4.1.0");
+    await vscode.env.clipboard.writeText("");
+    await chooseMenuItem("Copy line");
+    assert.equal(await changedClipboard(""), "    tag: 4.1.0");
+  });
+
+  it("excludes the folder of a match from the context menu", async () => {
+    const before = await search("4.1.0");
+    await openMenu(before.rows, "match 3: Move the gateway to [4.1.0] before the portal.");
+    const snapshot = await chooseMenuItem("Exclude folder docs");
+    assert.equal(snapshot.exclude, "./docs/");
+    assert.deepEqual(snapshot.menu, []);
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
+  });
+
   it("merges the matches of a registered engine into the lines of the others", async () => {
     const registration = api.registerEngine({
       id: "test.firstWord",
@@ -183,6 +248,17 @@ describe("Structural Search view", () => {
     assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
   });
 });
+
+/** Waits for the clipboard to change from `before` and returns its text. */
+async function changedClipboard(before: string): Promise<string> {
+  const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
+  let text = before;
+  while (Date.now() < deadline && text === before) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    text = await vscode.env.clipboard.readText();
+  }
+  return text;
+}
 
 /**
  * Returns the selection of the editor that shows `pathSuffix` as start line, start character, end line and end character.

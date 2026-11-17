@@ -1,6 +1,6 @@
 import type { Hint } from "./query/types";
 import type { FileFields } from "./search/globs";
-import type { Range } from "./search/types";
+import type { MatchReason, Range } from "./search/types";
 
 export interface ResultLine {
   /** 0-based line number. */
@@ -12,6 +12,10 @@ export interface ResultLine {
   match: boolean;
   /** Matched ranges in offsets of the whole line. */
   ranges: Range[];
+  /** Why a matching default stretched the query on this line. Missing without such a reason. */
+  reasons?: MatchReason[];
+  /** The key path of the matched node, set by key path engines. */
+  keyPath?: string[];
 }
 
 export interface FileResult {
@@ -44,12 +48,17 @@ export interface TestSnapshot {
   rows: string[];
   /** Index of the focused row, -1 without one. */
   focused: number;
+  /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
+  menu: string[];
 }
 
 export type ViewMessage =
   | { type: "ready" }
   | ({ type: "search"; query: string } & FileFields)
   | { type: "open"; uri: string; line: number; range?: Range; preserveFocus: boolean }
+  | { type: "copy"; text: string }
+  /** Copies the whole line, since the view holds an excerpt of a long line. */
+  | { type: "copyLine"; uri: string; line: number }
   | { type: "testSnapshot"; snapshot: TestSnapshot };
 
 export type HostMessage =
@@ -65,4 +74,6 @@ export type HostMessage =
   | { type: "testClickHint" }
   | { type: "testExcludeRow"; index: number }
   | { type: "testPressKeys"; keys: string[] }
+  | { type: "testOpenMenu"; index: number }
+  | { type: "testChooseMenuItem"; label: string }
   | ({ type: "testTypeFileFields" } & FileFields);
