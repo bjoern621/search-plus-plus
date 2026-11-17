@@ -132,3 +132,46 @@ function classSource(body: string): string {
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\/]/g, (char) => `\\${char}`);
 }
+
+/**
+ * Expands the brace groups of a glob into one glob per alternative: `*.{log,tmp}` gives `*.log` and `*.tmp`.
+ * Groups may nest. A `{` without its `}` stays as written, and so does every group after it.
+ */
+export function expandBraces(glob: string): string[] {
+  const open = glob.indexOf("{");
+  if (open < 0) return [glob];
+  const close = closingBrace(glob, open);
+  if (close < 0) return [glob];
+  const prefix = glob.slice(0, open);
+  const suffix = glob.slice(close + 1);
+  return topLevelAlternatives(glob.slice(open + 1, close)).flatMap((alternative) => expandBraces(`${prefix}${alternative}${suffix}`));
+}
+
+/** Returns the index of the `}` that closes the `{` at `open`, or -1 if none does. */
+function closingBrace(glob: string, open: number): number {
+  let depth = 0;
+  for (let i = open; i < glob.length; i++) {
+    if (glob[i] === "{") depth++;
+    if (glob[i] === "}" && --depth === 0) return i;
+  }
+  return -1;
+}
+
+/** Splits the inside of a brace group at the commas outside nested groups. Keeps empty alternatives, as in `file{,.bak}`. */
+function topLevelAlternatives(body: string): string[] {
+  const alternatives: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of body) {
+    if (char === "{") depth++;
+    if (char === "}") depth--;
+    if (char === "," && depth === 0) {
+      alternatives.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  alternatives.push(current);
+  return alternatives;
+}

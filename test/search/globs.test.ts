@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entryGlobs, fieldGlobs, globToRegExp, PathFilter, splitEntries } from "../../src/search/globs";
+import { entryGlobs, expandBraces, fieldGlobs, globToRegExp, PathFilter, splitEntries } from "../../src/search/globs";
 
 describe("splitEntries", () => {
   it("splits at commas outside braces and drops empty entries", () => {
@@ -76,5 +76,17 @@ describe("PathFilter", () => {
 describe("fieldGlobs", () => {
   it("expands every entry of a field", () => {
     expect(fieldGlobs("./a, b")).toEqual(["a", "a/**", "**/b", "**/b/**"]);
+  });
+});
+
+describe("expandBraces", () => {
+  it("gives one glob per alternative of each group, nested groups included", () => {
+    expect(expandBraces("**/*.{log,tmp}")).toEqual(["**/*.log", "**/*.tmp"]);
+    expect(expandBraces("{a,b{c,d}}/{x,}")).toEqual(["a/x", "a/", "bc/x", "bc/", "bd/x", "bd/"]);
+  });
+
+  it("leaves a glob without braces and a group that never closes as written", () => {
+    expect(expandBraces("**/node_modules")).toEqual(["**/node_modules"]);
+    expect(expandBraces("**/{a,b")).toEqual(["**/{a,b"]);
   });
 });

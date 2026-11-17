@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
+import { expandBraces } from "./globs";
 import { runRipgrep } from "./ripgrep";
-import { ripgrepWalkArgs } from "./walk";
+import { ripgrepWalkArgs, WalkExcludes } from "./walk";
 import type { SearchRoot } from "./workspaceEngine";
 
 export interface RootFile {
@@ -46,7 +47,10 @@ async function listWithRipgrep(rgPath: string, root: SearchRoot, cwd: string, si
 async function listWithFindFiles(root: SearchRoot, signal: AbortSignal): Promise<RootFile[]> {
   const rootUri = vscode.Uri.parse(root.uri);
   // findFiles takes one exclude glob. A brace group joins the patterns, and VS Code globs cannot nest braces.
-  const flat = root.walk.excludeGlobs.filter((glob) => !/[{}]/.test(glob));
+  // A glob with a brace left after the expansion, such as a `{` without its `}`, gets tested on the listed paths.
+  const globs = root.walk.excludeGlobs.flatMap(expandBraces);
+  const flat = globs.filter((glob) => !/[{}]/.test(glob));
+  const leftover = new WalkExcludes(globs.filter((glob) => /[{}]/.test(glob)));
   const exclude = flat.length > 0 ? `{${flat.join(",")}}` : undefined;
   const cancellation = new vscode.CancellationTokenSource();
   const onAbort = () => cancellation.cancel();
@@ -54,7 +58,10 @@ async function listWithFindFiles(root: SearchRoot, signal: AbortSignal): Promise
   try {
     const uris = await vscode.workspace.findFiles(new vscode.RelativePattern(rootUri, "**/*"), exclude, undefined, cancellation.token);
     const prefix = rootUri.path.endsWith("/") ? rootUri.path : `${rootUri.path}/`;
-    return uris.filter((uri) => uri.path.startsWith(prefix)).map((uri) => ({ root, relativePath: uri.path.slice(prefix.length) }));
+    return uris
+      .filter((uri) => uri.path.startsWith(prefix))
+      .map((uri) => ({ root, relativePath: uri.path.slice(prefix.length) }))
+      .filter((file) => !leftover.excludes(file.relativePath));
   } catch (error) {
     if (signal.aborted) return [];
     throw error;
