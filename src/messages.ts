@@ -17,6 +17,11 @@ export interface ResultLine {
   reasons?: MatchReason[];
   /** The key path of the matched node, set by key path engines. */
   keyPath?: string[];
+  /**
+   * True when the row shows `keyPath` after the line text, as for a key of a YAML, JSON or TOML file.
+   * A member chain in code shows no key path, since the line spells the chain.
+   */
+  showKeyPath?: boolean;
 }
 
 export interface CommitInfo {
@@ -94,6 +99,8 @@ export interface TestSnapshot {
   rows: string[];
   /** The icon definition id of each row, empty for a row without icon. */
   icons: string[];
+  /** The key path that each row shows after its line text, empty for a row without one. */
+  keyPaths: string[];
   /** Index of the row drawn with the focus, -1 without one. */
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */

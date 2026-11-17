@@ -18,6 +18,7 @@ export function mergeLineMatches(lists: readonly (readonly LineMatch[])[]): Line
       known.ranges.push(...match.ranges);
       known.reasons.push(...match.reasons);
       known.keyPath ??= match.keyPath;
+      known.showKeyPath ??= match.showKeyPath;
     }
   }
   return [...byLine.values()]

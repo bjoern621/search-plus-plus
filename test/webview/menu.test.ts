@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FileResult, ResultLine } from "../../src/messages";
-import { keyPathText, matchMenu, quoteWord, reasonLines } from "../../src/webview/menu";
+import { matchMenu, quoteWord, reasonLines } from "../../src/webview/menu";
 
 const file = { uri: "file:///w/charts/apim/values.yaml", folder: "charts/apim", name: "values.yaml" } as FileResult;
 const line: ResultLine = { line: 3, text: "  gravitee:", offset: 0, match: true, ranges: [{ start: 2, end: 10 }] };
@@ -61,12 +61,5 @@ describe("quoteWord", () => {
 
   it("returns undefined when the query holds no such word", () => {
     expect(quoteWord("images", "imag")).toBeUndefined();
-  });
-});
-
-describe("keyPathText", () => {
-  it("joins keys with dots and quotes a key holding a dot or an operator", () => {
-    expect(keyPathText(["metadata", "labels", "app.kubernetes.io/name"])).toBe('metadata.labels."app.kubernetes.io/name"');
-    expect(keyPathText(["a", 'say "hi"'])).toBe('a."say \\"hi\\""');
   });
 });

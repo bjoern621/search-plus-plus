@@ -1,4 +1,5 @@
 import type { FileResult, HoverGeometry, ResultLine } from "../messages";
+import { keyPathElement, shownKeyPath } from "./keyPath";
 import { describeLine, highlightParts, relativePath } from "./tree";
 
 /** Time that the pointer rests on a match before the hover card asks for its excerpt. */
@@ -55,10 +56,18 @@ export class HoverCard {
     const lines = mergeExcerpt(excerpt, file);
     const hit = lines.findIndex((excerptLine) => excerptLine.line === line);
     if (!row || hit === -1) return;
+    const elements = lines.map((excerptLine) => lineElement(excerptLine, excerptLine.line === line));
     const header = document.createElement("div");
     header.className = "hover-file";
-    header.textContent = [file.root, relativePath(file)].filter((part) => part !== "").join("/");
-    const elements = lines.map((excerptLine) => lineElement(excerptLine, excerptLine.line === line));
+    const keyPath = shownKeyPath(lines[hit] as ResultLine);
+    if (keyPath !== undefined) {
+      const key = document.createElement("span");
+      key.className = "hover-key-path";
+      key.textContent = keyPath;
+      header.append(key, " · ");
+      elements[hit]?.append(keyPathElement(keyPath));
+    }
+    header.append([file.root, relativePath(file)].filter((part) => part !== "").join("/"));
     this.element.replaceChildren(header, ...elements);
     // The numbers take the width of the numbers in the results, so the text of the hovered line starts where its row's text starts.
     const rowNumberWidth = getComputedStyle(row).getPropertyValue("--line-number-width").trim() || "2ch";

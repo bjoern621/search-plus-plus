@@ -114,6 +114,22 @@ describe("Structural Search view", () => {
     assert.ok(snapshot.rows.includes("match 4:     [tag]: 4.1.0"), snapshot.rows.join("\n"));
   });
 
+  it("shows the key path after the line of a YAML key and none after a text match", async () => {
+    const snapshot = await search("gateway");
+    const shown = Object.fromEntries(snapshot.rows.flatMap((row, index) => (row.startsWith("match ") ? [[row, snapshot.keyPaths[index]]] : [])));
+    assert.deepEqual(shown, {
+      "match 1: [gateway]:": "gateway",
+      "match 3:     repository: graviteeio/apim-[gateway]": "",
+      "match 3: Move the [gateway] to 4.1.0 before the portal.": "",
+    });
+  });
+
+  it("names the key path of a match before the file in its hover card", async () => {
+    const snapshot = await search("gateway.image.tag");
+    await vscode.commands.executeCommand("structuralSearch.test.hover", snapshot.rows.indexOf("match 4:     [tag]: 4.1.0"));
+    assert.equal((await shownHover())[0], "gateway.image.tag · charts/apim/values.yaml");
+  });
+
   it("drops the results of an excluded folder at once and leaves the folder out of later searches", async () => {
     const before = await search("4.1.0");
     const snapshot = await excludeRow(before.rows, "folder docs");

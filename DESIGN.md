@@ -52,12 +52,18 @@ The summary line shows a scope other than the working tree in color, so a histor
   The theme picks the icon by file name, extension, language and the open or closed state of a folder.
   A compacted folder row such as `charts/apim` shows the icon of its last folder.
   With the icon theme set to None, rows keep an empty icon slot, so the labels stay aligned.
+- A match of a key in a YAML, JSON or TOML file shows its key path after the line, such as `gateway.image.tag`.
+  The path takes the dimmed small font of the workbench and sits at the right edge of the row.
+  A key holding a dot appears in quotes, as a query writes it.
+  The line keeps its room: on a narrow side bar the path gets cut from the left, so its last keys stay in view.
+  Once the room drops below a few characters, the path hides.
+  A member chain in code shows no path, since its line spells the chain.
 - Results carry no ranking: files follow the folder tree, matches follow their line numbers.
 - A fuzzy match looks like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
 - Hovering a match shows a larger excerpt of its file in a card.
-  The card names the file above its lines.
+  The card names the file above its lines, after the key path of the match where the row shows one: `gateway.image.tag · charts/apim/values.yaml`.
   Its copy of the hovered line covers the row in place, in the same font and size, so the code keeps its place while the lines before it appear above and the lines after it below.
   Near an edge of the view, the card drops the lines on that side that would leave the view.
   Once no line is left to drop there, the card moves into the view.

@@ -100,6 +100,7 @@ function resultLine(line: number, text: string, match: LineMatch | undefined): R
   const result: ResultLine = { line, text: text.slice(offset, offset + LINE_EXCERPT_LENGTH_CHARS), offset, match: match !== undefined, ranges };
   if (match && match.reasons.length > 0) result.reasons = match.reasons;
   if (match?.keyPath) result.keyPath = match.keyPath;
+  if (match?.keyPath && match.showKeyPath) result.showKeyPath = true;
   return result;
 }
 

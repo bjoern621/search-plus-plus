@@ -60,7 +60,7 @@ export class KeyPathCollector {
     if (match === undefined) {
       return;
     }
-    this.matches.set(start, { match: lineMatch(this.lines, start, end, [...keys], reasonsOf(match)), throughAlias });
+    this.matches.set(start, { match: { ...lineMatch(this.lines, start, end, [...keys], reasonsOf(match)), showKeyPath: true }, throughAlias });
   }
 
   /** The matches in the order of their lines and ranges. */

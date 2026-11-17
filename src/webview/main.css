@@ -388,6 +388,40 @@ body {
   --row-foreground: var(--vscode-foreground);
 }
 
+/*
+ * The key path grows from its minimum width up to its full width in the room that the line text leaves.
+ * A key path that cannot get its minimum width wraps onto a second flex line, which the fixed height of the line hides.
+ */
+.line:has(.key-path),
+.hover-line:has(.key-path) {
+  flex-wrap: wrap;
+  height: var(--line-height, 18px);
+  overflow: hidden;
+}
+
+/* Wider line text would wrap below the line number in place of shrinking. */
+.line:has(.key-path) .text,
+.hover-line:has(.key-path) .text {
+  max-width: calc(100% - var(--line-number-width, 2ch) - 8px);
+}
+
+.key-path {
+  flex: 1 1 0;
+  min-width: 48px;
+  max-width: max-content;
+  margin-left: auto;
+  padding-left: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--small-font-size);
+  font-weight: var(--vscode-font-weight);
+  font-feature-settings: normal;
+}
+
 .number {
   flex: none;
   width: var(--line-number-width, 2ch);
@@ -548,6 +582,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.hover-key-path {
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
 }
 
 .hover-line {

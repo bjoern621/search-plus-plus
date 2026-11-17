@@ -18,6 +18,11 @@ describe("yamlEngine: examples from DESIGN.md", () => {
     ]);
   });
 
+  it("shows the key path of each match on its row", () => {
+    const matches = search(yamlEngine, "values.yaml", "yaml", values, "global.values.gravitee.enabled");
+    expect(matches.map((match) => match.showKeyPath)).toEqual([true, true, true]);
+  });
+
   it("finds global.values.gravitee.enabled through Global.Values.Gravite.Enabled", () => {
     const matches = search(yamlEngine, "values.yaml", "yaml", values, "Global.Values.Gravite.Enabled");
     expect(found(matches)[0]).toBe("5: global.values.gravitee.enabled");

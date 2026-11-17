@@ -2,6 +2,7 @@ import type { FileResult, ResultLine } from "../messages";
 import type { SearchScope } from "../search/scope";
 import type { MatchReason } from "../search/types";
 import { fileEntry, folderEntry } from "./exclusions";
+import { keyPathText } from "./keyPath";
 
 export type MenuAction =
   | { kind: "search"; query: string }
@@ -82,11 +83,6 @@ export function quoteWord(query: string, word: string): string | undefined {
 
 function isWordChar(char: string | undefined): boolean {
   return char !== undefined && /[\p{L}\p{N}]/u.test(char);
-}
-
-/** Writes a key path as a query that finds it: keys joined with dots, a key holding a dot, an operator or a space in quotes. */
-export function keyPathText(keys: readonly string[]): string {
-  return keys.map((key) => (/[.\\"*?[\]{},\s]/.test(key) ? `"${key.replace(/["\\]/g, (char) => `\\${char}`)}"` : key)).join(".");
 }
 
 /**

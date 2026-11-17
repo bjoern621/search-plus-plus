@@ -24,6 +24,11 @@ describe("codeEngine: examples from DESIGN.md", () => {
     ]);
   });
 
+  it("leaves the key path off the rows, since each line spells its chain", () => {
+    const matches = search(codeEngine, "src/server.ts", "typescript", server, "config.server.port");
+    expect(matches.map((match) => match.showKeyPath)).toEqual(matches.map(() => undefined));
+  });
+
   it("highlights the matched run of the chain on each of its lines", () => {
     const matches = search(codeEngine, "src/server.ts", "typescript", server, "config.server.port");
     expect(highlighted(server, matches)).toEqual([

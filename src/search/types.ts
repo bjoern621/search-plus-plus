@@ -41,6 +41,8 @@ export interface LineMatch {
   reasons: MatchReason[];
   /** The key path of the matched node. Key path engines set it for "Copy key path". */
   keyPath?: string[];
+  /** True shows `keyPath` on the row after the line text. The YAML, JSON and TOML engines set it. */
+  showKeyPath?: boolean;
 }
 
 export interface FileInfo {

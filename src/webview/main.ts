@@ -11,6 +11,7 @@ import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { codeLineHeightPx, commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
+import { keyPathElement, shownKeyPath } from "./keyPath";
 
 interface ViewState extends FileFields {
   query: string;
@@ -496,6 +497,8 @@ function rowElement(row: Row, index: number): HTMLElement {
         else text.append(part.text);
       }
       element.append(span("number", String(row.line.line + 1)), text);
+      const keyPath = shownKeyPath(row.line);
+      if (keyPath !== undefined) element.append(keyPathElement(keyPath));
       return element;
     }
   }
@@ -649,6 +652,7 @@ function snapshot(): TestSnapshot {
     exclude: excludeInput.value,
     rows: rows.map(describeRow),
     icons: rows.map(rowIcon),
+    keyPaths: rows.map((row) => (row.kind === "line" ? (shownKeyPath(row.line) ?? "") : "")),
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
     hover: hoverCard.describe(),
