@@ -116,6 +116,7 @@ class RunningSearch {
    * Searches a file once the workspace engine reports it, so its results show while the engine walks on.
    * A file that the workspace engine found but the file list left out still shows.
    * The other listed files follow once the workspace engine ends.
+   * The workspace engine reads a file with unsaved changes from disk, so its text in the editor gets searched in place of what the engine reports.
    */
   private async searchDisk(onlyPaths: ReadonlyMap<number, ReadonlySet<string>> | undefined): Promise<void> {
     const fieldFilter = new PathFilter(this.request.fields);
@@ -132,8 +133,18 @@ class RunningSearch {
     };
     const [files] = await Promise.all([
       collectFiles(this.request.roots, this.deps.rgPath, this.signal, this.deps.log),
-      this.runWorkspaceEngines((root, relativePath, matches) => take({ root, relativePath, lists: [matches] })),
+      this.runWorkspaceEngines((root, relativePath, matches) => {
+        if (!this.unsaved.has(this.fileUri(root, relativePath))) take({ root, relativePath, lists: [matches] });
+      }),
     ]);
+    const unsaved = files.flatMap((file) => {
+      const text = this.unsaved.get(this.fileUri(file.root, file.relativePath));
+      return text === undefined || !accepts(file.root, file.relativePath) ? [] : [{ file, text }];
+    });
+    if (unsaved.length > 0) {
+      const found = await this.searchTextsWithWorkspaceEngines(unsaved.map((item) => item.text));
+      unsaved.forEach(({ file }, index) => take({ root: file.root, relativePath: file.relativePath, lists: found.map((lists) => lists[index] ?? []) }));
+    }
     for (const file of files) take({ root: file.root, relativePath: file.relativePath, lists: [] });
     await queue.drained();
   }
@@ -149,7 +160,7 @@ class RunningSearch {
     try {
       for await (const batch of source.batches(accepts, this.signal)) {
         if (this.signal.aborted) return;
-        const found = await this.searchTextsWithWorkspaceEngines(batch);
+        const found = await this.searchTextsWithWorkspaceEngines(batch.map((file) => file.text));
         await forEachConcurrent(
           batch.map((file, index) => ({ file, lists: found.map((lists) => lists[index] ?? []) })),
           FILE_READ_CONCURRENCY,
@@ -162,9 +173,8 @@ class RunningSearch {
     }
   }
 
-  /** Returns per workspace engine the matches of each file in `batch`. */
-  private async searchTextsWithWorkspaceEngines(batch: readonly RevisionFile[]): Promise<LineMatch[][][]> {
-    const texts = batch.map((file) => file.text);
+  /** Returns per workspace engine the matches of each text in `texts`. */
+  private async searchTextsWithWorkspaceEngines(texts: readonly string[]): Promise<LineMatch[][][]> {
     return Promise.all(
       this.workspaceEngines.map((engine) =>
         engine.searchTexts(texts, this.request.query, this.signal).catch((error: unknown) => {

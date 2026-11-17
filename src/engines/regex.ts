@@ -62,7 +62,7 @@ export class RegexEngine implements WorkspaceSearchEngine {
         matches[place.text]?.push({ line: place.line, ranges: event.ranges, reasons: [] });
       },
     });
-    if (exit.code === 2) this.log(`ripgrep reported errors on texts from Git: ${exit.stderr.trim()}`);
+    if (exit.code === 2) this.log(`ripgrep reported errors on texts from Git or the editor: ${exit.stderr.trim()}`);
     return matches;
   }
 
