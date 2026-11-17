@@ -479,34 +479,34 @@ button {
 
 /*
  * Hover and selection draw one rounded outline around a group of rows and fill none of them.
- * The outlines mix the text color into the background, since the focus border may match the side bar background (Noctis Minimus: #202e37 on #17232b).
- * The selection outline dims while the results lack the focus. The hover outline draws fainter still.
+ * The outlines take the colors that the explorer fills a hovered or selected row with.
  */
 .group-outline {
-  --outline-color: var(--vscode-foreground);
   position: absolute;
   left: 2px;
   right: 2px;
   box-sizing: border-box;
-  border: 1px solid var(--outline-color);
+  border: 1px solid transparent;
   border-radius: var(--widget-corner-radius);
   pointer-events: none;
 }
 
 .group-outline.hovered {
-  border-color: color-mix(in srgb, var(--outline-color) 35%, transparent);
+  border-color: var(--vscode-list-hoverBackground);
 }
 
 .group-outline.focused {
-  border-color: color-mix(in srgb, var(--outline-color) 50%, transparent);
+  border-color: var(--vscode-list-inactiveSelectionBackground);
 }
 
 .results:focus .group-outline.focused {
-  border-color: color-mix(in srgb, var(--outline-color) 80%, transparent);
+  border-color: var(--vscode-list-activeSelectionBackground);
 }
 
-.vscode-high-contrast .group-outline {
-  --outline-color: var(--vscode-contrastActiveBorder);
+/* High contrast themes leave the list fills unset and outline a row with the contrast border. */
+.vscode-high-contrast .group-outline.hovered,
+.vscode-high-contrast .group-outline.focused {
+  border-color: var(--vscode-contrastActiveBorder);
 }
 
 .vscode-high-contrast .group-outline.hovered {
