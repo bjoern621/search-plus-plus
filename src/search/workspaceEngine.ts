@@ -1,3 +1,4 @@
+import type { Hint } from "../query/types";
 import type { LineMatch, Query } from "./types";
 import type { WalkSettings } from "./walk";
 
@@ -20,7 +21,7 @@ export interface WorkspaceSearchEngine {
   readonly id: string;
   acceptsQuery(query: Query): boolean;
   /** Returns a hint when the query cannot run, such as a regex that does not compile. The search then stops. */
-  check(query: Query, signal: AbortSignal): Promise<string | undefined>;
+  check(query: Query, signal: AbortSignal): Promise<Hint | undefined>;
   /** Calls `onFile` once per file with matches. `relativePath` uses `/` as separator. */
   search(roots: readonly SearchRoot[], query: Query, signal: AbortSignal, onFile: (root: SearchRoot, relativePath: string, matches: LineMatch[]) => void): Promise<void>;
 }

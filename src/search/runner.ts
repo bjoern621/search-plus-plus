@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { FileResult } from "../messages";
+import type { Hint } from "../query/types";
 import { BatchSender } from "./batch";
 import { BATCH_INTERVAL_DURATION_MS, FILE_READ_CONCURRENCY, RESULT_LINE_LIMIT } from "./config";
 import { collectFiles } from "./files";
@@ -11,7 +12,7 @@ import { buildFileResult, splitLines } from "./results";
 import type { FileInfo, LineMatch, Query, SearchEngine } from "./types";
 import type { SearchRoot, WorkspaceSearchEngine } from "./workspaceEngine";
 
-export type SearchOutcome = { status: "complete" } | { status: "capped"; limit: number } | { status: "blocked"; hint: string } | { status: "aborted" };
+export type SearchOutcome = { status: "complete" } | { status: "capped"; limit: number } | { status: "blocked"; hint: Hint } | { status: "aborted" };
 
 export interface SearchRunnerDeps {
   registry: EngineRegistry;
@@ -57,7 +58,7 @@ export class SearchRunner {
     return search.capped ? { status: "capped", limit: RESULT_LINE_LIMIT } : { status: "complete" };
   }
 
-  private async firstHint(engines: readonly WorkspaceSearchEngine[], request: SearchRequest): Promise<string | undefined> {
+  private async firstHint(engines: readonly WorkspaceSearchEngine[], request: SearchRequest): Promise<Hint | undefined> {
     for (const engine of engines) {
       const hint = await engine.check(request.query, request.signal);
       if (hint !== undefined) return hint;

@@ -41,6 +41,7 @@ function registerTestCommands(context: vscode.ExtensionContext, provider: Search
     vscode.commands.registerCommand("structuralSearch.test.search", (query: string) => provider.testSearch(query)),
     vscode.commands.registerCommand("structuralSearch.test.snapshot", () => provider.testSnapshot()),
     vscode.commands.registerCommand("structuralSearch.test.clickRow", (index: number) => provider.testClickRow(index)),
+    vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
   );
 }
 

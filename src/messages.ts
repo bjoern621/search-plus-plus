@@ -1,3 +1,4 @@
+import type { Hint } from "./query/types";
 import type { Range } from "./search/types";
 
 export interface ResultLine {
@@ -50,8 +51,9 @@ export type HostMessage =
   | { type: "focus" }
   | { type: "searchStarted"; searchId: number }
   | { type: "results"; searchId: number; files: FileResult[] }
-  | { type: "hint"; searchId: number; text: string }
+  | { type: "hint"; searchId: number; hint: Hint }
   | { type: "searchDone"; searchId: number; status: SearchStatus; limit: number }
   | { type: "testSearch"; query: string }
   | { type: "testSnapshot" }
-  | { type: "testClickRow"; index: number };
+  | { type: "testClickRow"; index: number }
+  | { type: "testClickHint" };

@@ -71,7 +71,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       case "aborted":
         return;
       case "blocked":
-        this.post({ type: "hint", searchId, text: outcome.hint });
+        this.post({ type: "hint", searchId, hint: outcome.hint });
         return this.finish(searchId, "blocked");
       case "capped":
         return this.finish(searchId, "capped", outcome.limit);
@@ -85,17 +85,13 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   /** Types `query` into the view and presses Enter, then returns what the view shows once the search ends. For integration tests. */
   async testSearch(query: string): Promise<TestSnapshot> {
     await this.focus();
-    const done = new Promise<void>((resolve) => {
-      const startedAfter = this.searchId;
-      const listener = this.searchDone.event((searchId) => {
-        if (searchId <= startedAfter) return;
-        listener.dispose();
-        resolve();
-      });
-    });
-    this.post({ type: "testSearch", query });
-    await done;
-    return this.testSnapshot();
+    return this.afterSearch({ type: "testSearch", query });
+  }
+
+  /** Clicks the hint line, then returns what the view shows once the suggested search ends. For integration tests. */
+  async testClickHint(): Promise<TestSnapshot> {
+    await this.viewReady;
+    return this.afterSearch({ type: "testClickHint" });
   }
 
   /** Returns the summary, the hint and every result row as the view holds them. For integration tests. */
@@ -115,6 +111,21 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   async testClickRow(index: number): Promise<void> {
     await this.viewReady;
     this.post({ type: "testClickRow", index });
+  }
+
+  /** Posts `action`, waits for the search that it starts to end and returns the snapshot. */
+  private async afterSearch(action: HostMessage): Promise<TestSnapshot> {
+    const done = new Promise<void>((resolve) => {
+      const startedAfter = this.searchId;
+      const listener = this.searchDone.event((searchId) => {
+        if (searchId <= startedAfter) return;
+        listener.dispose();
+        resolve();
+      });
+    });
+    this.post(action);
+    await done;
+    return this.testSnapshot();
   }
 
   private finish(searchId: number, status: SearchStatus, limit = RESULT_LINE_LIMIT): void {
@@ -176,7 +187,10 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 <body>
 <div class="query">
   <div class="query-row">
-    <input id="query" class="input" aria-label="Search" spellcheck="false">
+    <div class="query-box">
+      <div id="query-highlight" class="query-highlight" aria-hidden="true"></div>
+      <input id="query" class="query-input" aria-label="Search" spellcheck="false" autocomplete="off">
+    </div>
     <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details">&#x2026;</button>
   </div>
   <div id="hint" class="hint" role="status" hidden></div>

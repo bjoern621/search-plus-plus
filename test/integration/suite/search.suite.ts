@@ -41,7 +41,7 @@ describe("Structural Search view", () => {
 
   it("runs a query between slashes as a regex through ripgrep", async () => {
     const snapshot = await search("/tag: \\d+\\.\\d+/");
-    assert.equal(snapshot.hint, "");
+    assert.equal(snapshot.hint, "Searching as a regex.");
     assert.equal(snapshot.summary, "1 result in 1 file | Working tree ▾");
     assert.deepEqual(snapshot.rows, [
       "folder charts/apim",
@@ -57,6 +57,21 @@ describe("Structural Search view", () => {
     assert.match(snapshot.hint, /^The regex cannot compile: .+\. Fix it or drop the slashes\.$/);
     assert.equal(snapshot.summary, "");
     assert.deepEqual(snapshot.rows, []);
+  });
+
+  it("runs the query without slashes on a click on the hint of a regex that cannot compile", async () => {
+    await search("/4.1.0 (/");
+    const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.clickHint");
+    assert.equal(snapshot.hint, "");
+    assert.equal(snapshot.summary, "No results. | Working tree ▾");
+  });
+
+  it("closes a regex on a click on the hint after a leading slash", async () => {
+    const before = await search("/tag: 4");
+    assert.equal(before.hint, "End with a slash to search as a regex.");
+    const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.clickHint");
+    assert.equal(snapshot.hint, "Searching as a regex.");
+    assert.equal(snapshot.summary, "1 result in 1 file | Working tree ▾");
   });
 
   it("merges the matches of a registered engine into the lines of the others", async () => {

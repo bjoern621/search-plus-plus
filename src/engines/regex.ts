@@ -1,4 +1,4 @@
-import { hintFor } from "../query";
+import { hintFor, type Hint } from "../query";
 import { runRipgrep } from "../search/ripgrep";
 import type { LineMatch, Query } from "../search/types";
 import { ripgrepWalkArgs } from "../search/walk";
@@ -22,13 +22,15 @@ export class RegexEngine implements WorkspaceSearchEngine {
     return query.kind === "regex";
   }
 
-  async check(query: Query, signal: AbortSignal): Promise<string | undefined> {
+  async check(query: Query, signal: AbortSignal): Promise<Hint | undefined> {
     if (query.kind !== "regex") return undefined;
-    if (!this.rgPath) return "This VS Code build ships no ripgrep, so regex search cannot run. Drop the slashes to search as text.";
+    if (!this.rgPath) {
+      return { text: "This VS Code build ships no ripgrep, so regex search cannot run. Drop the slashes to search as text.", tone: "info", suggestedQuery: query.source };
+    }
     // Without a path, ripgrep searches its empty input: it compiles the regex and finds nothing.
     const exit = await runRipgrep(this.rgPath, ["--no-config", "--regexp", query.source], { signal });
     if (exit.code !== 2) return undefined;
-    return hintFor(query, regexErrorMessage(exit.stderr))?.text;
+    return hintFor(query, regexErrorMessage(exit.stderr));
   }
 
   async search(roots: readonly SearchRoot[], query: Query, signal: AbortSignal, onFile: (root: SearchRoot, relativePath: string, matches: LineMatch[]) => void): Promise<void> {

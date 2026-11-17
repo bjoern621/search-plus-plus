@@ -1,5 +1,7 @@
 import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
+import { hintFor, parseQuery, type Hint } from "../query";
 import { fileIcon } from "./icons";
+import { QueryHighlight, renderHint } from "./queryInput";
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 
 interface ViewState {
@@ -19,6 +21,7 @@ const OVERSCAN_ROWS = 20;
 
 const vscode = acquireVsCodeApi();
 const input = document.getElementById("query") as HTMLInputElement;
+const queryHighlight = new QueryHighlight(input, document.getElementById("query-highlight") as HTMLDivElement);
 const hint = document.getElementById("hint") as HTMLDivElement;
 const summary = document.getElementById("summary") as HTMLDivElement;
 const summaryText = document.getElementById("summary-text") as HTMLSpanElement;
@@ -36,11 +39,13 @@ let rows: Row[] = [];
 let offsets: number[] = [0];
 let layoutStale = false;
 let frame = 0;
+/** The hint of the host that stopped the last search. It replaces the hint on the typed query until the text changes. */
+let blockedHint: Hint | undefined;
 
 const state: ViewState = vscode.getState() ?? { query: "", history: [] };
 /** Position in the history while Up and Down walk it. `history.length` stands for the text being typed. */
 let historyIndex = state.history.length;
-input.value = state.query;
+setQuery(state.query);
 
 input.addEventListener("keydown", (event) => {
   switch (event.key) {
@@ -55,7 +60,11 @@ input.addEventListener("keydown", (event) => {
   }
 });
 
-input.addEventListener("input", () => saveState());
+input.addEventListener("input", () => {
+  blockedHint = undefined;
+  refreshHint();
+  saveState();
+});
 
 rowsElement.addEventListener("click", (event) => {
   const row = rowFromEvent(event);
@@ -87,7 +96,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       return;
     case "hint":
       if (message.searchId !== searchId) return;
-      showHint(message.text);
+      blockedHint = message.hint;
+      refreshHint();
       return;
     case "searchDone":
       if (message.searchId !== searchId) return;
@@ -96,7 +106,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       invalidateLayout();
       return;
     case "testSearch":
-      input.value = message.query;
+      setQuery(message.query);
       submit();
       return;
     case "testSnapshot":
@@ -104,6 +114,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       return;
     case "testClickRow":
       clickRow(message.index);
+      return;
+    case "testClickHint":
+      hint.querySelector<HTMLButtonElement>(".hint-run")?.click();
       return;
   }
 });
@@ -122,8 +135,22 @@ function walkHistory(step: -1 | 1): void {
   const next = historyIndex + step;
   if (next < 0 || next > state.history.length) return;
   historyIndex = next;
-  input.value = state.history[next] ?? "";
+  setQuery(state.history[next] ?? "");
+}
+
+/** Puts `query` into the input as if typed. */
+function setQuery(query: string): void {
+  input.value = query;
+  blockedHint = undefined;
+  queryHighlight.update();
+  refreshHint();
   saveState();
+}
+
+function runSuggestedQuery(query: string): void {
+  setQuery(query);
+  input.focus();
+  submit();
 }
 
 function saveState(): void {
@@ -138,13 +165,13 @@ function startSearch(id: number): void {
   tree.clear();
   collapsed.clear();
   results.scrollTop = 0;
-  showHint("");
+  blockedHint = undefined;
+  refreshHint();
   invalidateLayout();
 }
 
-function showHint(text: string): void {
-  hint.textContent = text;
-  hint.hidden = text === "";
+function refreshHint(): void {
+  renderHint(hint, blockedHint ?? hintFor(parseQuery(input.value)), blockedHint !== undefined, runSuggestedQuery);
 }
 
 function invalidateLayout(): void {
@@ -276,7 +303,7 @@ function snapshot(): TestSnapshot {
   layout();
   return {
     summary: summary.hidden ? "" : `${summaryText.textContent ?? ""} | ${scope.hidden ? "" : (scope.textContent ?? "")}`,
-    hint: hint.hidden ? "" : (hint.textContent ?? ""),
+    hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
     rows: rows.map(describeRow),
   };
 }
