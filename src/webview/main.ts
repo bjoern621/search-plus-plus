@@ -1,4 +1,4 @@
-import type { FileResult, HostMessage, KeyPathRoom, RowMetrics, SearchStatus, TestSnapshot, ViewMessage, ViewSettings } from "../messages";
+import type { FileResult, HostMessage, KeyPathRoom, ResultLine, RowMetrics, SearchStatus, TestSnapshot, ViewMessage, ViewSettings } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
@@ -12,6 +12,7 @@ import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 import { fitKeyPaths, keyPathCuts, keyPathElement, keyPathText, shownKeys } from "./keyPath";
+import { blockDedents, cutToMatch, dedent } from "./codeLines";
 
 interface ViewState extends FileFields {
   useExcludeSettingsAndIgnoreFiles: boolean;
@@ -64,6 +65,8 @@ let status: SearchStatus | "running" | "idle" = "idle";
 let cappedAt: number | undefined;
 let rows: Row[] = [];
 let offsets: number[] = [0];
+/** Per row, the columns of indentation that a code line drops. */
+let dedents: number[] = [];
 let layoutStale = false;
 let frame = 0;
 /** The hint of the host that stopped the last search. It replaces the hint on the typed query until the text changes. */
@@ -506,6 +509,7 @@ function layout(): void {
   layoutStale = false;
   rows = tree.rows(collapsed);
   offsets = rowOffsets(rows);
+  dedents = blockDedents(rows);
   if (focusedIndex >= rows.length) focusedIndex = rows.length - 1;
   rowsElement.style.height = `${offsets.at(-1) ?? 0}px`;
   const widest = rows.reduce((max, row) => (row.kind === "line" ? Math.max(max, row.line.line + 1) : max), 0);
@@ -566,6 +570,7 @@ function render(): void {
     if (row) elements.push(rowElement(row, index));
   }
   rowsElement.replaceChildren(...elements);
+  cutMatchLines();
   fitKeyPaths(rowsElement.querySelectorAll<HTMLElement>(".key-path"));
 }
 
@@ -607,16 +612,38 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.classList.add("line");
       if (row.line.match) element.classList.add("match");
       if (skipsLines(index)) element.classList.add("after-gap");
-      const text = span("text", row.line.offset > 0 ? "…" : "");
-      for (const part of highlightParts(row.line)) {
-        if (part.marked) text.append(span("mark", part.text, "mark"));
-        else text.append(part.text);
-      }
+      const text = span("text", "");
+      fillLineText(text, dedent(row.line, dedents[index] ?? 0), row.line.offset > 0 ? "…" : "");
       element.append(span("number", String(row.line.line + 1)), text);
       const keys = shownKeys(row.line);
       if (keys) element.append(keyPathElement(keys));
       return element;
     }
+  }
+}
+
+function fillLineText(text: HTMLElement, line: ResultLine, lead: string): void {
+  text.replaceChildren(lead);
+  for (const part of highlightParts(line)) {
+    if (part.marked) text.append(span("mark", part.text, "mark"));
+    else text.append(part.text);
+  }
+}
+
+/** Cuts the start of each match line in view whose first match ends past the edge of its row, so the match shows. A resize renders again and cuts anew. */
+function cutMatchLines(): void {
+  for (const element of rowsElement.querySelectorAll<HTMLElement>(".line.match")) {
+    const text = element.querySelector<HTMLElement>(".text");
+    const mark = text?.querySelector<HTMLElement>(".mark");
+    if (!text || !mark?.textContent) continue;
+    const markBox = mark.getBoundingClientRect();
+    if (markBox.right <= text.getBoundingClientRect().right + 0.5) continue;
+    const index = Number(element.dataset.index);
+    const row = rows[index];
+    if (row?.kind !== "line") continue;
+    const charWidth = markBox.width / mark.textContent.length;
+    const cut = cutToMatch(dedent(row.line, dedents[index] ?? 0), Math.floor(text.clientWidth / charWidth));
+    if (cut) fillLineText(text, cut, "");
   }
 }
 

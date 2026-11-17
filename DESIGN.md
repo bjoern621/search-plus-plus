@@ -72,6 +72,14 @@ A query enters the search history on Enter or once no other search replaced it f
   `workbench.tree.renderIndentGuides` set to `none` hides the lines and keeps the indentation.
 - Code lines start at the left edge at any depth, so they take the full width of the side bar.
   The tree lines pause at code lines, since running them through the line numbers would cross the digits.
+- Each block of code lines, meaning a match with its context, drops the indentation that all its lines share.
+  The least indented line starts at the left edge, and the others keep their indentation relative to it.
+  Tabs count to the next tab stop, so lines that mix tabs and spaces still line up.
+- A match line whose match would end past the edge of the row loses the text before the match.
+  The row keeps its indentation, then `…`, then the text from a word boundary about a third of the row before the match.
+  Where the indentation alone would push the match past the edge, that row drops it.
+  Rows that fit keep their whole text, and a resize cuts anew.
+  The hover card shows the lines of the file as they stand.
 - Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
   The theme picks the icon by file name, extension, language and the open or closed state of a folder.
   A compacted folder row such as `charts/apim` shows the icon of its last folder.
