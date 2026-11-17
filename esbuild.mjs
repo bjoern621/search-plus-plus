@@ -1,9 +1,8 @@
 import * as esbuild from "esbuild";
 
 const watch = process.argv.includes("--watch");
-const integration = process.argv.includes("--integration");
 
-const extensionBuilds = [
+const builds = [
   {
     entryPoints: ["src/extension.ts"],
     outfile: "dist/extension.js",
@@ -25,19 +24,6 @@ const extensionBuilds = [
     loader: { ".ttf": "file" },
   },
 ];
-
-/** The integration tests run inside VS Code, which loads them through mocha from out/. */
-const integrationBuilds = [
-  {
-    entryPoints: { index: "test/integration/suite/index.ts", "search.suite": "test/integration/suite/search.suite.ts" },
-    outdir: "out/integration",
-    platform: "node",
-    format: "cjs",
-    external: ["vscode", "mocha"],
-  },
-];
-
-const builds = integration ? integrationBuilds : extensionBuilds;
 
 for (const options of builds) {
   const context = await esbuild.context({ bundle: true, sourcemap: true, logLevel: "info", ...options });

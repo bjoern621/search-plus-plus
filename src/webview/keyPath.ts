@@ -26,7 +26,7 @@ export function cutKeyPath(keys: readonly string[], width: number, measure: (tex
 }
 
 /** Lists the ways that `cutKeyPath` writes `keys`, the whole path first and the last key alone last. */
-export function keyPathCuts(keys: readonly string[]): string[] {
+function keyPathCuts(keys: readonly string[]): string[] {
   const texts = keys.map(keyText);
   const cuts = [texts.join(".")];
   for (let kept = 2; kept < texts.length; kept++) cuts.push(`${texts[0]}\u2009…\u2009${texts.slice(kept).join(".")}`);

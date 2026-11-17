@@ -1,7 +1,5 @@
 import * as vscode from "vscode";
 import { textEngine } from "./engines/text";
-import type { FileFields } from "./search/globs";
-import type { SearchScope } from "./search/scope";
 import { RegexEngine } from "./engines/regex";
 import { REVISION_SCHEME, RevisionDocuments } from "./git/revisionDocuments";
 import { LanguageIndex, languageContributions } from "./search/languages";
@@ -46,28 +44,8 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     vscode.workspace.registerTextDocumentContentProvider(REVISION_SCHEME, documents),
     vscode.workspace.onDidChangeWorkspaceFolders(() => void provider.sendGitInfo()),
   );
-  if (context.extensionMode === vscode.ExtensionMode.Test) registerTestCommands(context, provider);
 
   return { registerEngine: (engine) => registry.register(engine) };
-}
-
-/** Commands that integration tests drive the view with. Other modes never register them. */
-function registerTestCommands(context: vscode.ExtensionContext, provider: SearchViewProvider): void {
-  context.subscriptions.push(
-    vscode.commands.registerCommand("structuralSearch.test.search", (query: string, fields?: FileFields, scope?: SearchScope) => provider.testSearch(query, fields, scope)),
-    vscode.commands.registerCommand("structuralSearch.test.openScopeMenu", () => provider.testOpenScopeMenu()),
-    vscode.commands.registerCommand("structuralSearch.test.excludeRow", (index: number) => provider.testExcludeRow(index)),
-    vscode.commands.registerCommand("structuralSearch.test.typeFileFields", (fields: FileFields, startsSearch: boolean) => provider.testTypeFileFields(fields, startsSearch)),
-    vscode.commands.registerCommand("structuralSearch.test.typeQuery", (keys: string[]) => provider.testTypeQuery(keys)),
-    vscode.commands.registerCommand("structuralSearch.test.snapshot", () => provider.testSnapshot()),
-    vscode.commands.registerCommand("structuralSearch.test.clickRow", (index: number) => provider.testClickRow(index)),
-    vscode.commands.registerCommand("structuralSearch.test.pressKeys", (keys: string[]) => provider.testPressKeys(keys)),
-    vscode.commands.registerCommand("structuralSearch.test.openMenu", (index: number) => provider.testOpenMenu(index)),
-    vscode.commands.registerCommand("structuralSearch.test.hover", (index: number) => provider.testHover(index)),
-    vscode.commands.registerCommand("structuralSearch.test.chooseMenuItem", (label: string) => provider.testChooseMenuItem(label)),
-    vscode.commands.registerCommand("structuralSearch.test.chooseMenuSearch", (label: string) => provider.testChooseMenuSearch(label)),
-    vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
-  );
 }
 
 interface GitExtensionApi {

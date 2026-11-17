@@ -1,4 +1,4 @@
-import type { FileResult, HostMessage, KeyPathRoom, ResultLine, RowMetrics, SearchStatus, TestSnapshot, ViewMessage, ViewSettings } from "../messages";
+import type { FileResult, HostMessage, ResultLine, SearchStatus, ViewMessage, ViewSettings } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
@@ -10,8 +10,8 @@ import { matchMenu, type MenuAction } from "./menu";
 import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
-import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
-import { fitKeyPaths, keyPathCuts, keyPathElement, keyPathText, shownKeys } from "./keyPath";
+import { commitDay, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
+import { fitKeyPaths, keyPathElement, shownKeys } from "./keyPath";
 import { blockDedents, cutToMatch, dedent } from "./codeLines";
 
 interface ViewState extends FileFields {
@@ -239,51 +239,6 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       cappedAt = message.status === "capped" ? message.limit : undefined;
       invalidateLayout();
       return;
-    case "testSearch":
-      if (message.fields) setFileFields(message.fields);
-      if (message.scope) setScope(message.scope);
-      setQuery(message.query);
-      submit();
-      return;
-    case "testSnapshot":
-      vscode.postMessage({ type: "testSnapshot", snapshot: snapshot() });
-      return;
-    case "testOpenScopeMenu":
-      scope.click();
-      return;
-    case "testClickRow":
-      clickRow(message.index);
-      return;
-    case "testClickHint":
-      hint.querySelector<HTMLButtonElement>(".hint-run")?.click();
-      return;
-    case "testExcludeRow":
-      showRow(message.index)?.querySelector<HTMLElement>(".exclude")?.click();
-      return;
-    case "testPressKeys":
-      for (const key of message.keys) pressKey(key);
-      return;
-    case "testOpenMenu":
-      showRow(message.index)?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
-      return;
-    case "testHover":
-      showRow(message.index)?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      return;
-    case "testChooseMenuItem":
-      contextMenu.chooseLabel(message.label);
-      return;
-    case "testTypeFileFields":
-      setFileFields(message);
-      applyFileFields();
-      return;
-    case "testTypeQuery":
-      input.focus();
-      input.value = "";
-      for (const key of message.keys) {
-        input.value += key;
-        input.dispatchEvent(new Event("input"));
-      }
-      return;
   }
 });
 
@@ -345,12 +300,6 @@ function exclude(entry: string): void {
   excludeInput.value = appendEntry(excludeInput.value, entry);
   setFileFieldsOpen(true);
   applyFileFields();
-}
-
-function setFileFields(fields: FileFields): void {
-  includeInput.value = fields.include;
-  excludeInput.value = fields.exclude;
-  saveState();
 }
 
 /** Sets the scope of later searches and repeats the last search in it. */
@@ -703,7 +652,6 @@ function hangInTree(element: HTMLElement, row: Exclude<Row, { kind: "line" }>, i
 function guide(shape: "through" | "branch" | "last", column: number, index: number): HTMLElement {
   const element = document.createElement("span");
   element.className = `guide ${shape}`;
-  element.dataset.column = String(column);
   element.style.setProperty("--column", String(column));
   if (activeGuide && activeGuide.column === column && index >= activeGuide.first && index <= activeGuide.last) element.classList.add("active");
   return element;
@@ -832,26 +780,6 @@ function runMenuAction(action: MenuAction): void {
   }
 }
 
-/**
- * Presses `key` on the focused element of the results or the context menu, as a person would.
- * `Shift+` in front holds Shift, `Ctrl+` holds Ctrl.
- * `query:` in front presses the key in the query input, `field:` in the focused input.
- */
-function pressKey(key: string): void {
-  const inQuery = key.startsWith("query:");
-  const inField = key.startsWith("field:") && document.activeElement instanceof HTMLInputElement;
-  let name = key.replace(/^(query|field):/, "");
-  const ctrlKey = name.startsWith("Ctrl+");
-  if (ctrlKey) name = name.slice("Ctrl+".length);
-  const shiftKey = name.startsWith("Shift+");
-  if (shiftKey) name = name.slice("Shift+".length);
-  const inMenu = document.activeElement?.closest(".menu");
-  if (inQuery) input.focus();
-  else if (!inMenu && !inField) results.focus();
-  const target = inQuery ? input : inMenu || inField ? (document.activeElement as HTMLElement) : results;
-  target.dispatchEvent(new KeyboardEvent("keydown", { key: name, ctrlKey, shiftKey, bubbles: true, cancelable: true }));
-}
-
 /** A line opens its file at the match. A commit, folder or file row collapses or expands. */
 function activate(row: Row, preserveFocus: boolean): void {
   switch (row.kind) {
@@ -868,150 +796,10 @@ function activate(row: Row, preserveFocus: boolean): void {
   }
 }
 
-function snapshot(): TestSnapshot {
-  // Draws the rows that a pending frame would draw, since the snapshot measures them.
-  render();
-  return {
-    summary: summary.hidden ? "" : `${summaryText.textContent ?? ""} | ${scope.hidden ? "" : (scopeLabelElement.textContent ?? "")}`,
-    hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
-    include: includeInput.value,
-    exclude: excludeInput.value,
-    fileFieldsOpen: !fileFieldsElement.hidden,
-    rows: rows.map(describeRow),
-    icons: rows.map(rowIcon),
-    iconLefts: rows.map((_, index) => leftOf(index, ".file-icon")),
-    rowStartLefts: rows.map((_, index) => leftOf(index, ":is(.twisty, .number)")),
-    guides: rows.map((_, index) => describeGuides(index)),
-    gapsAbove: rows.map((_, index) => document.getElementById(`row-${index}`)?.classList.contains("after-gap") ?? null),
-    labelLefts: rows.map((_, index) => leftOf(index, ".label")),
-    keyPaths: rows.map((row) => {
-      const keys = row.kind === "line" ? shownKeys(row.line) : undefined;
-      return keys ? keyPathText(keys) : "";
-    }),
-    drawnKeyPaths: rows.map((_, index) => {
-      const element = document.getElementById(`row-${index}`);
-      return element ? (element.querySelector(".key-path")?.textContent ?? "") : null;
-    }),
-    keyPathRooms: rows.map(keyPathRoom),
-    focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
-    menu: contextMenu.describe(),
-    focusedMarkColor: markColor(".focused .mark"),
-    focusHighlightColor: themeColor("--vscode-list-focusHighlightForeground"),
-    menuFocus: contextMenu.focusedLabel(),
-    hover: hoverCard.describe(),
-    hoverGeometry: hoverCard.geometry(),
-    fileRowMetrics: rowMetrics("file"),
-    codeLineMetrics: rowMetrics("line"),
-  };
-}
-
-/** Measures the room after the line text of a drawn row, and the drawn and the next longer cut of its key path in a hidden copy. */
-function keyPathRoom(row: Row, index: number): KeyPathRoom | null {
-  const element = document.getElementById(`row-${index}`);
-  const text = element?.querySelector(".text");
-  const keys = row.kind === "line" ? shownKeys(row.line) : undefined;
-  if (!element || !text || !keys) return null;
-  const drawnText = element.querySelector(".key-path")?.textContent ?? "";
-  const probe = keyPathElement(keys);
-  probe.style.cssText = "position: absolute; visibility: hidden; max-width: none";
-  element.append(probe);
-  const measure = (cut: string) => {
-    probe.textContent = cut;
-    return probe.getBoundingClientRect().width - parseFloat(getComputedStyle(probe).paddingLeft);
-  };
-  const end = element.getBoundingClientRect().right - parseFloat(getComputedStyle(element).paddingRight);
-  const room = end - text.getBoundingClientRect().right - parseFloat(getComputedStyle(probe).paddingLeft);
-  const cuts = keyPathCuts(keys);
-  const drawnAt = drawnText === "" ? cuts.length : cuts.indexOf(drawnText);
-  const longer = drawnAt > 0 ? cuts[drawnAt - 1] : undefined;
-  const measured = { room, drawn: drawnText === "" ? 0 : measure(drawnText), longer: longer === undefined ? null : measure(longer) };
-  probe.remove();
-  return measured;
-}
-
-/** Writes the tree lines of a drawn row, such as `│└`. */
-function describeGuides(index: number): string | null {
-  const element = document.getElementById(`row-${index}`);
-  if (!element) return null;
-  const columns: string[] = [];
-  const shapes: Record<string, string> = { through: "│", branch: "├", last: "└" };
-  for (const guide of element.querySelectorAll<HTMLElement>(".guide")) {
-    if (getComputedStyle(guide).display === "none") continue;
-    const shape = [...guide.classList].find((name) => name in shapes) ?? "";
-    columns[Number(guide.dataset.column)] = shapes[shape] ?? "?";
-  }
-  return Array.from(columns, (column) => column ?? " ").join("");
-}
-
-function markColor(selector: string): string {
-  const mark = rowsElement.querySelector(selector);
-  return mark ? getComputedStyle(mark).color : "";
-}
-
-/** Resolves the theme color `variable` to the form that getComputedStyle reports. */
-function themeColor(variable: string): string {
-  const probe = document.createElement("span");
-  probe.style.color = `var(${variable})`;
-  document.body.append(probe);
-  const color = getComputedStyle(probe).color;
-  probe.remove();
-  return color;
-}
-
-/** The left edge of the part `selector` of the drawn row at `index`. Null for a row not drawn or without that part. */
-function leftOf(index: number, selector: string): number | null {
-  const part = rowsElement.querySelector(`[data-index="${index}"] ${selector}`);
-  return part ? part.getBoundingClientRect().left : null;
-}
-
-function rowMetrics(kind: Row["kind"]): RowMetrics | undefined {
-  const element = [...rowsElement.querySelectorAll<HTMLElement>("[data-index]")].find((candidate) => rows[Number(candidate.dataset.index)]?.kind === kind);
-  if (!element) return undefined;
-  return { fontSize: Number.parseFloat(getComputedStyle(element).fontSize), height: element.getBoundingClientRect().height };
-}
-
-function describeRow(row: Row): string {
-  switch (row.kind) {
-    case "commit":
-      return `commit ${row.commit.shortSha} ${row.commit.subject} (${row.commit.author}, ${commitDay(row.commit)})`;
-    case "folder":
-      return `folder ${row.label}`;
-    case "file":
-      return row.folded === "" ? `file ${row.file.name}` : `file ${row.file.name} (${row.folded})`;
-    case "line":
-      return describeLine(row.line);
-  }
-}
-
-function rowIcon(row: Row): string {
-  switch (row.kind) {
-    case "folder":
-      return row.icon ?? "";
-    case "file":
-      return row.file.icons?.file ?? "";
-    case "commit":
-    case "line":
-      return "";
-  }
-}
-
 /** Returns the rendered row of the match on `line` of `file`. */
 function renderedMatch(file: FileResult, line: number): HTMLElement | undefined {
   const index = rows.findIndex((row) => row.kind === "line" && row.file.uri === file.uri && row.line.line === line);
   return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`) ?? undefined;
-}
-
-/** Scrolls the row at `index` into view and clicks its element, as a person would. */
-function clickRow(index: number): void {
-  showRow(index)?.click();
-}
-
-/** Scrolls the row at `index` into view and returns its element. */
-function showRow(index: number): HTMLElement | null {
-  layout();
-  scrollRowIntoView(index);
-  render();
-  return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`);
 }
 
 /** Picks the platform as the VS Code renderer does, which decides the default fonts of the editor. */

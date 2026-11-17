@@ -44,7 +44,6 @@ function part(kind: string, text: string): HTMLElement {
  */
 export function renderHint(element: HTMLElement, hint: Hint | undefined, blocked: boolean, run: (query: string) => void): void {
   element.hidden = hint === undefined;
-  element.dataset.text = hint?.text ?? "";
   if (!hint) {
     element.replaceChildren();
     return;

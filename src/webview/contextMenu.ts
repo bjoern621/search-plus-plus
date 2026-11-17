@@ -12,9 +12,7 @@ export class ContextMenu {
   private readonly reasons: HTMLDivElement;
   private readonly list: HTMLDivElement;
   /** The items that take focus and run, in the order of the menu. Disabled items stay out. */
-  private items: { element: HTMLDivElement; label: string; action: MenuAction }[] = [];
-  /** Every item as `describe` writes it, disabled ones included. */
-  private descriptions = new Map<HTMLElement, string>();
+  private items: { element: HTMLDivElement; action: MenuAction }[] = [];
 
   constructor(
     private readonly element: HTMLDivElement,
@@ -61,14 +59,12 @@ export class ContextMenu {
     this.reasons.replaceChildren(...menu.reasons.map((text) => textElement("menu-reason", text)));
     this.reasons.hidden = menu.reasons.length === 0;
     this.items = [];
-    this.descriptions.clear();
     const children: HTMLElement[] = [];
     menu.groups.forEach((group, index) => {
       if (index > 0) children.push(separator());
       for (const item of group) {
         const element = itemElement(item);
-        this.descriptions.set(element, describeItem(item));
-        if (!item.disabled) this.items.push({ element, label: item.label, action: item.action });
+        if (!item.disabled) this.items.push({ element, action: item.action });
         children.push(element);
       }
     });
@@ -90,29 +86,7 @@ export class ContextMenu {
     if (!this.isOpen) return;
     this.element.hidden = true;
     this.items = [];
-    this.descriptions.clear();
     if (returnFocus) this.onClose();
-  }
-
-  /** Lists the reasons, the item labels and `-` for each separator, as the menu shows them. For integration tests. */
-  describe(): string[] {
-    if (!this.isOpen) return [];
-    const reasons = Array.from(this.reasons.children).map((child) => child.textContent ?? "");
-    const items = Array.from(this.list.children).map((child) => (child.getAttribute("role") === "separator" ? "-" : (this.descriptions.get(child as HTMLElement) ?? "")));
-    return [...reasons, ...items];
-  }
-
-  /** Returns the label of the focused item, empty while the menu shows none. For integration tests. */
-  focusedLabel(): string {
-    return this.items.find((item) => item.element === document.activeElement)?.label ?? "";
-  }
-
-  /** Runs the item labelled `label`. Returns false when the menu holds no such item or the item is disabled. For integration tests. */
-  chooseLabel(label: string): boolean {
-    const index = this.items.findIndex((item) => item.label === label);
-    if (index < 0) return false;
-    this.choose(index);
-    return true;
   }
 
   private choose(index: number): void {
@@ -179,13 +153,6 @@ function itemElement(item: MenuItem): HTMLDivElement {
   element.append(spanElement("menu-label", item.label));
   if (item.description !== undefined) element.append(spanElement("menu-description", item.description));
   return element;
-}
-
-/** Writes an item for integration tests, such as `✓ Working tree` or `Git history (Last 200 commits)`, with `[disabled]` behind a disabled one. */
-function describeItem(item: MenuItem): string {
-  const check = item.checked ? "✓ " : "";
-  const description = item.description === undefined ? "" : ` (${item.description})`;
-  return `${check}${item.label}${description}${item.disabled ? " [disabled]" : ""}`;
 }
 
 function textElement(className: string, text: string): HTMLDivElement {

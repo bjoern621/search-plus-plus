@@ -4,7 +4,7 @@ import { listBranches } from "./git/repository";
 import { describeGit, prepareScope, rootRepositories } from "./git/scopes";
 import { fileIcons, IconResolver, iconTable } from "./icons/iconTheme";
 import { activeIconThemeId, colorKind, iconThemeExtensionFolders, type LoadedIconTheme, loadIconTheme } from "./icons/loadIconTheme";
-import type { FileIcons, FileResult, HostMessage, IconTable, SearchStatus, TestSnapshot, ViewMessage } from "./messages";
+import type { FileIcons, FileResult, HostMessage, IconTable, SearchStatus, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
 import { HOVER_EXCERPT_RADIUS_LINES, RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config";
@@ -34,8 +34,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   private isViewReady = false;
   private searchId = 0;
   private running: AbortController | undefined;
-  private readonly searchDone = new vscode.EventEmitter<number>();
-  private readonly snapshots = new vscode.EventEmitter<TestSnapshot>();
   private iconTheme: LoadedIconTheme | undefined;
   private iconResolver: IconResolver | undefined;
   /** Counts the loads of the icon theme, so a slow load never replaces the theme of a later one. */
@@ -173,126 +171,8 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.sendIcons();
   }
 
-  /** Types `query` into the view and presses Enter, then returns what the view shows once the search ends. For integration tests. */
-  async testSearch(query: string, fields?: FileFields, scope?: SearchScope): Promise<TestSnapshot> {
-    await this.focus();
-    return this.afterSearch({ type: "testSearch", query, fields, scope });
-  }
-
-  /** Clicks the scope button, then returns what the view shows. For integration tests. */
-  async testOpenScopeMenu(): Promise<TestSnapshot> {
-    await this.viewReady;
-    this.post({ type: "testOpenScopeMenu" });
-    return this.testSnapshot();
-  }
-
-  /** Clicks the exclude button of the folder or file row at `index`, then returns what the view shows. For integration tests. */
-  async testExcludeRow(index: number): Promise<TestSnapshot> {
-    await this.viewReady;
-    this.post({ type: "testExcludeRow", index });
-    return this.testSnapshot();
-  }
-
-  /**
-   * Types `fields` into the files to include and exclude fields, then returns what the view shows.
-   * With `startsSearch`, it returns once the search that the typing starts ends. For integration tests.
-   */
-  async testTypeFileFields(fields: FileFields, startsSearch: boolean): Promise<TestSnapshot> {
-    await this.viewReady;
-    if (startsSearch) return this.afterSearch({ type: "testTypeFileFields", ...fields });
-    this.post({ type: "testTypeFileFields", ...fields });
-    return this.testSnapshot();
-  }
-
-  /**
-   * Types `keys` into the emptied query input one after another without a pause and without Enter.
-   * Returns what the view shows once the search that the typing starts ends and the time for another search has passed, with the number of searches that started. For integration tests.
-   */
-  async testTypeQuery(keys: string[]): Promise<{ snapshot: TestSnapshot; searches: number }> {
-    await this.focus();
-    const before = this.searchId;
-    await this.afterSearch({ type: "testTypeQuery", keys });
-    const debounce = vscode.workspace.getConfiguration("search").get<number>("searchOnTypeDebouncePeriod", 300);
-    await new Promise((resolve) => setTimeout(resolve, 2 * debounce));
-    return { snapshot: await this.testSnapshot(), searches: this.searchId - before };
-  }
-
-  /** Clicks the hint line, then returns what the view shows once the suggested search ends. For integration tests. */
-  async testClickHint(): Promise<TestSnapshot> {
-    await this.viewReady;
-    return this.afterSearch({ type: "testClickHint" });
-  }
-
-  /** Returns the summary, the hint and every result row as the view holds them. For integration tests. */
-  async testSnapshot(): Promise<TestSnapshot> {
-    await this.viewReady;
-    const snapshot = new Promise<TestSnapshot>((resolve) => {
-      const listener = this.snapshots.event((value) => {
-        listener.dispose();
-        resolve(value);
-      });
-    });
-    this.post({ type: "testSnapshot" });
-    return snapshot;
-  }
-
-  /** Presses `keys` on the results one after another, then returns what the view shows. A key such as `Shift+F10` holds Shift. For integration tests. */
-  async testPressKeys(keys: string[]): Promise<TestSnapshot> {
-    await this.viewReady;
-    this.post({ type: "testPressKeys", keys });
-    return this.testSnapshot();
-  }
-
-  /** Right-clicks the row at `index` of the snapshot rows, then returns what the view shows. For integration tests. */
-  async testOpenMenu(index: number): Promise<TestSnapshot> {
-    await this.viewReady;
-    this.post({ type: "testOpenMenu", index });
-    return this.testSnapshot();
-  }
-
-  /** Rests the pointer on the row at `index` of the snapshot rows. For integration tests. */
-  async testHover(index: number): Promise<void> {
-    await this.viewReady;
-    this.post({ type: "testHover", index });
-  }
-
-  /** Clicks the item labelled `label` in the open context menu, then returns what the view shows. For integration tests. */
-  async testChooseMenuItem(label: string): Promise<TestSnapshot> {
-    await this.viewReady;
-    this.post({ type: "testChooseMenuItem", label });
-    return this.testSnapshot();
-  }
-
-  /** Clicks the item labelled `label` in the open context menu, then returns what the view shows once the search that it starts ends. For integration tests. */
-  async testChooseMenuSearch(label: string): Promise<TestSnapshot> {
-    await this.viewReady;
-    return this.afterSearch({ type: "testChooseMenuItem", label });
-  }
-
-  /** Clicks the result row at `index` of the snapshot rows. For integration tests. */
-  async testClickRow(index: number): Promise<void> {
-    await this.viewReady;
-    this.post({ type: "testClickRow", index });
-  }
-
-  /** Posts `action`, waits for the search that it starts to end and returns the snapshot. */
-  private async afterSearch(action: HostMessage): Promise<TestSnapshot> {
-    const done = new Promise<void>((resolve) => {
-      const startedAfter = this.searchId;
-      const listener = this.searchDone.event((searchId) => {
-        if (searchId <= startedAfter) return;
-        listener.dispose();
-        resolve();
-      });
-    });
-    this.post(action);
-    await done;
-    return this.testSnapshot();
-  }
-
   private finish(searchId: number, status: SearchStatus, limit = RESULT_LINE_LIMIT): void {
     this.post({ type: "searchDone", searchId, status, limit });
-    this.searchDone.fire(searchId);
   }
 
   private handle(message: ViewMessage): void {
@@ -324,9 +204,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         return;
       case "excerpt":
         void this.sendExcerpt(message.requestId, message.uri, message.line);
-        return;
-      case "testSnapshot":
-        this.snapshots.fire(message.snapshot);
         return;
       default:
         assertNever(message);

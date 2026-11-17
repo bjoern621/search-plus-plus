@@ -97,86 +97,6 @@ export interface IconTable {
  */
 export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFolder" | "noRepository" | "failed";
 
-export interface TestSnapshot {
-  summary: string;
-  hint: string;
-  include: string;
-  exclude: string;
-  /** True while files to include and files to exclude show. */
-  fileFieldsOpen: boolean;
-  rows: string[];
-  /** The icon definition id of each row, empty for a row without icon. */
-  icons: string[];
-  /** The left edge of the icon slot of each row, null for a row not drawn or without a slot. */
-  iconLefts: (number | null)[];
-  /** The left edge of the twisty of each drawn tree row and of the line number of each drawn code line. Null for a row not drawn. */
-  rowStartLefts: (number | null)[];
-  /** The tree lines of each drawn row, a character per column: `│` passes the row, `├` and `└` join it to its parent. Empty for a row without lines, null for a row not drawn. */
-  guides: (string | null)[];
-  /** Whether each drawn row shows the divider that marks skipped lines above it. Null for a row not drawn. */
-  gapsAbove: (boolean | null)[];
-  /** The left edge of the label of each folder or file row, null for any other row and a row not drawn. */
-  labelLefts: (number | null)[];
-  /** The key path that each row shows after its line text, empty for a row without one. */
-  keyPaths: string[];
-  /** The key path that each drawn row shows, cut to its room. Empty for a drawn row without one, null for a row not drawn. */
-  drawnKeyPaths: (string | null)[];
-  /** How the key path of each drawn row fits the room after its line text. Null for a row not drawn or without a key path. */
-  keyPathRooms: (KeyPathRoom | null)[];
-  /** Index of the row drawn with the focus, -1 without one. */
-  focused: number;
-  /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
-  menu: string[];
-  /** The text color of the first match on the focused row, empty without one. */
-  focusedMarkColor: string;
-  /** The color that the theme sets for a match on a focused list row (list.focusHighlightForeground). */
-  focusHighlightColor: string;
-  /** The label of the focused item of the context menu, empty while no item holds the focus. */
-  menuFocus: string;
-  /** The file and the lines of the hover card, as the rows describe them. Empty while no card shows. */
-  hover: string[];
-  /** Where the hovered line of the card sits against its row. Undefined while no card shows. */
-  hoverGeometry: HoverGeometry | undefined;
-  /** How the first drawn file row measures. Undefined while the view draws none. */
-  fileRowMetrics: RowMetrics | undefined;
-  /** How the first drawn code line measures. Undefined while the view draws none. */
-  codeLineMetrics: RowMetrics | undefined;
-}
-
-/** Widths in pixels, each measured in the page. */
-export interface KeyPathRoom {
-  /** The space from the end of the line text, plus the gap before a key path, to the end of the row. */
-  room: number;
-  /** The drawn key path, 0 for a key path that hides. */
-  drawn: number;
-  /** The cut one step longer than the drawn one, null for a key path drawn whole. */
-  longer: number | null;
-}
-
-/** Sizes in pixels. */
-export interface RowMetrics {
-  fontSize: number;
-  height: number;
-}
-
-/** Positions in pixels from the top left corner of the view. */
-export interface HoverGeometry {
-  rowTop: number;
-  rowRight: number;
-  lineTop: number;
-  rowTextLeft: number;
-  lineTextLeft: number;
-  cardTop: number;
-  cardBottom: number;
-  cardRight: number;
-  viewHeight: number;
-  viewWidth: number;
-  /** The width of the key path in the card header that its end cut hides, 0 for a header without one. */
-  headerKeyPathCut: number;
-  /** The width of the folder in the card header that its start cut hides. */
-  headerFolderCut: number;
-}
-
 export type ViewMessage =
   | { type: "ready" }
   | ({ type: "search"; query: string; scope: SearchScope } & FileFields)
@@ -188,8 +108,7 @@ export type ViewMessage =
   /** Copies the whole line, since the view holds an excerpt of a long line. */
   | { type: "copyLine"; uri: string; line: number }
   /** Asks for the lines around `line` for the hover card. */
-  | { type: "excerpt"; requestId: number; uri: string; line: number }
-  | { type: "testSnapshot"; snapshot: TestSnapshot };
+  | { type: "excerpt"; requestId: number; uri: string; line: number };
 
 /** Workbench settings that the view follows. */
 export interface ViewSettings {
@@ -215,17 +134,4 @@ export type HostMessage =
   /** Sets the file icon theme and the icons of the files that the view holds, keyed by file URI. Without a theme, rows show empty icon slots. */
   | { type: "icons"; theme: IconTable | undefined; files: Record<string, FileIcons> }
   /** Answers the excerpt request `requestId`. Empty when the file cannot be read. */
-  | { type: "excerpt"; requestId: number; lines: ResultLine[] }
-  /** Fields left out keep what the view holds. */
-  | { type: "testSearch"; query: string; fields?: FileFields; scope?: SearchScope }
-  | { type: "testOpenScopeMenu" }
-  | { type: "testSnapshot" }
-  | { type: "testClickRow"; index: number }
-  | { type: "testClickHint" }
-  | { type: "testExcludeRow"; index: number }
-  | { type: "testPressKeys"; keys: string[] }
-  | { type: "testOpenMenu"; index: number }
-  | { type: "testHover"; index: number }
-  | { type: "testChooseMenuItem"; label: string }
-  | ({ type: "testTypeFileFields" } & FileFields)
-  | { type: "testTypeQuery"; keys: string[] };
+  | { type: "excerpt"; requestId: number; lines: ResultLine[] };
