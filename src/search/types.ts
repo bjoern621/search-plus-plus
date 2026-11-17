@@ -14,6 +14,28 @@ export type MatchReason =
     | { kind: "umlaut"; query: string; found: string }
     | { kind: "case"; query: string; found: string }
 
+/**
+ * The matching defaults that a text query applies, set in the extension settings.
+ * Quotes around a word set aside `matchCase`, `umlautVariants` and `fuzzy` for that word.
+ */
+export interface MatchingOptions {
+    /** A word matches its own case alone. */
+    matchCase: boolean
+    /** A word matches whole words of a line alone. Key paths compare whole keys either way. */
+    matchWholeWord: boolean
+    /** Each umlaut and its spelled-out form match each other, `ä` and `ae` for example. */
+    umlautVariants: boolean
+    /** A word also matches a word a few edits away. */
+    fuzzy: boolean
+}
+
+export const DEFAULT_MATCHING: MatchingOptions = {
+    matchCase: false,
+    matchWholeWord: false,
+    umlautVariants: true,
+    fuzzy: true
+}
+
 export type TextPiece =
     /** A run of letters and digits. Quotes make it exact: case-sensitive, without umlaut variants and fuzzy matches. */
     | { kind: "word"; value: string; exact: boolean }
@@ -29,6 +51,8 @@ export type Query =
           kind: "text"
           raw: string
           pieces: TextPiece[]
+          /** Missing means `DEFAULT_MATCHING`. */
+          matching?: MatchingOptions
           /** Missing when the query breaks the key path grammar. `keyPathError` then says why. */
           keyPath?: KeyPathPattern
           keyPathError?: QueryError

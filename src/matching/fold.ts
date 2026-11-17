@@ -4,6 +4,14 @@ import type { Range } from "../search/types"
 const COMBINING_MARK = /\p{M}/u
 const UMLAUT = /[äöüß]/g
 const UMLAUT_SPELLINGS: Record<string, string> = { ä: "ae", ö: "oe", ü: "ue", ß: "ss" }
+const UMLAUT_ANY_CASE = /[äöüßÄÖÜẞ]/g
+const UMLAUT_SPELLINGS_ANY_CASE: Record<string, string> = {
+    ...UMLAUT_SPELLINGS,
+    Ä: "Ae",
+    Ö: "Oe",
+    Ü: "Ue",
+    ẞ: "SS"
+}
 
 /**
  * A text in lower case, umlauts spelled out on request, with the original offsets of each folded code unit.
@@ -46,6 +54,13 @@ export function foldCase(text: string): string {
 
 export function foldCaseAndUmlauts(text: string): string {
     return foldText(text, true).text
+}
+
+/** Spells out each umlaut and keeps the case of every other character: `Größe` becomes `Groesse`. */
+export function spellOutUmlauts(text: string): string {
+    return text
+        .normalize("NFC")
+        .replace(UMLAUT_ANY_CASE, (umlaut) => UMLAUT_SPELLINGS_ANY_CASE[umlaut]!)
 }
 
 /** Returns true if a folded match may start or end at `offset`, false if the offset splits a character. */

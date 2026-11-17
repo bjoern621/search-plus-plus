@@ -5,7 +5,7 @@ import { tomlEngine } from "./tomlEngine"
 import { yamlEngine } from "./yamlEngine"
 
 export { codeEngine } from "./codeEngine"
-export { compareKeyDefault } from "./compareKeyDefault"
+export { compareKeyDefault, compareKeyUnder } from "./compareKeyDefault"
 export { jsonEngine } from "./jsonEngine"
 export { tomlEngine } from "./tomlEngine"
 export { yamlEngine } from "./yamlEngine"

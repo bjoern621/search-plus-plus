@@ -1,4 +1,4 @@
-import type { Query, TextPiece } from "../search/types"
+import type { MatchingOptions, Query, TextPiece } from "../search/types"
 import { parseKeyPath } from "./keyPathParser"
 
 const WORD_CHAR = /^[\p{L}\p{M}\p{N}]$/u
@@ -7,17 +7,20 @@ const WORD_CHAR = /^[\p{L}\p{M}\p{N}]$/u
  * Parses the text of the query input.
  * A query between two slashes turns into a regex query.
  * Every other query turns into a text query with its pieces and, where the key path grammar allows, its key path.
+ * A text query carries `matching` when the caller passes it.
  */
-export function parseQuery(raw: string): Query {
+export function parseQuery(raw: string, matching?: MatchingOptions): Query {
     if (isRegexQuery(raw)) {
         return { kind: "regex", raw, source: raw.slice(1, -1) }
     }
     const parsed = parseKeyPath(raw)
     const pieces = parseTextPieces(raw)
-    if ("error" in parsed) {
-        return { kind: "text", raw, pieces, keyPathError: parsed.error }
-    }
-    return { kind: "text", raw, pieces, keyPath: parsed.pattern }
+    const query: Query =
+        "error" in parsed
+            ? { kind: "text", raw, pieces, keyPathError: parsed.error }
+            : { kind: "text", raw, pieces, keyPath: parsed.pattern }
+    if (matching) query.matching = matching
+    return query
 }
 
 /** True when the query starts with a slash and ends with a second, unescaped one. */

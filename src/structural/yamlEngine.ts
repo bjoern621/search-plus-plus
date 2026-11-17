@@ -1,5 +1,5 @@
 import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
-import { compareKeyDefault } from "./compareKeyDefault"
+import { compareKeyFor } from "./compareKeyDefault"
 import { isFileOfKind, keyPathOf, YAML_FILES } from "./fileKinds"
 import { KeyPathCollector, SearchAborted } from "./keyPathCollector"
 import { maskTemplateActions } from "./templateActions"
@@ -27,7 +27,7 @@ export const yamlEngine: SearchEngine = {
         if (pattern === undefined) {
             return []
         }
-        const collector = new KeyPathCollector(file.text, pattern, compareKeyDefault, signal)
+        const collector = new KeyPathCollector(file.text, pattern, compareKeyFor(query), signal)
         try {
             for (const document of readYamlDocuments(maskTemplateActions(file.text))) {
                 new DocumentWalk(document, collector).walk()

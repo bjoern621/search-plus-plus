@@ -110,6 +110,8 @@ export interface ViewSettings {
 
 export type HostMessage =
     | { type: "focus" }
+    /** Runs the last search again, with the query and file fields that it ran with. */
+    | { type: "searchAgain" }
     | { type: "settings"; settings: ViewSettings }
     | { type: "resultsLayout"; layout: ResultsLayout }
     | { type: "searchStarted"; searchId: number }

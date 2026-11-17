@@ -176,7 +176,18 @@ A query matches with these defaults:
 A word in double quotes matches exactly: case-sensitive, without umlaut variants and without fuzzy matches.
 `"Größe"` finds `Größe` alone.
 The context menu on a close match offers the quotes.
-The extension settings change each default.
+
+Each default has a setting:
+
+- `searchPlusPlus.matchCase` keeps a word to its own case.
+  A word that differs in case alone never counts as a close spelling then.
+- `searchPlusPlus.matchWholeWord` keeps a word to whole words of a line.
+  Key paths compare whole keys either way.
+- `searchPlusPlus.umlautVariants` turns the umlaut variants off.
+- `searchPlusPlus.fuzzy` turns the fuzzy matches off.
+
+A regex query follows none of these settings.
+A changed setting runs the last search again.
 
 ### Wildcard
 

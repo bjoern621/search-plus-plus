@@ -1,6 +1,12 @@
-import type { MatchReason, Range, TextPiece } from "../search/types"
+import {
+    DEFAULT_MATCHING,
+    type MatchingOptions,
+    type MatchReason,
+    type Range,
+    type TextPiece
+} from "../search/types"
 import { assert, never } from "./assert"
-import { reasonsForFoldedMatch } from "./compareWord"
+import { differsInCaseAlone, normalizeWord, reasonsForFoldedMatch } from "./compareWord"
 import { allowedEdits, editDistance } from "./distance"
 import {
     codePointLength,
@@ -23,19 +29,24 @@ export interface LineTextMatch {
  * Finds every non-overlapping match of the pieces in one line, from left to right.
  * A word matches inside line words, whatever their case and umlaut spelling: `grav` finds `gravitee`.
  * Its close spellings span whole words or camelCase parts, see `fuzzyOccurrences`.
- * An exact word matches as written, inside line words as well.
+ * An exact word matches exactly, inside line words as well.
  * A literal matches whatever its case.
+ * `matching` turns each of these defaults off, and `matchWholeWord` keeps every word to whole line words.
  * A wildcard matches the shortest run of characters that lets the rest match.
  * Pieces without a word or a literal match nothing.
  * Caches the compiled pieces per array, so the caller must not change the array between calls.
  */
-export function findInLine(line: string, pieces: TextPiece[]): LineTextMatch[] {
-    const query = compiledQuery(pieces)
+export function findInLine(
+    line: string,
+    pieces: TextPiece[],
+    matching: MatchingOptions = DEFAULT_MATCHING
+): LineTextMatch[] {
+    const query = compiledQuery(pieces, matching)
     if (query.pieces.length === 0 || !containsRequiredTexts(line, query)) {
         return []
     }
 
-    const search = new LineSearch(line, query.pieces)
+    const search = new LineSearch(line, query.pieces, matching)
     const matches: LineTextMatch[] = []
     let from = 0
     for (;;) {
@@ -53,6 +64,10 @@ interface FuzzyWordPiece {
     value: string
     folded: string
     foldedCodePoints: number[]
+    /** The word as `normalizeWord` folds it under the matching options. */
+    normalized: string
+    /** True when the options fold less than `foldCaseAndUmlauts` does, so each find gets checked against `normalized`. */
+    strict: boolean
     maxEdits: number
     /** Maps a line word to its close spellings, at most `CLOSE_SPELLING_CACHE_MAX_WORDS` entries. */
     closeSpellingsByWord: Map<string, CloseSpelling[]>
@@ -60,6 +75,7 @@ interface FuzzyWordPiece {
 
 type CompiledPiece =
     | { kind: "exactWord"; value: string }
+    | { kind: "exactLiteral"; value: string }
     | FuzzyWordPiece
     | { kind: "literal"; value: string; folded: string }
     | { kind: "wildcard" }
@@ -90,19 +106,34 @@ const ASCII_WITHOUT_LETTERS = /^[\x00-\x40\x5b-\x60\x7b-\x7f]*$/
 const UPPER_CASE = /[\p{Lu}\p{Lt}]/u
 const DIGIT = /\p{N}/u
 const MARK = /\p{M}/u
+const WORD_CHAR_BEFORE = /[\p{L}\p{N}\p{M}]$/u
+const WORD_CHAR_AFTER = /^[\p{L}\p{N}\p{M}]/u
 
-const compiledQueries = new WeakMap<TextPiece[], CompiledQuery>()
+const compiledQueries = new WeakMap<
+    TextPiece[],
+    { matching: MatchingOptions; query: CompiledQuery }
+>()
 
-function compiledQuery(pieces: TextPiece[]): CompiledQuery {
-    let query = compiledQueries.get(pieces)
-    if (query === undefined) {
-        query = compileQuery(pieces)
-        compiledQueries.set(pieces, query)
+function compiledQuery(pieces: TextPiece[], matching: MatchingOptions): CompiledQuery {
+    const cached = compiledQueries.get(pieces)
+    if (cached !== undefined && sameMatching(cached.matching, matching)) {
+        return cached.query
     }
+    const query = compileQuery(pieces, matching)
+    compiledQueries.set(pieces, { matching, query })
     return query
 }
 
-function compileQuery(pieces: TextPiece[]): CompiledQuery {
+function sameMatching(a: MatchingOptions, b: MatchingOptions): boolean {
+    return (
+        a.matchCase === b.matchCase &&
+        a.matchWholeWord === b.matchWholeWord &&
+        a.umlautVariants === b.umlautVariants &&
+        a.fuzzy === b.fuzzy
+    )
+}
+
+function compileQuery(pieces: TextPiece[], matching: MatchingOptions): CompiledQuery {
     const compiled: CompiledPiece[] = []
     for (const piece of pieces) {
         // A lazy wildcard at either end matches the empty run and adds nothing to the match.
@@ -112,7 +143,7 @@ function compileQuery(pieces: TextPiece[]): CompiledQuery {
         ) {
             continue
         }
-        compiled.push(compilePiece(piece))
+        compiled.push(compilePiece(piece, matching))
     }
     if (compiled.at(-1)?.kind === "wildcard") {
         compiled.pop()
@@ -120,16 +151,22 @@ function compileQuery(pieces: TextPiece[]): CompiledQuery {
     return { pieces: compiled, requiredTexts: compiled.flatMap(requiredText) }
 }
 
-function compilePiece(piece: TextPiece): CompiledPiece {
+function compilePiece(piece: TextPiece, matching: MatchingOptions): CompiledPiece {
     switch (piece.kind) {
         case "wildcard":
             return piece
         case "literal":
             assert(piece.value.length > 0, "a literal piece must not be empty")
+            if (matching.matchCase) {
+                return { kind: "exactLiteral", value: piece.value }
+            }
             return { kind: "literal", value: piece.value, folded: foldCase(piece.value) }
         case "word": {
             assert(piece.value.length > 0, "a word piece must not be empty")
-            if (piece.exact) {
+            if (
+                piece.exact ||
+                (matching.matchCase && !matching.umlautVariants && !matching.fuzzy)
+            ) {
                 return { kind: "exactWord", value: piece.value }
             }
             const folded = foldCaseAndUmlauts(piece.value)
@@ -138,7 +175,9 @@ function compilePiece(piece: TextPiece): CompiledPiece {
                 value: piece.value,
                 folded,
                 foldedCodePoints: codePoints(folded),
-                maxEdits: allowedEdits(codePointLength(piece.value)),
+                normalized: normalizeWord(piece.value, matching),
+                strict: matching.matchCase || !matching.umlautVariants,
+                maxEdits: matching.fuzzy ? allowedEdits(codePointLength(piece.value)) : 0,
                 closeSpellingsByWord: new Map()
             }
         }
@@ -149,7 +188,7 @@ function compilePiece(piece: TextPiece): CompiledPiece {
 
 /** Folding leaves ASCII other than letters alone, so a literal of such characters has to appear as written. */
 function requiredText(piece: CompiledPiece): string[] {
-    if (piece.kind === "exactWord") {
+    if (piece.kind === "exactWord" || piece.kind === "exactLiteral") {
         return [piece.value]
     }
     if (piece.kind === "literal" && ASCII_WITHOUT_LETTERS.test(piece.value)) {
@@ -175,7 +214,8 @@ class LineSearch {
 
     constructor(
         private readonly line: string,
-        private readonly pieces: CompiledPiece[]
+        private readonly pieces: CompiledPiece[],
+        private readonly matching: MatchingOptions
     ) {}
 
     firstMatchFrom(from: number): (Range & Tail) | undefined {
@@ -260,24 +300,83 @@ class LineSearch {
     private findOccurrences(piece: CompiledPiece): Occurrence[] {
         switch (piece.kind) {
             case "exactWord":
+                return this.wholeWordsOnly(exactOccurrences(this.line, piece.value))
+            case "exactLiteral":
                 return exactOccurrences(this.line, piece.value)
             case "literal":
                 return foldedOccurrences(this.caseFold(), piece.folded, () => [])
             case "word": {
                 const folded = this.fullFold()
-                const found = foldedOccurrences(folded, piece.folded, (range) =>
-                    reasonsForFoldedMatch(piece.value, this.line.slice(range.start, range.end))
+                const found = this.wholeWordsOnly(
+                    this.allowedFinds(
+                        piece,
+                        foldedOccurrences(folded, piece.folded, (range) =>
+                            reasonsForFoldedMatch(
+                                piece.value,
+                                this.line.slice(range.start, range.end)
+                            )
+                        )
+                    )
                 )
                 if (piece.maxEdits === 0) {
                     return found
                 }
-                return found.concat(
-                    fuzzyOccurrences(this.line, folded, this.lineWords(), piece, found)
-                )
+                const fuzzy = fuzzyOccurrences(this.line, folded, this.lineWords(), piece, found)
+                return found.concat(this.wholeWordsOnly(this.allowedFinds(piece, fuzzy)))
             }
             case "wildcard":
                 return never("a wildcard has no occurrences of its own")
         }
+    }
+
+    /**
+     * Keeps the finds that the matching options allow, since the search folds case and umlauts whatever the options say.
+     * Recounts the edits of a close spelling on the text as the options fold it.
+     */
+    private allowedFinds(piece: FuzzyWordPiece, finds: Occurrence[]): Occurrence[] {
+        if (!piece.strict) {
+            return finds
+        }
+        const allowed: Occurrence[] = []
+        for (const find of finds) {
+            const text = this.line.slice(find.start, find.end)
+            const normalized = normalizeWord(text, this.matching)
+            if (normalized === piece.normalized) {
+                allowed.push({
+                    ...find,
+                    edits: 0,
+                    reasons: reasonsForFoldedMatch(piece.value, text)
+                })
+                continue
+            }
+            if (piece.maxEdits === 0 || differsInCaseAlone(piece.value, text, this.matching)) {
+                continue
+            }
+            const edits = editDistance(
+                codePoints(piece.normalized),
+                codePoints(normalized),
+                piece.maxEdits
+            )
+            if (edits <= piece.maxEdits) {
+                allowed.push({
+                    ...find,
+                    edits,
+                    reasons: [{ kind: "fuzzy", query: piece.value, found: text, edits }]
+                })
+            }
+        }
+        return allowed
+    }
+
+    private wholeWordsOnly(finds: Occurrence[]): Occurrence[] {
+        if (!this.matching.matchWholeWord) {
+            return finds
+        }
+        return finds.filter(
+            (find) =>
+                !WORD_CHAR_BEFORE.test(this.line.slice(Math.max(0, find.start - 2), find.start)) &&
+                !WORD_CHAR_AFTER.test(this.line.slice(find.end, find.end + 2))
+        )
     }
 
     private caseFold(): FoldedText {

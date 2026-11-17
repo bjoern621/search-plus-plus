@@ -16,7 +16,7 @@ export const textEngine = {
         const lines = splitLines(file.text)
         for (let line = 0; line < lines.length; line++) {
             if (signal.aborted) return []
-            const found = findInLine(lines[line] ?? "", query.pieces)
+            const found = findInLine(lines[line] ?? "", query.pieces, query.matching)
             if (found.length === 0) continue
             matches.push({
                 line,

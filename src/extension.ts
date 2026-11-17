@@ -45,6 +45,7 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
         }),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration("workbench.iconTheme")) void provider.reloadIconTheme()
+            if (event.affectsConfiguration("searchPlusPlus")) provider.searchAgain()
             if (
                 event.affectsConfiguration("workbench.tree") ||
                 event.affectsConfiguration("search.searchOnType") ||

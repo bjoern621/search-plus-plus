@@ -99,7 +99,32 @@
         "configuration": {
             "title": "Search++",
             "properties": {
+                "searchPlusPlus.matchCase": {
+                    "type": "boolean",
+                    "default": false,
+                    "order": 1,
+                    "markdownDescription": "A query word finds only text in its own case: `Secret` leaves out `secret`. Quotes around a word do this for that word alone."
+                },
+                "searchPlusPlus.matchWholeWord": {
+                    "type": "boolean",
+                    "default": false,
+                    "order": 2,
+                    "markdownDescription": "A query word finds only whole words: `grav` leaves out `gravitee`. Key paths compare whole keys either way."
+                },
+                "searchPlusPlus.umlautVariants": {
+                    "type": "boolean",
+                    "default": true,
+                    "order": 3,
+                    "markdownDescription": "Each umlaut and its spelled-out form find each other: `Größe` finds `Groesse`, and `Groesse` finds `Größe`. Turn it off when the two spellings stand for different words."
+                },
+                "searchPlusPlus.fuzzy": {
+                    "type": "boolean",
+                    "default": true,
+                    "order": 4,
+                    "markdownDescription": "A query word also finds words a letter or two off: `secret` finds `socket`. Words under three letters match exactly either way. Turn it off when these matches crowd the results."
+                },
                 "searchPlusPlus.contextLines": {
+                    "order": 5,
                     "type": "integer",
                     "default": 1,
                     "minimum": 0,

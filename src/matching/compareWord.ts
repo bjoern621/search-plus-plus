@@ -1,6 +1,6 @@
-import type { MatchReason } from "../search/types"
+import { DEFAULT_MATCHING, type MatchingOptions, type MatchReason } from "../search/types"
 import { allowedEdits, editDistance } from "./distance"
-import { codePointLength, codePoints, foldCase, foldCaseAndUmlauts } from "./fold"
+import { codePointLength, codePoints, foldCase, foldCaseAndUmlauts, spellOutUmlauts } from "./fold"
 
 export interface WordComparison {
     /** Empty for a match as written. */
@@ -10,14 +10,15 @@ export interface WordComparison {
 /**
  * Compares a query word with a whole candidate, such as a word of a line or a key of a key path.
  * Exact: the candidate must be identical.
- * Otherwise the candidate may differ in case and umlaut spelling.
- * After folding both, it may also lie as many edits away as `allowedEdits` grants the query word's length.
+ * Otherwise the candidate may differ in case and umlaut spelling, as far as `matching` allows.
+ * With `matching.fuzzy`, it may also lie as many edits away as `allowedEdits` grants the query word's length.
  * Returns undefined if the candidate does not match.
  */
 export function compareWord(
     queryWord: string,
     candidate: string,
-    exact: boolean
+    exact: boolean,
+    matching: MatchingOptions = DEFAULT_MATCHING
 ): WordComparison | undefined {
     if (candidate === queryWord) {
         return { reasons: [] }
@@ -26,13 +27,16 @@ export function compareWord(
         return undefined
     }
 
-    const foldedQuery = foldCaseAndUmlauts(queryWord)
-    const foldedCandidate = foldCaseAndUmlauts(candidate)
+    const foldedQuery = normalizeWord(queryWord, matching)
+    const foldedCandidate = normalizeWord(candidate, matching)
     if (foldedQuery === foldedCandidate) {
         return { reasons: reasonsForFoldedMatch(queryWord, candidate) }
     }
+    if (differsInCaseAlone(queryWord, candidate, matching)) {
+        return undefined
+    }
 
-    const maxEdits = allowedEdits(codePointLength(queryWord))
+    const maxEdits = matching.fuzzy ? allowedEdits(codePointLength(queryWord)) : 0
     if (maxEdits === 0) {
         return undefined
     }
@@ -41,6 +45,26 @@ export function compareWord(
         return undefined
     }
     return { reasons: [{ kind: "fuzzy", query: queryWord, found: candidate, edits }] }
+}
+
+/** Folds the case and the umlauts of a text as far as `matching` allows, so two texts that `matching` treats as equal come out equal. */
+export function normalizeWord(text: string, matching: MatchingOptions): string {
+    if (matching.matchCase) {
+        return matching.umlautVariants ? spellOutUmlauts(text) : text.normalize("NFC")
+    }
+    return matching.umlautVariants ? foldCaseAndUmlauts(text) : foldCase(text)
+}
+
+/**
+ * True under `matchCase` when the two texts differ in case and nothing else, such as `Secret` and `secret`.
+ * Such a pair never counts as a close spelling, so `matchCase` holds under `fuzzy` as well.
+ */
+export function differsInCaseAlone(a: string, b: string, matching: MatchingOptions): boolean {
+    if (!matching.matchCase) {
+        return false
+    }
+    const caseless = { ...matching, matchCase: false }
+    return normalizeWord(a, caseless) === normalizeWord(b, caseless)
 }
 
 /**

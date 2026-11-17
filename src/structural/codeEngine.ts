@@ -1,7 +1,7 @@
 import { findInChain } from "../query"
 import type { KeyPathPattern } from "../query/types"
 import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
-import { compareKeyDefault } from "./compareKeyDefault"
+import { compareKeyFor } from "./compareKeyDefault"
 import { CODE_FILES, isFileOfKind, keyPathOf } from "./fileKinds"
 import { cachedCompareKey, lineMatch, reasonsOf } from "./keyPathCollector"
 import { LineIndex } from "./lineIndex"
@@ -29,7 +29,7 @@ export const codeEngine: SearchEngine = {
             return []
         }
         const lines = new LineIndex(file.text)
-        const compareKey = cachedCompareKey(compareKeyDefault)
+        const compareKey = cachedCompareKey(compareKeyFor(query))
         const matches: LineMatch[] = []
         const chains = memberChains(file.text)
         for (let i = 0; i < chains.length; i++) {

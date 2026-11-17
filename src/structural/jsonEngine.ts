@@ -1,6 +1,6 @@
 import { visit } from "jsonc-parser"
 import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
-import { compareKeyDefault } from "./compareKeyDefault"
+import { compareKeyFor } from "./compareKeyDefault"
 import { isFileOfKind, JSON_FILES, keyPathOf } from "./fileKinds"
 import { KeyPathCollector, SearchAborted } from "./keyPathCollector"
 
@@ -22,7 +22,7 @@ export const jsonEngine: SearchEngine = {
         if (pattern === undefined) {
             return []
         }
-        const collector = new KeyPathCollector(file.text, pattern, compareKeyDefault, signal)
+        const collector = new KeyPathCollector(file.text, pattern, compareKeyFor(query), signal)
         try {
             walkJson(file.text, collector)
         } catch (error) {

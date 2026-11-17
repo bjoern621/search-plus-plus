@@ -227,6 +227,10 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         case "focus":
             selectQuery()
             return
+        case "searchAgain":
+            if (searched && searched.query !== "")
+                vscode.postMessage({ type: "search", ...searched })
+            return
         case "settings":
             settings = message.settings
             rowsElement.style.setProperty("--tree-indent", `${message.settings.treeIndentPx}px`)

@@ -1,5 +1,5 @@
 import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
-import { compareKeyDefault } from "./compareKeyDefault"
+import { compareKeyFor } from "./compareKeyDefault"
 import { isFileOfKind, keyPathOf, TOML_FILES } from "./fileKinds"
 import { KeyPathCollector, SearchAborted } from "./keyPathCollector"
 import { readTomlKeys } from "./tomlKeys"
@@ -22,7 +22,7 @@ export const tomlEngine: SearchEngine = {
         if (pattern === undefined) {
             return []
         }
-        const collector = new KeyPathCollector(file.text, pattern, compareKeyDefault, signal)
+        const collector = new KeyPathCollector(file.text, pattern, compareKeyFor(query), signal)
         try {
             readTomlKeys(file.text, (keys, start, end) => collector.visit(keys, start, end))
         } catch (error) {

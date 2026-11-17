@@ -17,6 +17,7 @@ import type {
     ViewMessage
 } from "./messages"
 import { assertNever } from "./search/assert"
+import { DEFAULT_MATCHING, type MatchingOptions } from "./search/types"
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs"
 import { RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config"
 import { parseQuery } from "./query"
@@ -105,7 +106,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         const outcome = await vscode.window
             .withProgress({ location: { viewId: SearchViewProvider.viewId } }, () =>
                 this.runner.run({
-                    query: parseQuery(raw),
+                    query: parseQuery(raw, matchingSettings()),
                     roots,
                     contextLines: vscode.workspace
                         .getConfiguration("searchPlusPlus")
@@ -174,6 +175,11 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     private resultsLayout(): ResultsLayout {
         const layout = this.workspaceState.get<string>(RESULTS_LAYOUT_KEY)
         return layout === "tree" || layout === "list" ? layout : DEFAULT_RESULTS_LAYOUT
+    }
+
+    /** Runs the last search of the view again, so it follows a changed extension setting. */
+    searchAgain(): void {
+        this.post({ type: "searchAgain" })
     }
 
     /** Sends the workbench and search settings that the view follows. */
@@ -315,6 +321,17 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 
     private post(message: HostMessage): void {
         void this.view?.webview.postMessage(message)
+    }
+}
+
+/** The matching defaults that the extension settings turn on or off. */
+function matchingSettings(): MatchingOptions {
+    const settings = vscode.workspace.getConfiguration("searchPlusPlus")
+    return {
+        matchCase: settings.get<boolean>("matchCase", DEFAULT_MATCHING.matchCase),
+        matchWholeWord: settings.get<boolean>("matchWholeWord", DEFAULT_MATCHING.matchWholeWord),
+        umlautVariants: settings.get<boolean>("umlautVariants", DEFAULT_MATCHING.umlautVariants),
+        fuzzy: settings.get<boolean>("fuzzy", DEFAULT_MATCHING.fuzzy)
     }
 }
 
