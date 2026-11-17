@@ -115,6 +115,10 @@ body {
   outline: none;
 }
 
+.query-input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
 .query-input::selection {
   background: var(--vscode-editor-selectionBackground);
   color: var(--vscode-input-foreground);

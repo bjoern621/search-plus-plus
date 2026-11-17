@@ -416,7 +416,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   <div class="query-row">
     <div class="query-box">
       <div id="query-highlight" class="query-highlight" aria-hidden="true"></div>
-      <input id="query" class="query-input" aria-label="Search" spellcheck="false" autocomplete="off">
+      <input id="query" class="query-input" aria-label="Search" placeholder="Search text or a key path such as gateway.image.tag" spellcheck="false" autocomplete="off">
     </div>
     <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields">&#x2026;</button>
   </div>
@@ -426,7 +426,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   </div>
   <div id="hint" class="hint" role="status" hidden></div>
 </div>
-<div id="summary" class="summary" hidden>
+<div id="summary" class="summary">
   <span id="summary-text"></span>
   <button id="scope" class="scope" aria-label="Change scope">Working tree &#x25be;</button>
 </div>

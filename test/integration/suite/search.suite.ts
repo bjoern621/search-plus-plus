@@ -91,7 +91,7 @@ describe("Structural Search view", () => {
   it("shows the parser's message for a regex that cannot compile and searches nothing", async () => {
     const snapshot = await search("/tag: (/");
     assert.match(snapshot.hint, /^The regex cannot compile: .+\. Fix it or drop the slashes\.$/);
-    assert.equal(snapshot.summary, "");
+    assert.equal(snapshot.summary, " | Working tree ▾");
     assert.deepEqual(snapshot.rows, []);
   });
 

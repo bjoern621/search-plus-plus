@@ -396,13 +396,12 @@ function layout(): void {
 
 /**
  * Shows the counts and the scope button.
- * A scope other than the working tree shows in color and keeps the line in view without results, so a Git search never passes for a working tree search.
+ * The button shows without results as well, so the scope can change before the first search.
+ * A scope other than the working tree shows in color, so a Git search never passes for a working tree search.
  */
 function renderSummary(): void {
-  const text = summaryFor();
   const otherScope = state.scope.kind !== "workingTree";
-  summary.hidden = text === undefined && !otherScope;
-  summaryText.textContent = text ?? "";
+  summaryText.textContent = summaryFor() ?? "";
   scope.hidden = status === "noFolder";
   scope.textContent = `${scopeLabel(state.scope, git)} ▾`;
   scope.classList.toggle("other", otherScope);
