@@ -135,7 +135,7 @@ export class ResultTree {
 
     /**
      * Lays out the rows. `collapsed` holds the keys of collapsed folder and file rows.
-     * The `list` and `path` layouts show no folder rows: every file sits at the top, sorted by its path.
+     * The `list` layout shows no folder rows: every file sits at the top, sorted by its path.
      */
     rows(collapsed: ReadonlySet<string>, layout: ResultsLayout): Row[] {
         if (layout !== "tree") return this.flatRows(collapsed)

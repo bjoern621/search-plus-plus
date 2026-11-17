@@ -62,9 +62,6 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
         ),
         vscode.commands.registerCommand("structuralSearch.viewAsList", () =>
             provider.setResultsLayout("list")
-        ),
-        vscode.commands.registerCommand("structuralSearch.viewAsPaths", () =>
-            provider.setResultsLayout("path")
         )
     )
 

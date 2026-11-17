@@ -558,13 +558,11 @@ function rowElement(row: Row, index: number): HTMLElement {
                 if (row.folders !== "")
                     element.append(
                         pathElement(
-                            resultsLayout === "list" ? "folder-path dimmed" : "folder-path",
+                            "folder-path dimmed",
                             folderCuts(row.folders, row.distinctFolders)
                         )
                     )
-                element.append(
-                    span(resultsLayout === "list" ? "label" : "label file-name", row.file.name)
-                )
+                element.append(span("label", row.file.name))
             }
             element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)))
             return element

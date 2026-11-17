@@ -49,12 +49,6 @@
                 "title": "View as List",
                 "category": "Structural Search",
                 "enablement": "structuralSearch.resultsLayout != list"
-            },
-            {
-                "command": "structuralSearch.viewAsPaths",
-                "title": "View as Paths",
-                "category": "Structural Search",
-                "enablement": "structuralSearch.resultsLayout != path"
             }
         ],
         "submenus": [
@@ -80,10 +74,6 @@
                 {
                     "command": "structuralSearch.viewAsList",
                     "group": "navigation@2"
-                },
-                {
-                    "command": "structuralSearch.viewAsPaths",
-                    "group": "navigation@3"
                 }
             ]
         },

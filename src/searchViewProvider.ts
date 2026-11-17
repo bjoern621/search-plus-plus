@@ -170,8 +170,10 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         this.post({ type: "resultsLayout", layout })
     }
 
+    /** A workspace that kept a layout the view no longer offers, such as the removed `path`, gets the default. */
     private resultsLayout(): ResultsLayout {
-        return this.workspaceState.get<ResultsLayout>(RESULTS_LAYOUT_KEY, DEFAULT_RESULTS_LAYOUT)
+        const layout = this.workspaceState.get<string>(RESULTS_LAYOUT_KEY)
+        return layout === "tree" || layout === "list" ? layout : DEFAULT_RESULTS_LAYOUT
     }
 
     /** Sends the workbench and search settings that the view follows. */

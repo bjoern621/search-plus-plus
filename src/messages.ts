@@ -95,9 +95,8 @@ export type ViewMessage =
  * How the results show.
  * `tree`: files in their folder tree.
  * `list`: every file at the top, its name after its dimmed folders.
- * `path`: every file at the top, its name in bold after its folders.
  */
-export type ResultsLayout = "tree" | "list" | "path"
+export type ResultsLayout = "tree" | "list"
 
 /** Workbench settings that the view follows. */
 export interface ViewSettings {

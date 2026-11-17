@@ -34,7 +34,7 @@ The level decides how far the view keeps the feature from the query input.
 | Query highlighting                   | Core     | colors in the query input                                                      |
 | Exclude buttons on folders and files | Frequent | on hover over a result                                                         |
 | Context menu on a match              | Frequent | on right-click on a match                                                      |
-| Results as paths or a folder tree    | Frequent | View As menu in the view title                                                 |
+| Results as a list or a folder tree   | Frequent | View As menu in the view title                                                 |
 | Files to include and exclude         | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Settings for the matching defaults   | Rare     | behind the gear in the view title                                              |
 
@@ -62,13 +62,12 @@ Every search covers the files that the ignore files and the exclude settings of 
 - Up and Down move between folders, files and matched lines and pass over the context lines, since the built-in Search view shows none.
   As in the built-in Search view, Up and Down in the query input walk the search history.
   Ctrl+Down moves into the results, through files to include and files to exclude while they show.
-- The View As menu in the view title lays the results out as a list, as paths or as a folder tree, as View as List and View as Tree do in the built-in Search view.
+- The View As menu in the view title lays the results out as a list or as a folder tree, as View as List and View as Tree do in the built-in Search view.
   The menu grays out the current layout.
   Each workspace keeps its layout across reloads, starting with the list.
-- The list and the paths show every file at the top, sorted by its path folder by folder, the files of a folder before its subfolders.
-  Both show the path of a file relative to its workspace folder: `charts/apim/values.yaml`.
-  The list dims the folders before the file name.
-  The paths set the file name in bold.
+- The list shows every file at the top, sorted by its path folder by folder, the files of a folder before its subfolders.
+  It shows the path of a file relative to its workspace folder: `charts/apim/values.yaml`.
+  It dims the folders before the file name.
   A narrow side bar drops whole folders from the front of the path and keeps the file name whole: `…/apim/values.yaml`.
   Files sharing a name keep the folders that tell them apart until last, and a run of dropped folders shows as one `…`: `…/atticd-speed/…/docs.md`.
   Those folders sit in the same section of every path, counted from the first folder or from the file, whichever tells more paths apart.

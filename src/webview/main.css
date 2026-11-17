@@ -374,7 +374,7 @@ button {
 }
 
 /*
- * In the list and the path layout, the folders before the file name take the room that the name leaves.
+ * In the list layout, the folders before the file name take the room that the name leaves.
  * A narrow view drops whole folders from their front and keeps the file name whole.
  */
 .folder-path {
@@ -390,10 +390,6 @@ button {
 /* The list dims the folders as the descriptions of the workbench trees, at the size of the file name, so the path reads as one text. */
 .folder-path.dimmed {
     opacity: 0.7;
-}
-
-.label.file-name {
-    font-weight: bold;
 }
 
 .description {
