@@ -21,11 +21,16 @@ function keyText(key: string): string {
  * Returns undefined once the last key alone fails to fit.
  */
 export function cutKeyPath(keys: readonly string[], width: number, measure: (text: string) => number): string | undefined {
+  return keyPathCuts(keys).find((text) => measure(text) <= width);
+}
+
+/** Lists the ways that `cutKeyPath` writes `keys`, the whole path first and the last key alone last. */
+export function keyPathCuts(keys: readonly string[]): string[] {
   const texts = keys.map(keyText);
-  const candidates = [texts.join(".")];
-  for (let kept = 2; kept < texts.length; kept++) candidates.push([texts[0], "…", ...texts.slice(kept)].join("."));
-  if (texts.length > 1) candidates.push(`….${texts.at(-1)}`);
-  return candidates.find((text) => measure(text) <= width);
+  const cuts = [texts.join(".")];
+  for (let kept = 2; kept < texts.length; kept++) cuts.push([texts[0], "…", ...texts.slice(kept)].join("."));
+  if (texts.length > 1) cuts.push(`….${texts.at(-1)}`);
+  return cuts;
 }
 
 const keysOfElement = new WeakMap<Element, readonly string[]>();
@@ -52,7 +57,8 @@ export function fitKeyPaths(elements: Iterable<HTMLElement>): void {
     const keys = keysOfElement.get(element);
     if (!text || !keys || element.scrollWidth <= element.clientWidth) return [];
     const style = getComputedStyle(element);
-    const width = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    // The box takes fractions of a pixel, which clientWidth rounds away.
+    const width = element.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     return [{ element, text, cut: cutKeyPath(keys, width, (candidate) => textWidth(candidate, style.font)) }];
   });
   for (const { element, text, cut } of cuts) {

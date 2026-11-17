@@ -109,6 +109,8 @@ export interface TestSnapshot {
   keyPaths: string[];
   /** The key path that each drawn row shows, cut to its room. Empty for a drawn row without one, null for a row not drawn. */
   drawnKeyPaths: (string | null)[];
+  /** How the key path of each drawn row fits the room after its line text. Null for a row not drawn or without a key path. */
+  keyPathRooms: (KeyPathRoom | null)[];
   /** Index of the row drawn with the focus, -1 without one. */
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
@@ -127,6 +129,16 @@ export interface TestSnapshot {
   fileRowMetrics: RowMetrics | undefined;
   /** How the first drawn code line measures. Undefined while the view draws none. */
   codeLineMetrics: RowMetrics | undefined;
+}
+
+/** Widths in pixels, each measured in the page. */
+export interface KeyPathRoom {
+  /** The space from the end of the line text, plus the gap before a key path, to the end of the row. */
+  room: number;
+  /** The drawn key path, 0 for a key path that hides. */
+  drawn: number;
+  /** The cut one step longer than the drawn one, null for a key path drawn whole. */
+  longer: number | null;
 }
 
 /** Sizes in pixels. */

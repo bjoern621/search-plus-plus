@@ -1,4 +1,4 @@
-import type { FileResult, HostMessage, RowMetrics, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
+import type { FileResult, HostMessage, KeyPathRoom, RowMetrics, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
@@ -11,7 +11,7 @@ import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
-import { fitKeyPaths, keyPathElement, keyPathText, shownKeys } from "./keyPath";
+import { fitKeyPaths, keyPathCuts, keyPathElement, keyPathText, shownKeys } from "./keyPath";
 
 interface ViewState extends FileFields {
   query: string;
@@ -709,6 +709,7 @@ function snapshot(): TestSnapshot {
       const element = document.getElementById(`row-${index}`);
       return element ? (element.querySelector(".key-path")?.textContent ?? "") : null;
     }),
+    keyPathRooms: rows.map(keyPathRoom),
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
     focusedMarkColor: markColor(".focused .mark"),
@@ -719,6 +720,30 @@ function snapshot(): TestSnapshot {
     fileRowMetrics: rowMetrics("file"),
     codeLineMetrics: rowMetrics("line"),
   };
+}
+
+/** Measures the room after the line text of a drawn row, and the drawn and the next longer cut of its key path in a hidden copy. */
+function keyPathRoom(row: Row, index: number): KeyPathRoom | null {
+  const element = document.getElementById(`row-${index}`);
+  const text = element?.querySelector(".text");
+  const keys = row.kind === "line" ? shownKeys(row.line) : undefined;
+  if (!element || !text || !keys) return null;
+  const drawnText = element.querySelector(".key-path")?.textContent ?? "";
+  const probe = keyPathElement(keys);
+  probe.style.cssText = "position: absolute; visibility: hidden; max-width: none";
+  element.append(probe);
+  const measure = (cut: string) => {
+    probe.textContent = cut;
+    return probe.getBoundingClientRect().width - parseFloat(getComputedStyle(probe).paddingLeft);
+  };
+  const end = element.getBoundingClientRect().right - parseFloat(getComputedStyle(element).paddingRight);
+  const room = end - text.getBoundingClientRect().right - parseFloat(getComputedStyle(probe).paddingLeft);
+  const cuts = keyPathCuts(keys);
+  const drawnAt = drawnText === "" ? cuts.length : cuts.indexOf(drawnText);
+  const longer = drawnAt > 0 ? cuts[drawnAt - 1] : undefined;
+  const measured = { room, drawn: drawnText === "" ? 0 : measure(drawnText), longer: longer === undefined ? null : measure(longer) };
+  probe.remove();
+  return measured;
 }
 
 function markColor(selector: string): string {

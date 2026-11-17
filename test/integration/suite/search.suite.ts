@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import * as vscode from "vscode";
-import type { TestSnapshot } from "../../../src/messages";
+import type { KeyPathRoom, TestSnapshot } from "../../../src/messages";
 import { type FileFields, NO_FILE_FIELDS } from "../../../src/search/globs";
 import type { StructuralSearchApi } from "../../../src/search/registry";
 import { type SearchScope, WORKING_TREE } from "../../../src/search/scope";
@@ -163,6 +163,19 @@ describe("Structural Search view", () => {
     assert.ok(box, "no hover card");
     assert.ok(keyBoundaryCuts(keys).includes(header.split(" · ")[0] ?? ""), header);
     assert.ok(box.headerKeyPathCut <= 1, JSON.stringify(box));
+  });
+
+  it("cuts each key path to the longest cut that fits the room after its line text", async () => {
+    const rooms: KeyPathRoom[] = [];
+    for (const query of ["platform.ingressController.resourceLimits.memory", "**.tag", "**.replicas"]) {
+      const snapshot = await search(query);
+      rooms.push(...snapshot.keyPathRooms.filter((room): room is KeyPathRoom => room !== null));
+    }
+    assert.ok(rooms.some((room) => room.longer !== null), JSON.stringify(rooms));
+    for (const room of rooms) {
+      assert.ok(room.drawn <= room.room + 0.5, JSON.stringify(room));
+      assert.ok(room.longer === null || room.longer > room.room, JSON.stringify(room));
+    }
   });
 
   it("drops the results of an excluded folder at once and leaves the folder out of later searches", async () => {
