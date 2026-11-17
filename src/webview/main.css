@@ -165,8 +165,10 @@ button {
     color: var(--vscode-input-placeholderForeground);
 }
 
-.query-input::selection {
-    background: var(--vscode-editor-selectionBackground);
+/* Selected text in the inputs takes the selection color of the workbench inputs. A theme without one falls back to the editor selection. */
+.query-input::selection,
+.input::selection {
+    background: var(--vscode-selection-background, var(--vscode-editor-selectionBackground));
     color: var(--vscode-input-foreground);
 }
 
