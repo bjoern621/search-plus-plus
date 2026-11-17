@@ -486,8 +486,8 @@ function rowElement(row: Row, index: number): HTMLElement {
       if (row.line.match) element.classList.add("match");
       if (skipsLines(index)) element.classList.add("after-gap");
       const text = span("text", "");
-      fillLineText(text, dedent(row.line, dedents[index] ?? 0), row.line.offset > 0 ? "…" : "");
-      element.append(span("number", String(row.line.line + 1)), text);
+      fillLineText(text, dedent(row.line, dedents[index] ?? 0));
+      element.append(span("number", String(row.line.line + 1)), span("cut-mark", row.line.offset > 0 ? "…" : ""), text);
       const keys = shownKeys(row.line);
       if (keys) element.append(keyPathElement(keys));
       return element;
@@ -495,8 +495,8 @@ function rowElement(row: Row, index: number): HTMLElement {
   }
 }
 
-function fillLineText(text: HTMLElement, line: ResultLine, lead: string): void {
-  text.replaceChildren(lead);
+function fillLineText(text: HTMLElement, line: ResultLine): void {
+  text.replaceChildren();
   for (const part of highlightParts(line)) {
     if (part.marked) text.append(span("mark", part.text, "mark"));
     else text.append(part.text);
@@ -516,7 +516,10 @@ function cutMatchLines(): void {
     if (row?.kind !== "line") continue;
     const charWidth = markBox.width / mark.textContent.length;
     const cut = cutToMatch(dedent(row.line, dedents[index] ?? 0), Math.floor(text.clientWidth / charWidth));
-    if (cut) fillLineText(text, cut, "");
+    if (!cut) continue;
+    fillLineText(text, cut);
+    const cutMark = element.querySelector<HTMLElement>(".cut-mark");
+    if (cutMark) cutMark.textContent = "…";
   }
 }
 

@@ -447,6 +447,14 @@ button {
   color: var(--vscode-editorLineNumber-foreground);
 }
 
+/* The `…` before a cut line hangs into the gap after the line number, so the text keeps the column of the lines around it. */
+.cut-mark {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  width: 0;
+}
+
 .text {
   overflow: hidden;
   text-overflow: ellipsis;

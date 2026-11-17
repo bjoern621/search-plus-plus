@@ -80,7 +80,8 @@ Every search covers the files that the ignore files and the exclude settings of 
   The least indented line starts at the left edge, and the others keep their indentation relative to it.
   Tabs count to the next tab stop, so lines that mix tabs and spaces still line up.
 - A match line whose match would end past the edge of the row loses the text before the match.
-  The row keeps its indentation, then `…`, then the text from a word boundary about a third of the row before the match.
+  The row keeps its indentation, then the text from a word boundary about a third of the row before the match.
+  The `…` marking the cut hangs in the gap after the line number, so the text keeps the column of the lines around it.
   The row keeps its indentation in every case, so it lines up with the other rows of its block.
   Rows that fit keep their whole text, and a resize cuts anew.
 - Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
