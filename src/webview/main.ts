@@ -459,27 +459,28 @@ function rowElement(row: Row, index: number): HTMLElement {
   element.setAttribute("role", "treeitem");
   switch (row.kind) {
     case "commit":
-      element.className = "row commit";
+      element.classList.add("row", "commit");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = `${row.commit.sha}\n${row.commit.author}, ${row.commit.date}\n${row.commit.subject}`;
       element.append(span("twisty", row.collapsed ? "▶" : "▼"), span("sha", row.commit.shortSha), span("label", row.commit.subject), span("commit-meta", `${row.commit.author}, ${commitDay(row.commit)}`));
       return element;
     case "folder":
-      element.className = "row";
+      element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = row.label;
       element.append(span("twisty", row.collapsed ? "▶" : "▼"), iconTheme.element(row.icon), span("label", row.label));
       if (row.folder !== "") element.append(excludeButton(`Exclude folder ${row.folder}`, folderEntry(row.folder)));
       return element;
     case "file": {
-      element.className = "row";
+      element.classList.add("row");
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
       element.append(span("twisty", row.collapsed ? "▶" : "▼"), iconTheme.element(row.file.icons?.file), span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
     }
     case "line": {
-      element.className = row.line.match ? "line match" : "line";
+      element.classList.add("line");
+      if (row.line.match) element.classList.add("match");
       const text = span("text", row.line.offset > 0 ? "…" : "");
       for (const part of highlightParts(row.line)) {
         if (part.marked) text.append(span("mark", part.text, "mark"));
@@ -639,7 +640,7 @@ function snapshot(): TestSnapshot {
     exclude: excludeInput.value,
     rows: rows.map(describeRow),
     icons: rows.map(rowIcon),
-    focused: focusedIndex,
+    focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
     hover: hoverCard.describe(),
   };

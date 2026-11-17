@@ -94,7 +94,7 @@ export interface TestSnapshot {
   rows: string[];
   /** The icon definition id of each row, empty for a row without icon. */
   icons: string[];
-  /** Index of the focused row, -1 without one. */
+  /** Index of the row drawn with the focus, -1 without one. */
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
   menu: string[];
