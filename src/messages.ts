@@ -50,6 +50,8 @@ export interface TestSnapshot {
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
   menu: string[];
+  /** The file and the lines of the hover card, as the rows describe them. Empty while no card shows. */
+  hover: string[];
 }
 
 export type ViewMessage =
@@ -59,6 +61,8 @@ export type ViewMessage =
   | { type: "copy"; text: string }
   /** Copies the whole line, since the view holds an excerpt of a long line. */
   | { type: "copyLine"; uri: string; line: number }
+  /** Asks for the lines around `line` for the hover card. */
+  | { type: "excerpt"; requestId: number; uri: string; line: number }
   | { type: "testSnapshot"; snapshot: TestSnapshot };
 
 export type HostMessage =
@@ -67,6 +71,8 @@ export type HostMessage =
   | { type: "results"; searchId: number; files: FileResult[] }
   | { type: "hint"; searchId: number; hint: Hint }
   | { type: "searchDone"; searchId: number; status: SearchStatus; limit: number }
+  /** Answers the excerpt request `requestId`. Empty when the file cannot be read. */
+  | { type: "excerpt"; requestId: number; lines: ResultLine[] }
   /** Fields left out keep what the view holds. */
   | { type: "testSearch"; query: string; fields?: FileFields }
   | { type: "testSnapshot" }
@@ -75,5 +81,6 @@ export type HostMessage =
   | { type: "testExcludeRow"; index: number }
   | { type: "testPressKeys"; keys: string[] }
   | { type: "testOpenMenu"; index: number }
+  | { type: "testHover"; index: number }
   | { type: "testChooseMenuItem"; label: string }
   | ({ type: "testTypeFileFields" } & FileFields);

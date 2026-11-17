@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LINE_EXCERPT_LEAD_CHARS, LINE_EXCERPT_LENGTH_CHARS } from "../../src/search/config";
-import { buildFileResult, contextSpans, splitLines } from "../../src/search/results";
+import { buildFileResult, contextSpans, excerptLines, splitLines } from "../../src/search/results";
 
 const place = { rootIndex: 0, root: "", uri: "file:///w/charts/apim/values.yaml", relativePath: "charts/apim/values.yaml", languageId: "yaml" };
 
@@ -80,5 +80,18 @@ describe("splitLines", () => {
     expect(splitLines("a\n")).toEqual(["a"]);
     expect(splitLines("a\n\n")).toEqual(["a", ""]);
     expect(splitLines("")).toEqual([""]);
+  });
+});
+
+describe("excerptLines", () => {
+  it("frames the center line and clips at the file edges", () => {
+    const lines = ["a", "b", "c", "d"];
+    expect(excerptLines(lines, 1, 2).map((line) => [line.line, line.text, line.match])).toEqual([
+      [0, "a", false],
+      [1, "b", false],
+      [2, "c", false],
+      [3, "d", false],
+    ]);
+    expect(excerptLines(lines, 3, 1).map((line) => line.line)).toEqual([2, 3]);
   });
 });

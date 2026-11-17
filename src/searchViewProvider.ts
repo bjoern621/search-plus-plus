@@ -2,10 +2,10 @@ import * as vscode from "vscode";
 import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
-import { RESULT_LINE_LIMIT } from "./search/config";
+import { HOVER_EXCERPT_RADIUS_LINES, RESULT_LINE_LIMIT } from "./search/config";
 import { parseQuery } from "./query";
 import { readSearchText, unsavedTexts } from "./search/reader";
-import { splitLines } from "./search/results";
+import { excerptLines, splitLines } from "./search/results";
 import { searchRoots } from "./search/roots";
 import type { SearchRunner } from "./search/runner";
 import type { SearchRoot } from "./search/workspaceEngine";
@@ -144,6 +144,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     return this.testSnapshot();
   }
 
+  /** Rests the pointer on the row at `index` of the snapshot rows. For integration tests. */
+  async testHover(index: number): Promise<void> {
+    await this.viewReady;
+    this.post({ type: "testHover", index });
+  }
+
   /** Clicks the item labelled `label` in the open context menu, then returns what the view shows. For integration tests. */
   async testChooseMenuItem(label: string): Promise<TestSnapshot> {
     await this.viewReady;
@@ -201,6 +207,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
       case "copyLine":
         void this.copyLine(message.uri, message.line);
         return;
+      case "excerpt":
+        void this.sendExcerpt(message.requestId, message.uri, message.line);
+        return;
       case "testSnapshot":
         this.snapshots.fire(message.snapshot);
         return;
@@ -224,6 +233,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     const lineText = text === undefined ? undefined : splitLines(text)[line];
     if (lineText === undefined) return;
     await vscode.env.clipboard.writeText(lineText);
+  }
+
+  private async sendExcerpt(requestId: number, uri: string, line: number): Promise<void> {
+    const text = await readSearchText(vscode.Uri.parse(uri), unsavedTexts());
+    const lines = text === undefined ? [] : excerptLines(splitLines(text), line, HOVER_EXCERPT_RADIUS_LINES);
+    this.post({ type: "excerpt", requestId, lines });
   }
 
   private resetViewReady(): void {
@@ -276,6 +291,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
 </div>
 <div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
 <div id="menu" class="menu"></div>
+<div id="hover" class="hover" hidden></div>
 <script nonce="${nonce}" src="${script}"></script>
 </body>
 </html>`;

@@ -391,3 +391,45 @@ body {
   margin: 4px 0;
   background: var(--vscode-menu-separatorBackground, var(--vscode-widget-border));
 }
+
+.hover {
+  position: fixed;
+  z-index: 9;
+  box-sizing: border-box;
+  padding: 4px 0;
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-widget-border, transparent));
+  border-radius: 5px;
+  background: var(--vscode-editorHoverWidget-background);
+  color: var(--vscode-editorHoverWidget-foreground);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  overflow: hidden;
+}
+
+.hover-file {
+  padding: 0 8px 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hover-line {
+  display: flex;
+  padding: 0 8px;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.hover-line.match {
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+}
+
+.hover-line.hovered {
+  background: var(--vscode-editor-lineHighlightBackground, var(--vscode-list-hoverBackground));
+}

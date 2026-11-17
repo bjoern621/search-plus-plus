@@ -157,6 +157,14 @@ export function highlightParts(line: ResultLine): { text: string; marked: boolea
   return parts;
 }
 
+/** Writes a line as the integration tests compare it, such as `match 4:     [tag]: 4.1.0` with the marked parts in brackets. */
+export function describeLine(line: ResultLine): string {
+  const text = highlightParts(line)
+    .map((part) => (part.marked ? `[${part.text}]` : part.text))
+    .join("");
+  return `${line.match ? "match" : "context"} ${line.line + 1}: ${text}`;
+}
+
 /** Builds the summary line, such as "4 results in 4 files". */
 export function resultSummary(matchCount: number, fileCount: number, cappedAt?: number): string {
   if (matchCount === 0) return "No results.";

@@ -207,6 +207,22 @@ describe("Structural Search view", () => {
     assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
   });
 
+  it("shows the lines around a match once the pointer rests on it", async () => {
+    const snapshot = await search("4.1.0");
+    const index = snapshot.rows.indexOf("match 4:     tag: [4.1.0]");
+    assert.notEqual(index, -1, snapshot.rows.join("\n"));
+
+    await vscode.commands.executeCommand("structuralSearch.test.hover", index);
+    assert.deepEqual(await shownHover(), [
+      "charts/apim/values.yaml",
+      "context 1: gateway:",
+      "context 2:   image:",
+      "context 3:     repository: graviteeio/apim-gateway",
+      "match 4:     tag: [4.1.0]",
+      "context 5:   replicas: 2",
+    ]);
+  });
+
   it("merges the matches of a registered engine into the lines of the others", async () => {
     const registration = api.registerEngine({
       id: "test.firstWord",
@@ -248,6 +264,17 @@ describe("Structural Search view", () => {
     assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
   });
 });
+
+/** Waits for the hover card to show and returns what it holds. */
+async function shownHover(): Promise<string[]> {
+  const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
+  let hover: string[] = [];
+  while (Date.now() < deadline && hover.length === 0) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    hover = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hover;
+  }
+  return hover;
+}
 
 /** Waits for the clipboard to change from `before` and returns its text. */
 async function changedClipboard(before: string): Promise<string> {

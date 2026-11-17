@@ -1,13 +1,14 @@
-import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
+import type { FileResult, HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
 import { ContextMenu } from "./contextMenu";
+import { HoverCard } from "./hoverCard";
 import { type KeyPress, rowCommand } from "./keyboard";
 import { matchMenu, type MenuAction } from "./menu";
 import { fileIcon } from "./icons";
 import { QueryHighlight, renderHint } from "./queryInput";
-import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
+import { describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 
 interface ViewState extends FileFields {
   query: string;
@@ -41,6 +42,8 @@ const scope = document.getElementById("scope") as HTMLButtonElement;
 const results = document.getElementById("results") as HTMLDivElement;
 const rowsElement = document.getElementById("rows") as HTMLDivElement;
 const contextMenu = new ContextMenu(document.getElementById("menu") as HTMLDivElement, runMenuAction, () => results.focus());
+const hoverElement = document.getElementById("hover") as HTMLDivElement;
+const hoverCard = new HoverCard(hoverElement, (requestId, uri, line) => vscode.postMessage({ type: "excerpt", requestId, uri, line }), renderedMatch);
 
 const tree = new ResultTree();
 /** Keys of the collapsed folder and file rows. */
@@ -63,6 +66,8 @@ let focusedIndex = -1;
 let menuRow: Extract<Row, { kind: "line" }> | undefined;
 /** The scroll position at which the context menu opened. A scroll event that leaves it unchanged keeps the menu open. */
 let menuScrollTop = 0;
+/** The scroll position at which the hover card got its match. */
+let hoverScrollTop = 0;
 
 const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, ...vscode.getState() };
 includeInput.value = state.include;
@@ -127,6 +132,26 @@ rowsElement.addEventListener("contextmenu", (event) => {
   if (openMenu(rowIndexFromEvent(event))) event.preventDefault();
 });
 
+rowsElement.addEventListener("mouseover", (event) => {
+  const row = rows[rowIndexFromEvent(event)];
+  if (row?.kind !== "line" || !row.line.match) {
+    hoverCard.hide();
+    return;
+  }
+  hoverScrollTop = results.scrollTop;
+  hoverCard.schedule(row.file, row.line.line);
+});
+
+// The card covers the rows below its match, so the pointer may move from the match into the card.
+results.addEventListener("mouseleave", (event) => {
+  if (!hoverElement.contains(event.relatedTarget as Node | null)) hoverCard.hide();
+});
+hoverElement.addEventListener("mouseleave", (event) => {
+  if (!rowsElement.contains(event.relatedTarget as Node | null)) hoverCard.hide();
+});
+document.addEventListener("keydown", () => hoverCard.hide(), true);
+window.addEventListener("blur", () => hoverCard.hide());
+
 // The context menu key fires a contextmenu event on the results after the keydown that opened the menu.
 results.addEventListener("contextmenu", (event) => {
   if (event.target === results) event.preventDefault();
@@ -134,6 +159,7 @@ results.addEventListener("contextmenu", (event) => {
 
 results.addEventListener("scroll", () => {
   if (results.scrollTop !== menuScrollTop) contextMenu.close(false);
+  if (results.scrollTop !== hoverScrollTop) hoverCard.hide();
   scheduleRender();
 });
 new ResizeObserver(() => scheduleRender()).observe(results);
@@ -157,6 +183,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       if (message.searchId !== searchId) return;
       blockedHint = message.hint;
       refreshHint();
+      return;
+    case "excerpt":
+      hoverCard.show(message.requestId, message.lines);
       return;
     case "searchDone":
       if (message.searchId !== searchId) return;
@@ -186,6 +215,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       return;
     case "testOpenMenu":
       showRow(message.index)?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+      return;
+    case "testHover":
+      showRow(message.index)?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
       return;
     case "testChooseMenuItem":
       contextMenu.chooseLabel(message.label);
@@ -288,6 +320,7 @@ function startSearch(id: number): void {
   status = "running";
   cappedAt = undefined;
   tree.clear();
+  hoverCard.hide();
   collapsed.clear();
   focusedIndex = -1;
   results.removeAttribute("aria-activedescendant");
@@ -479,6 +512,7 @@ function openMenu(index: number): boolean {
   if (!element) return false;
   menuRow = row;
   menuScrollTop = results.scrollTop;
+  hoverCard.hide();
   contextMenu.open(matchMenu(row.file, row.line, searched?.query ?? input.value), element.getBoundingClientRect());
   return true;
 }
@@ -535,6 +569,7 @@ function snapshot(): TestSnapshot {
     rows: rows.map(describeRow),
     focused: focusedIndex,
     menu: contextMenu.describe(),
+    hover: hoverCard.describe(),
   };
 }
 
@@ -544,13 +579,15 @@ function describeRow(row: Row): string {
       return `folder ${row.label}`;
     case "file":
       return `file ${row.file.name}`;
-    case "line": {
-      const text = highlightParts(row.line)
-        .map((part) => (part.marked ? `[${part.text}]` : part.text))
-        .join("");
-      return `${row.line.match ? "match" : "context"} ${row.line.line + 1}: ${text}`;
-    }
+    case "line":
+      return describeLine(row.line);
   }
+}
+
+/** Returns the rendered row of the match on `line` of `file`. */
+function renderedMatch(file: FileResult, line: number): HTMLElement | undefined {
+  const index = rows.findIndex((row) => row.kind === "line" && row.file.uri === file.uri && row.line.line === line);
+  return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`) ?? undefined;
 }
 
 /** Scrolls the row at `index` into view and clicks its element, as a person would. */
