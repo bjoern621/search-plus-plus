@@ -176,6 +176,17 @@ results.addEventListener("focus", () =>
     results.classList.toggle("keyboard-focus", lastInputFromKeyboard)
 )
 
+// Switching to the view from the workbench, such as through the activity bar, selects the query, so typing starts a new search.
+// A click into the view keeps the focus where the click puts it. Its pointerdown can follow the focus event, so the check waits a frame.
+let pointerDownSinceWindowFocus = false
+document.addEventListener("pointerdown", () => (pointerDownSinceWindowFocus = true), true)
+window.addEventListener("focus", () => {
+    pointerDownSinceWindowFocus = false
+    requestAnimationFrame(() => {
+        if (!pointerDownSinceWindowFocus) selectQuery()
+    })
+})
+
 results.addEventListener("keydown", (event) => {
     if (event.target !== results) return
     results.classList.add("keyboard-focus")
@@ -214,8 +225,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     const message = event.data
     switch (message.type) {
         case "focus":
-            input.focus()
-            input.select()
+            selectQuery()
             return
         case "settings":
             settings = message.settings
@@ -391,6 +401,11 @@ function clearInput(field: HTMLInputElement): void {
     field.value = ""
     field.focus()
     field.dispatchEvent(new Event("input"))
+}
+
+function selectQuery(): void {
+    input.focus()
+    input.select()
 }
 
 function saveState(): void {

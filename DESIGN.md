@@ -45,6 +45,7 @@ An input holding text shows a trash button at its right edge, which empties it a
 
 As in the built-in Search view, typing in the query input or the file fields searches once typing pauses for `search.searchOnTypeDebouncePeriod`, while `search.searchOnType` stays on.
 Enter searches at once.
+Switching to the view selects the query, so typing replaces it, as Ctrl+Shift+F does in the built-in Search view.
 A keystroke cancels the search that runs.
 An empty query clears the results.
 A query enters the search history on Enter or once no other search replaced it for two seconds, as in the built-in Search view.
