@@ -84,20 +84,22 @@ describe("Structural Search view", () => {
     assert.notEqual(index, -1, snapshot.rows.join("\n"));
 
     await vscode.commands.executeCommand("structuralSearch.test.clickRow", index);
-    const editor = await visibleEditor("charts/apim/values.yaml");
-    assert.deepEqual(
-      [editor.selection.start.line, editor.selection.start.character, editor.selection.end.line, editor.selection.end.character],
-      [4, 2, 4, 10],
-    );
+    assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
   });
 });
 
-async function visibleEditor(pathSuffix: string): Promise<vscode.TextEditor> {
+/**
+ * Returns the selection of the editor that shows `pathSuffix` as start line, start character, end line and end character.
+ * An editor can show the file before it applies the selection, so this waits for `expected` and returns the last selection seen.
+ */
+async function settledSelection(pathSuffix: string, expected: number[]): Promise<number[] | undefined> {
   const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
-  for (;;) {
+  let selection: number[] | undefined;
+  while (Date.now() < deadline) {
     const editor = vscode.window.visibleTextEditors.find((candidate) => candidate.document.uri.path.endsWith(pathSuffix));
-    if (editor) return editor;
-    assert.ok(Date.now() < deadline, `no editor showed ${pathSuffix} within ${EDITOR_WAIT_DURATION_MS} ms`);
+    selection = editor && [editor.selection.start.line, editor.selection.start.character, editor.selection.end.line, editor.selection.end.character];
+    if (selection?.join() === expected.join()) return selection;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
+  return selection;
 }
