@@ -1,0 +1,10 @@
+{
+  // Shared settings for the extension
+  "compilerOptions": {
+    "target": "ES2022",
+    /* strictness */
+    "strict": true,
+    "paths": { "@/*": ["src/*"] },
+  },
+  "include": ["src", "test"]
+}

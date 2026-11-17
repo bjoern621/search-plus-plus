@@ -130,10 +130,62 @@
       }
     ]
   },
-  "components": [],
+  "components": [
+    {
+      "type": "library",
+      "name": "jsonc-parser",
+      "version": "3.3.1",
+      "bom-ref": "structural-search@0.0.1|jsonc-parser@3.3.1",
+      "author": "Microsoft Corporation",
+      "description": "Scanner and parser for JSON with comments.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/jsonc-parser@3.3.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/jsonc-parser/-/jsonc-parser-3.3.1.tgz",
+          "type": "distribution",
+          "comment": "as detected from npm-ls property \"resolved\""
+        },
+        {
+          "url": "https://github.com/microsoft/node-jsonc-parser/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "git+https://github.com/microsoft/node-jsonc-parser.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/microsoft/node-jsonc-parser#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/jsonc-parser"
+        }
+      ]
+    }
+  ],
   "dependencies": [
     {
-      "ref": "structural-search@0.0.1"
+      "ref": "structural-search@0.0.1",
+      "dependsOn": [
+        "structural-search@0.0.1|jsonc-parser@3.3.1"
+      ]
+    },
+    {
+      "ref": "structural-search@0.0.1|jsonc-parser@3.3.1"
     }
   ]
 }

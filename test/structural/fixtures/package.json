@@ -1,0 +1,13 @@
+{
+  "name": "demo",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "test": "vitest run"
+  },
+  "contributes": {
+    "commands": [
+      { "command": "demo.focus", "title": "Focus" },
+      { "command": "demo.run", "title": "Run" }
+    ]
+  }
+}
