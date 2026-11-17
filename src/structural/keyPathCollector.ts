@@ -1,4 +1,4 @@
-import { matchKeyPath } from "../query";
+import { matchKeyPath, usesKeyPathSyntax } from "../query";
 import type { CompareKey, KeyMatch, KeyPathMatch, KeyPathPattern, KeyPathSegment } from "../query/types";
 import type { LineMatch, MatchReason, Range } from "../search/types";
 import { LineIndex } from "./lineIndex";
@@ -24,6 +24,7 @@ export class KeyPathCollector {
   private readonly matches = new Map<number, { match: LineMatch; throughAlias: boolean }>();
   private readonly compareKey: CompareKey;
   private readonly filters: PositionFilters;
+  private readonly showKeyPath: boolean;
   private visitedNodes = 0;
 
   constructor(
@@ -35,6 +36,7 @@ export class KeyPathCollector {
     this.lines = new LineIndex(text);
     this.compareKey = cachedCompareKey(compareKey);
     this.filters = positionFilters(pattern, this.compareKey);
+    this.showKeyPath = usesKeyPathSyntax(pattern);
   }
 
   /**
@@ -60,7 +62,8 @@ export class KeyPathCollector {
     if (match === undefined) {
       return;
     }
-    this.matches.set(start, { match: { ...lineMatch(this.lines, start, end, [...keys], reasonsOf(match)), showKeyPath: true }, throughAlias });
+    const found = lineMatch(this.lines, start, end, [...keys], reasonsOf(match));
+    this.matches.set(start, { match: this.showKeyPath ? { ...found, showKeyPath: true } : found, throughAlias });
   }
 
   /** The matches in the order of their lines and ranges. */

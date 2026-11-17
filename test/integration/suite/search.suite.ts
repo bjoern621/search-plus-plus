@@ -116,11 +116,18 @@ describe("Structural Search view", () => {
     assert.ok(snapshot.rows.includes("match 4:     [tag]: 4.1.0"), snapshot.rows.join("\n"));
   });
 
-  it("shows the key path after the line of a YAML key and none after a text match", async () => {
+  it("shows the key path after the line of a key that a key path query matched", async () => {
+    const snapshot = await search("gateway.*");
+    assert.deepEqual(shownKeyPaths(snapshot), {
+      "match 2:   [image]:": "gateway.image",
+      "match 5:   [replicas]: 2": "gateway.replicas",
+    });
+  });
+
+  it("shows no key path after the line of a key that a single word matched", async () => {
     const snapshot = await search("gateway");
-    const shown = Object.fromEntries(snapshot.rows.flatMap((row, index) => (row.startsWith("match ") ? [[row, snapshot.keyPaths[index]]] : [])));
-    assert.deepEqual(shown, {
-      "match 1: [gateway]:": "gateway",
+    assert.deepEqual(shownKeyPaths(snapshot), {
+      "match 1: [gateway]:": "",
       "match 3:     repository: graviteeio/apim-[gateway]": "",
       "match 3: Move the [gateway] to 4.1.0 before the portal.": "",
     });
@@ -512,6 +519,11 @@ async function changedIcons(settled: (icons: Record<string, string>) => boolean)
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   return icons;
+}
+
+/** Maps each match row to the key path that it shows, empty for a row without one. */
+function shownKeyPaths(snapshot: TestSnapshot): Record<string, string> {
+  return Object.fromEntries(snapshot.rows.flatMap((row, index) => (row.startsWith("match ") ? [[row, snapshot.keyPaths[index] ?? ""]] : [])));
 }
 
 /** Waits for the hover card to show and returns what it holds. */

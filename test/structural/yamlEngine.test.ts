@@ -23,6 +23,12 @@ describe("yamlEngine: examples from DESIGN.md", () => {
     expect(matches.map((match) => match.showKeyPath)).toEqual([true, true, true]);
   });
 
+  it("shows no key path for the match of a query without key path syntax", () => {
+    const matches = search(yamlEngine, "values.yaml", "yaml", values, "global");
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches.map((match) => match.showKeyPath)).toEqual(matches.map(() => undefined));
+  });
+
   it("finds global.values.gravitee.enabled through Global.Values.Gravite.Enabled", () => {
     const matches = search(yamlEngine, "values.yaml", "yaml", values, "Global.Values.Gravite.Enabled");
     expect(found(matches)[0]).toBe("5: global.values.gravitee.enabled");
