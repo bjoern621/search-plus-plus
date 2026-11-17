@@ -1,13 +1,30 @@
 import assert from "node:assert/strict";
 import * as vscode from "vscode";
 import type { TestSnapshot } from "../../../src/messages";
+import { type FileFields, NO_FILE_FIELDS } from "../../../src/search/globs";
 import type { StructuralSearchApi } from "../../../src/search/registry";
 
 const EXTENSION_ID = "bjoern621.structural-search";
 const EDITOR_WAIT_DURATION_MS = 5_000;
 
-function search(query: string): Thenable<TestSnapshot> {
+/** Searches with `fields` in files to include and exclude. */
+function search(query: string, fields: FileFields = NO_FILE_FIELDS): Thenable<TestSnapshot> {
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.search", query, fields);
+}
+
+/** Searches with what the files to include and exclude fields hold. */
+function searchKeepingFields(query: string): Thenable<TestSnapshot> {
   return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.search", query);
+}
+
+function typeFileFields(fields: FileFields, startsSearch: boolean): Thenable<TestSnapshot> {
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.typeFileFields", fields, startsSearch);
+}
+
+function excludeRow(rows: string[], row: string): Thenable<TestSnapshot> {
+  const index = rows.indexOf(row);
+  assert.notEqual(index, -1, rows.join("\n"));
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.excludeRow", index);
 }
 
 describe("Structural Search view", () => {
@@ -78,6 +95,51 @@ describe("Structural Search view", () => {
     const snapshot = await search("gateway.image.tag");
     assert.deepEqual(snapshot.rows.slice(0, 2), ["folder charts/apim", "file values.yaml"]);
     assert.ok(snapshot.rows.includes("match 4:     [tag]: 4.1.0"), snapshot.rows.join("\n"));
+  });
+
+  it("drops the results of an excluded folder at once and leaves the folder out of later searches", async () => {
+    const before = await search("4.1.0");
+    const snapshot = await excludeRow(before.rows, "folder docs");
+    assert.equal(snapshot.exclude, "./docs/");
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
+    assert.ok(!snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
+
+    const later = await searchKeepingFields("gateway");
+    assert.equal(later.exclude, "./docs/");
+    assert.ok(later.rows.includes("file values.yaml"), later.rows.join("\n"));
+    assert.ok(!later.rows.includes("folder docs"), later.rows.join("\n"));
+  });
+
+  it("drops the results of an excluded file at once", async () => {
+    const before = await search("4.1.0");
+    const snapshot = await excludeRow(before.rows, "file Chart.yaml");
+    assert.equal(snapshot.exclude, "./charts/apim/Chart.yaml");
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree ▾");
+    assert.ok(!snapshot.rows.includes("file Chart.yaml"), snapshot.rows.join("\n"));
+  });
+
+  it("brings the results of an exclusion back at once when its entry leaves files to exclude", async () => {
+    const before = await search("4.1.0");
+    await excludeRow(before.rows, "folder docs");
+    const snapshot = await typeFileFields(NO_FILE_FIELDS, false);
+    assert.equal(snapshot.summary, "3 results in 3 files | Working tree ▾");
+  });
+
+  it("repeats the search when an entry that it searched with leaves files to exclude", async () => {
+    await search("4.1.0", { include: "", exclude: "./docs/" });
+    const snapshot = await typeFileFields(NO_FILE_FIELDS, true);
+    assert.equal(snapshot.summary, "3 results in 3 files | Working tree ▾");
+    assert.ok(snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
+  });
+
+  it("searches the files that files to include names, minus those that files to exclude names", async () => {
+    const yaml = await search("4.1.0", { include: "*.yaml", exclude: "Chart.yaml" });
+    assert.deepEqual(
+      yaml.rows.filter((row) => row.startsWith("file ")),
+      ["file values.yaml"],
+    );
+    const regex = await search("/tag: \\d/", { include: "", exclude: "./charts/" });
+    assert.equal(regex.summary, "No results. | Working tree ▾");
   });
 
   it("merges the matches of a registered engine into the lines of the others", async () => {

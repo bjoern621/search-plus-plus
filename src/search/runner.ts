@@ -4,6 +4,7 @@ import type { Hint } from "../query/types";
 import { BatchSender } from "./batch";
 import { BATCH_INTERVAL_DURATION_MS, FILE_READ_CONCURRENCY, RESULT_LINE_LIMIT } from "./config";
 import { collectFiles } from "./files";
+import { type FileFields, PathFilter } from "./globs";
 import type { LanguageIndex } from "./languages";
 import { mergeLineMatches } from "./merge";
 import { readSearchText, unsavedTexts } from "./reader";
@@ -26,6 +27,8 @@ export interface SearchRequest {
   query: Query;
   roots: readonly SearchRoot[];
   contextLines: number;
+  /** The files to include and exclude fields of the view. */
+  fields: FileFields;
   signal: AbortSignal;
   /** Receives results in batches, each file once. */
   onBatch: (files: FileResult[]) => void;
@@ -94,7 +97,8 @@ class RunningSearch {
 
   async run(): Promise<void> {
     const [files] = await Promise.all([collectFiles(this.request.roots, this.deps.rgPath, this.signal, this.deps.log), this.runWorkspaceEngines()]);
-    const work = files.map((file) => ({ root: file.root, relativePath: file.relativePath, lists: [] as LineMatch[][] }));
+    const filter = new PathFilter(this.request.fields);
+    const work = files.filter((file) => filter.accepts(file.relativePath)).map((file) => ({ root: file.root, relativePath: file.relativePath, lists: [] as LineMatch[][] }));
     for (const item of work) {
       const uri = this.fileUri(item.root, item.relativePath);
       const pending = this.pending.get(uri);
@@ -103,7 +107,7 @@ class RunningSearch {
       this.pending.delete(uri);
     }
     // Files that a workspace engine found but the file list left out still show.
-    work.push(...this.pending.values());
+    work.push(...[...this.pending.values()].filter((item) => filter.accepts(item.relativePath)));
     this.pending.clear();
     await forEachConcurrent(work, FILE_READ_CONCURRENCY, this.signal, (item) =>
       this.searchFile(item).catch((error: unknown) => this.deps.log(`Search failed on ${item.relativePath}: ${String(error)}`)),

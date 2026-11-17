@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FileResult } from "../../src/messages";
+import { PathFilter } from "../../src/search/globs";
 import { highlightParts, resultSummary, ResultTree, rowAt, rowOffsets } from "../../src/webview/tree";
 
 function file(folder: string, name: string, rootIndex = 0, root = ""): FileResult {
@@ -67,6 +68,17 @@ describe("ResultTree", () => {
     tree.add([file("a", "b.yaml")]);
     expect(tree.fileCount).toBe(1);
     expect(tree.matchCount).toBe(1);
+  });
+
+  it("hides and stops counting the files that its filter rejects, with their folder once it empties", () => {
+    const tree = new ResultTree();
+    tree.add([file("charts/apim", "values.yaml"), file("charts/apim", "Chart.yaml"), file("docs", "upgrade.md")]);
+    tree.setFilter(new PathFilter({ include: "", exclude: "./docs/, Chart.yaml" }));
+    expect(labels(tree)).toEqual(["folder charts/apim", "file values.yaml", "line 0"]);
+    expect(tree.fileCount).toBe(1);
+    expect(tree.matchCount).toBe(1);
+    tree.setFilter(undefined);
+    expect(tree.fileCount).toBe(3);
   });
 });
 

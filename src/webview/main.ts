@@ -1,12 +1,15 @@
 import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
+import { type FileFields, PathFilter } from "../search/globs";
+import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
 import { fileIcon } from "./icons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 
-interface ViewState {
+interface ViewState extends FileFields {
   query: string;
   history: string[];
+  fileFieldsOpen: boolean;
 }
 
 declare function acquireVsCodeApi(): {
@@ -18,11 +21,17 @@ declare function acquireVsCodeApi(): {
 const HISTORY_LIMIT = 50;
 /** Rows rendered above and below the visible ones, so fast scrolling shows no gaps. */
 const OVERSCAN_ROWS = 20;
+/** Time after the last keystroke in a files to include or exclude field before the search repeats. */
+const FILE_FIELDS_SEARCH_DELAY_MS = 400;
 
 const vscode = acquireVsCodeApi();
 const input = document.getElementById("query") as HTMLInputElement;
 const queryHighlight = new QueryHighlight(input, document.getElementById("query-highlight") as HTMLDivElement);
 const hint = document.getElementById("hint") as HTMLDivElement;
+const detailsButton = document.getElementById("details") as HTMLButtonElement;
+const fileFieldsElement = document.getElementById("file-fields") as HTMLDivElement;
+const includeInput = document.getElementById("include") as HTMLInputElement;
+const excludeInput = document.getElementById("exclude") as HTMLInputElement;
 const summary = document.getElementById("summary") as HTMLDivElement;
 const summaryText = document.getElementById("summary-text") as HTMLSpanElement;
 const scope = document.getElementById("scope") as HTMLButtonElement;
@@ -41,11 +50,17 @@ let layoutStale = false;
 let frame = 0;
 /** The hint of the host that stopped the last search. It replaces the hint on the typed query until the text changes. */
 let blockedHint: Hint | undefined;
+/** The query and fields of the last search, so a change of the fields can repeat it. */
+let searched: ({ query: string } & FileFields) | undefined;
+let fileFieldsTimer = 0;
 
-const state: ViewState = vscode.getState() ?? { query: "", history: [] };
+const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, ...vscode.getState() };
+includeInput.value = state.include;
+excludeInput.value = state.exclude;
 /** Position in the history while Up and Down walk it. `history.length` stands for the text being typed. */
 let historyIndex = state.history.length;
 setQuery(state.query);
+setFileFieldsOpen(state.fileFieldsOpen);
 
 input.addEventListener("keydown", (event) => {
   switch (event.key) {
@@ -66,7 +81,21 @@ input.addEventListener("input", () => {
   saveState();
 });
 
+detailsButton.addEventListener("click", () => setFileFieldsOpen(fileFieldsElement.hidden));
+
+for (const field of [includeInput, excludeInput]) {
+  field.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") submit();
+  });
+  field.addEventListener("input", () => applyFileFields());
+}
+
 rowsElement.addEventListener("click", (event) => {
+  const excludeButton = (event.target as HTMLElement).closest<HTMLElement>(".exclude");
+  if (excludeButton) {
+    exclude(excludeButton.dataset.entry ?? "");
+    return;
+  }
   const row = rowFromEvent(event);
   if (row) activate(row, true);
 });
@@ -106,6 +135,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
       invalidateLayout();
       return;
     case "testSearch":
+      if (message.fields) setFileFields(message.fields);
       setQuery(message.query);
       submit();
       return;
@@ -118,6 +148,13 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "testClickHint":
       hint.querySelector<HTMLButtonElement>(".hint-run")?.click();
       return;
+    case "testExcludeRow":
+      showRow(message.index)?.querySelector<HTMLElement>(".exclude")?.click();
+      return;
+    case "testTypeFileFields":
+      setFileFields(message);
+      applyFileFields();
+      return;
   }
 });
 
@@ -128,7 +165,54 @@ function submit(): void {
   if (query !== "" && state.history.at(-1) !== query) state.history = [...state.history, query].slice(-HISTORY_LIMIT);
   historyIndex = state.history.length;
   saveState();
-  vscode.postMessage({ type: "search", query });
+  searchWithFields(query);
+}
+
+function searchWithFields(query: string): void {
+  window.clearTimeout(fileFieldsTimer);
+  const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
+  searched = { query, ...fields };
+  vscode.postMessage({ type: "search", query, ...fields });
+}
+
+/**
+ * Follows a change of the files to include and exclude fields.
+ * A change that only adds exclusions hides their results at once.
+ * Any other change repeats the last search once typing stops, since it can bring back files that the last search left out.
+ */
+function applyFileFields(): void {
+  saveState();
+  window.clearTimeout(fileFieldsTimer);
+  if (!searched) return;
+  const fields: FileFields = { include: includeInput.value, exclude: excludeInput.value };
+  if (fields.include === searched.include && onlyAdded(searched.exclude, fields.exclude)) {
+    tree.setFilter(new PathFilter(fields));
+    invalidateLayout();
+    return;
+  }
+  const query = searched.query;
+  fileFieldsTimer = window.setTimeout(() => searchWithFields(query), FILE_FIELDS_SEARCH_DELAY_MS);
+}
+
+/** Adds `entry` to files to exclude and drops its results without a new search. */
+function exclude(entry: string): void {
+  excludeInput.value = appendEntry(excludeInput.value, entry);
+  setFileFieldsOpen(true);
+  applyFileFields();
+}
+
+function setFileFields(fields: FileFields): void {
+  includeInput.value = fields.include;
+  excludeInput.value = fields.exclude;
+  saveState();
+}
+
+function setFileFieldsOpen(open: boolean): void {
+  fileFieldsElement.hidden = !open;
+  detailsButton.classList.toggle("active", open);
+  detailsButton.setAttribute("aria-expanded", String(open));
+  state.fileFieldsOpen = open;
+  saveState();
 }
 
 function walkHistory(step: -1 | 1): void {
@@ -155,6 +239,8 @@ function runSuggestedQuery(query: string): void {
 
 function saveState(): void {
   state.query = input.value;
+  state.include = includeInput.value;
+  state.exclude = excludeInput.value;
   vscode.setState(state);
 }
 
@@ -247,6 +333,7 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = row.label;
       element.append(span("twisty", row.collapsed ? "▶" : "▼"), span("folder-icon", "■"), span("label", row.label));
+      if (row.folder !== "") element.append(excludeButton(`Exclude folder ${row.folder}`, folderEntry(row.folder)));
       return element;
     case "file": {
       const icon = fileIcon(row.file.name);
@@ -255,7 +342,7 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.className = "row";
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
-      element.append(span("twisty", row.collapsed ? "▶" : "▼"), glyph, span("label", row.file.name));
+      element.append(span("twisty", row.collapsed ? "▶" : "▼"), glyph, span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
     }
     case "line": {
@@ -269,6 +356,28 @@ function rowElement(row: Row, index: number): HTMLElement {
       return element;
     }
   }
+}
+
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+/** A circle with a slash, as on the exclude button of the built-in Search view. */
+function excludeButton(label: string, entry: string): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.className = "icon exclude";
+  button.tabIndex = -1;
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.dataset.entry = entry;
+  const svg = document.createElementNS(SVG_NAMESPACE, "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  const circle = document.createElementNS(SVG_NAMESPACE, "circle");
+  for (const [name, value] of Object.entries({ cx: "8", cy: "8", r: "5.5" })) circle.setAttribute(name, value);
+  const slash = document.createElementNS(SVG_NAMESPACE, "path");
+  slash.setAttribute("d", "M4.1 11.9 11.9 4.1");
+  svg.append(circle, slash);
+  button.append(svg);
+  return button;
 }
 
 function span(className: string, text: string, tag: "span" | "mark" = "span"): HTMLElement {
@@ -304,6 +413,8 @@ function snapshot(): TestSnapshot {
   return {
     summary: summary.hidden ? "" : `${summaryText.textContent ?? ""} | ${scope.hidden ? "" : (scope.textContent ?? "")}`,
     hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
+    include: includeInput.value,
+    exclude: excludeInput.value,
     rows: rows.map(describeRow),
   };
 }
@@ -325,8 +436,13 @@ function describeRow(row: Row): string {
 
 /** Scrolls the row at `index` into view and clicks its element, as a person would. */
 function clickRow(index: number): void {
+  showRow(index)?.click();
+}
+
+/** Scrolls the row at `index` into view and returns its element. */
+function showRow(index: number): HTMLElement | null {
   layout();
   results.scrollTop = offsets[index] ?? 0;
   render();
-  rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`)?.click();
+  return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`);
 }

@@ -1,4 +1,5 @@
 import type { Hint } from "./query/types";
+import type { FileFields } from "./search/globs";
 import type { Range } from "./search/types";
 
 export interface ResultLine {
@@ -38,12 +39,14 @@ export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFold
 export interface TestSnapshot {
   summary: string;
   hint: string;
+  include: string;
+  exclude: string;
   rows: string[];
 }
 
 export type ViewMessage =
   | { type: "ready" }
-  | { type: "search"; query: string }
+  | ({ type: "search"; query: string } & FileFields)
   | { type: "open"; uri: string; line: number; range?: Range; preserveFocus: boolean }
   | { type: "testSnapshot"; snapshot: TestSnapshot };
 
@@ -53,7 +56,10 @@ export type HostMessage =
   | { type: "results"; searchId: number; files: FileResult[] }
   | { type: "hint"; searchId: number; hint: Hint }
   | { type: "searchDone"; searchId: number; status: SearchStatus; limit: number }
-  | { type: "testSearch"; query: string }
+  /** Fields left out keep what the view holds. */
+  | { type: "testSearch"; query: string; fields?: FileFields }
   | { type: "testSnapshot" }
   | { type: "testClickRow"; index: number }
-  | { type: "testClickHint" };
+  | { type: "testClickHint" }
+  | { type: "testExcludeRow"; index: number }
+  | ({ type: "testTypeFileFields" } & FileFields);

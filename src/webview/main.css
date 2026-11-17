@@ -127,6 +127,29 @@ body {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
+.icon.active {
+  background: var(--vscode-inputOption-activeBackground, var(--vscode-toolbar-activeBackground));
+}
+
+.file-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: 24px;
+}
+
+.file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.file-field .input {
+  flex: none;
+}
+
 .hint {
   display: flex;
   align-items: center;
@@ -260,6 +283,27 @@ body {
 .label {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The exclude button shows while the pointer rests on its row, as in the built-in Search view. */
+.exclude {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  visibility: hidden;
+}
+
+.row:hover .exclude {
+  visibility: visible;
+}
+
+.exclude svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
 }
 
 .line {

@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
 import type { HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
+import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
 import { RESULT_LINE_LIMIT } from "./search/config";
 import { parseQuery } from "./query";
 import { searchRoots } from "./search/roots";
 import type { SearchRunner } from "./search/runner";
+import type { SearchRoot } from "./search/workspaceEngine";
 
 export class SearchViewProvider implements vscode.WebviewViewProvider {
   static readonly viewId = "structuralSearch.view";
@@ -47,15 +49,15 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: "focus" });
   }
 
-  /** Cancels the running search and starts one for `raw`. Resolves once the new search ends or a newer one replaces it. */
-  async search(raw: string): Promise<void> {
+  /** Cancels the running search and starts one for `raw` in the files that `fields` pick. Resolves once the new search ends or a newer one replaces it. */
+  async search(raw: string, fields: FileFields = NO_FILE_FIELDS): Promise<void> {
     this.running?.abort();
     const controller = new AbortController();
     this.running = controller;
     const searchId = ++this.searchId;
     this.post({ type: "searchStarted", searchId });
 
-    const roots = searchRoots();
+    const roots = withExcludeField(searchRoots(), fields.exclude);
     if (raw === "") return this.finish(searchId, "empty");
     if (roots.length === 0) return this.finish(searchId, "noFolder");
     const outcome = await vscode.window.withProgress({ location: { viewId: SearchViewProvider.viewId } }, () =>
@@ -63,6 +65,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         query: parseQuery(raw),
         roots,
         contextLines: vscode.workspace.getConfiguration("structuralSearch").get<number>("contextLines", 1),
+        fields,
         signal: controller.signal,
         onBatch: (files) => this.post({ type: "results", searchId, files }),
       }),
@@ -83,9 +86,27 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   }
 
   /** Types `query` into the view and presses Enter, then returns what the view shows once the search ends. For integration tests. */
-  async testSearch(query: string): Promise<TestSnapshot> {
+  async testSearch(query: string, fields?: FileFields): Promise<TestSnapshot> {
     await this.focus();
-    return this.afterSearch({ type: "testSearch", query });
+    return this.afterSearch({ type: "testSearch", query, fields });
+  }
+
+  /** Clicks the exclude button of the folder or file row at `index`, then returns what the view shows. For integration tests. */
+  async testExcludeRow(index: number): Promise<TestSnapshot> {
+    await this.viewReady;
+    this.post({ type: "testExcludeRow", index });
+    return this.testSnapshot();
+  }
+
+  /**
+   * Types `fields` into the files to include and exclude fields, then returns what the view shows.
+   * With `startsSearch`, it returns once the search that the typing starts ends. For integration tests.
+   */
+  async testTypeFileFields(fields: FileFields, startsSearch: boolean): Promise<TestSnapshot> {
+    await this.viewReady;
+    if (startsSearch) return this.afterSearch({ type: "testTypeFileFields", ...fields });
+    this.post({ type: "testTypeFileFields", ...fields });
+    return this.testSnapshot();
   }
 
   /** Clicks the hint line, then returns what the view shows once the suggested search ends. For integration tests. */
@@ -140,7 +161,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         this.markViewReady();
         return;
       case "search":
-        void this.search(message.query);
+        void this.search(message.query, { include: message.include, exclude: message.exclude });
         return;
       case "open":
         void this.open(message);
@@ -172,6 +193,13 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
+/** Adds the files to exclude field to the excluded globs of each folder, so the file walk skips those folders. */
+function withExcludeField(roots: SearchRoot[], exclude: string): SearchRoot[] {
+  const globs = fieldGlobs(exclude);
+  if (globs.length === 0) return roots;
+  return roots.map((root) => ({ ...root, walk: { ...root.walk, excludeGlobs: [...root.walk.excludeGlobs, ...globs] } }));
+}
+
 function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   const nonce = createNonce();
   const script = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "dist", "webview.js"));
@@ -191,7 +219,11 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
       <div id="query-highlight" class="query-highlight" aria-hidden="true"></div>
       <input id="query" class="query-input" aria-label="Search" spellcheck="false" autocomplete="off">
     </div>
-    <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details">&#x2026;</button>
+    <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields">&#x2026;</button>
+  </div>
+  <div id="file-fields" class="file-fields" hidden>
+    <label class="file-field">Files to include<input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="For example *.yaml, ./charts"></label>
+    <label class="file-field">Files to exclude<input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="For example ./vendor/, *.lock"></label>
   </div>
   <div id="hint" class="hint" role="status" hidden></div>
 </div>

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { textEngine } from "./engines/text";
+import type { FileFields } from "./search/globs";
 import { RegexEngine } from "./engines/regex";
 import { LanguageIndex, languageContributions } from "./search/languages";
 import { EngineRegistry, type StructuralSearchApi } from "./search/registry";
@@ -40,7 +41,9 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
 /** Commands that integration tests drive the view with. Other modes never register them. */
 function registerTestCommands(context: vscode.ExtensionContext, provider: SearchViewProvider): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand("structuralSearch.test.search", (query: string) => provider.testSearch(query)),
+    vscode.commands.registerCommand("structuralSearch.test.search", (query: string, fields?: FileFields) => provider.testSearch(query, fields)),
+    vscode.commands.registerCommand("structuralSearch.test.excludeRow", (index: number) => provider.testExcludeRow(index)),
+    vscode.commands.registerCommand("structuralSearch.test.typeFileFields", (fields: FileFields, startsSearch: boolean) => provider.testTypeFileFields(fields, startsSearch)),
     vscode.commands.registerCommand("structuralSearch.test.snapshot", () => provider.testSnapshot()),
     vscode.commands.registerCommand("structuralSearch.test.clickRow", (index: number) => provider.testClickRow(index)),
     vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
