@@ -42,6 +42,11 @@ function typeFileFields(fields: FileFields, startsSearch: boolean): Thenable<Tes
   return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.typeFileFields", fields, startsSearch);
 }
 
+/** Clicks the exclude settings and ignore files toggle and returns what the view shows once the search that it starts ends. */
+function toggleExcludeSettings(): Thenable<TestSnapshot> {
+  return vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.toggleExcludeSettings");
+}
+
 function excludeRow(rows: string[], row: string): Thenable<TestSnapshot> {
   const index = rows.indexOf(row);
   assert.notEqual(index, -1, rows.join("\n"));
@@ -227,6 +232,34 @@ describe("Structural Search view", () => {
     const snapshot = await typeFileFields(NO_FILE_FIELDS, true);
     assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
     assert.ok(snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
+  });
+
+  it("searches the ignored and the excluded folders while the exclude settings and ignore files are off, minus files to exclude", async () => {
+    const off = await search("4.1.0", { include: "*.yaml", exclude: "", useExcludeSettingsAndIgnoreFiles: false });
+    assert.equal(off.summary, "5 results in 5 files | Working tree");
+    assert.equal(off.summaryNote, "Exclude settings and ignore files are off. Turn on");
+    for (const folder of ["folder build", "folder excluded", "folder vendor"]) assert.ok(off.rows.includes(folder), off.rows.join("\n"));
+
+    const typed = await search("4.1.0", { include: "*.yaml", exclude: "vendor", useExcludeSettingsAndIgnoreFiles: false });
+    assert.equal(typed.summary, "4 results in 4 files | Working tree");
+    assert.ok(!typed.rows.includes("folder vendor"), typed.rows.join("\n"));
+  });
+
+  it("turns the exclude settings and ignore files back on from the toggle and from the note", async () => {
+    await search("4.1.0", { include: "*.yaml", exclude: "", useExcludeSettingsAndIgnoreFiles: false });
+    const on = await toggleExcludeSettings();
+    assert.equal(on.useExcludeSettingsAndIgnoreFiles, true);
+    assert.equal(on.summary, "2 results in 2 files | Working tree");
+    assert.equal(on.summaryNote, "");
+
+    const off = await toggleExcludeSettings();
+    assert.equal(off.useExcludeSettingsAndIgnoreFiles, false);
+    assert.equal(off.summary, "5 results in 5 files | Working tree");
+
+    const enabled = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.clickSummaryNote");
+    assert.equal(enabled.useExcludeSettingsAndIgnoreFiles, true);
+    assert.equal(enabled.fileFieldsOpen, true);
+    assert.equal(enabled.summary, "2 results in 2 files | Working tree");
   });
 
   it("searches the files that files to include names, minus those that files to exclude names", async () => {

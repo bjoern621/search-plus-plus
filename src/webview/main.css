@@ -203,6 +203,33 @@ button {
   flex: none;
 }
 
+/* The toggle sits inside the right end of the field, as the toggles in the fields of the built-in Search view do. */
+.field-box {
+  position: relative;
+  display: flex;
+}
+
+.field-box .input {
+  flex: 1;
+  padding-right: 26px;
+}
+
+.field-toggle {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+}
+
+.field-toggle:hover {
+  background: var(--vscode-inputOption-hoverBackground);
+}
+
+.field-toggle.active:hover {
+  background: var(--vscode-inputOption-activeBackground);
+}
+
 .hint {
   display: flex;
   align-items: center;
@@ -262,6 +289,30 @@ button {
   padding: 8px 8px 4px 12px;
   color: var(--vscode-descriptionForeground);
   font-size: var(--small-font-size);
+}
+
+.summary-texts {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 6px;
+  min-width: 0;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vscode-textLink-foreground);
+  font: inherit;
+}
+
+.link:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
 }
 
 .scope {

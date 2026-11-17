@@ -67,6 +67,8 @@ function registerTestCommands(context: vscode.ExtensionContext, provider: Search
     vscode.commands.registerCommand("structuralSearch.test.chooseMenuItem", (label: string) => provider.testChooseMenuItem(label)),
     vscode.commands.registerCommand("structuralSearch.test.chooseMenuSearch", (label: string) => provider.testChooseMenuSearch(label)),
     vscode.commands.registerCommand("structuralSearch.test.clickHint", () => provider.testClickHint()),
+    vscode.commands.registerCommand("structuralSearch.test.toggleExcludeSettings", () => provider.testToggleExcludeSettings()),
+    vscode.commands.registerCommand("structuralSearch.test.clickSummaryNote", () => provider.testClickSummaryNote()),
   );
 }
 

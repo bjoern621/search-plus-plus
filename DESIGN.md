@@ -313,6 +313,10 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 - Every folder and file in the results carries an exclude button.
 - Excluding adds the folder or file to files to exclude and drops its results without a new search.
 - Removing the entry from files to exclude brings its results back.
+- The toggle at the end of files to exclude turns the exclude settings and the ignore files off, as in the built-in Search view.
+  The search then reads the ignored folders and the folders that `files.exclude` and `search.exclude` name.
+  The entries of files to exclude still apply.
+- While the toggle is off, the summary line says so after the result count, with a button that turns it back on.
 
 ## Scope
 
@@ -352,4 +356,4 @@ Files to include, files to exclude and the exclusions in the VS Code settings ap
 
 - Helm cross-references between `values.yaml` and templates belong in a separate extension.
 - Replace stays with the built-in Search view until a need comes up.
-- Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search, skipping comments and searching ignored folders stay out until a need comes up.
+- Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search and skipping comments stay out until a need comes up.

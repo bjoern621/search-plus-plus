@@ -93,7 +93,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.shownFiles.clear();
     this.post({ type: "searchStarted", searchId });
 
-    const roots = withExcludeField(searchRoots(), fields.exclude);
+    const roots = withFileFields(searchRoots(), fields);
     if (raw === "") return this.finish(searchId, "empty");
     if (roots.length === 0) return this.finish(searchId, "noFolder");
     const outcome = await vscode.window
@@ -217,6 +217,18 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     return { snapshot: await this.testSnapshot(), searches: this.searchId - before };
   }
 
+  /** Clicks the exclude settings and ignore files toggle, then returns what the view shows once the search that it starts ends. For integration tests. */
+  async testToggleExcludeSettings(): Promise<TestSnapshot> {
+    await this.viewReady;
+    return this.afterSearch({ type: "testToggleExcludeSettings" });
+  }
+
+  /** Clicks the button in the note that the exclude settings and ignore files are off, then returns what the view shows once the search that it starts ends. For integration tests. */
+  async testClickSummaryNote(): Promise<TestSnapshot> {
+    await this.viewReady;
+    return this.afterSearch({ type: "testClickSummaryNote" });
+  }
+
   /** Clicks the hint line, then returns what the view shows once the suggested search ends. For integration tests. */
   async testClickHint(): Promise<TestSnapshot> {
     await this.viewReady;
@@ -305,7 +317,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         void this.sendGitInfo();
         return;
       case "search":
-        void this.search(message.query, { include: message.include, exclude: message.exclude }, message.scope);
+        void this.search(message.query, { include: message.include, exclude: message.exclude, useExcludeSettingsAndIgnoreFiles: message.useExcludeSettingsAndIgnoreFiles }, message.scope);
         return;
       case "cancelSearch":
         this.running?.abort();
@@ -425,11 +437,19 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   }
 }
 
-/** Adds the files to exclude field to the excluded globs of each folder, so the file walk skips those folders. */
-function withExcludeField(roots: SearchRoot[], exclude: string): SearchRoot[] {
-  const globs = fieldGlobs(exclude);
-  if (globs.length === 0) return roots;
-  return roots.map((root) => ({ ...root, walk: { ...root.walk, excludeGlobs: [...root.walk.excludeGlobs, ...globs] } }));
+/**
+ * Adds the files to exclude field to the excluded globs of each folder, so the file walk skips those folders.
+ * With the exclude settings and ignore files toggle off, the walk drops the exclude settings and reads past the ignore files.
+ * The globs of the field stay, as in the built-in Search view.
+ */
+function withFileFields(roots: SearchRoot[], fields: FileFields): SearchRoot[] {
+  const globs = fieldGlobs(fields.exclude);
+  const useSettings = fields.useExcludeSettingsAndIgnoreFiles !== false;
+  if (globs.length === 0 && useSettings) return roots;
+  return roots.map((root) => {
+    const walk = useSettings ? root.walk : { ...root.walk, excludeGlobs: [], useIgnoreFiles: false };
+    return { ...root, walk: { ...walk, excludeGlobs: [...walk.excludeGlobs, ...globs] } };
+  });
 }
 
 function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
@@ -455,12 +475,12 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   </div>
   <div id="file-fields" class="file-fields" hidden>
     <label class="file-field">Files to include<input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="For example *.yaml, ./charts"></label>
-    <label class="file-field">Files to exclude<input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="For example ./vendor/, *.lock"></label>
+    <label class="file-field">Files to exclude<span class="field-box"><input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="For example ./vendor/, *.lock"><button id="exclude-settings" class="icon field-toggle active" aria-label="Use exclude settings and ignore files" title="Use exclude settings and ignore files" aria-pressed="true"><span class="codicon codicon-exclude" aria-hidden="true"></span></button></span></label>
   </div>
   <div id="hint" class="hint" role="status" hidden></div>
 </div>
 <div id="summary" class="summary">
-  <span id="summary-text"></span>
+  <span class="summary-texts"><span id="summary-text"></span><span id="summary-note" class="summary-note" hidden>Exclude settings and ignore files are off. <button id="summary-enable" class="link">Turn on</button></span></span>
   <button id="scope" class="scope" aria-label="Change scope"><span id="scope-label">Working tree</span><span class="codicon codicon-chevron-down" aria-hidden="true"></span></button>
 </div>
 <div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
