@@ -107,6 +107,10 @@ export interface TestSnapshot {
   focused: number;
   /** The reasons and items of the open context menu, `-` for a separator. Empty while the menu stays closed. */
   menu: string[];
+  /** The text color of the first match on the focused row, empty without one. */
+  focusedMarkColor: string;
+  /** The color that the theme sets for a match on a focused list row (list.focusHighlightForeground). */
+  focusHighlightColor: string;
   /** The label of the focused item of the context menu, empty while no item holds the focus. */
   menuFocus: string;
   /** The file and the lines of the hover card, as the rows describe them. Empty while no card shows. */

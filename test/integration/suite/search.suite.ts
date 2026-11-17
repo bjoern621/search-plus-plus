@@ -223,6 +223,14 @@ describe("Structural Search view", () => {
     assert.equal(snapshot.rows[match.focused], "match 5:   [replicas]: 2");
   });
 
+  it("draws the match on the focused row in the highlight color of a focused list row", async () => {
+    const snapshot = await search("replicas");
+    const index = snapshot.rows.indexOf("match 5:   [replicas]: 2");
+    const focused = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", downTo(snapshot.rows, index));
+    assert.equal(focused.focused, index);
+    assert.equal(focused.focusedMarkColor, focused.focusHighlightColor);
+  });
+
   it("opens the context menu of the focused match with Shift+F10 and closes it with Escape", async () => {
     const before = await search("replicas");
     const index = before.rows.indexOf("match 5:   [replicas]: 2");

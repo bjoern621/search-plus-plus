@@ -700,12 +700,29 @@ function snapshot(): TestSnapshot {
     keyPaths: rows.map((row) => (row.kind === "line" ? (shownKeyPath(row.line) ?? "") : "")),
     focused: Number(rowsElement.querySelector<HTMLElement>(".focused")?.dataset.index ?? -1),
     menu: contextMenu.describe(),
+    focusedMarkColor: markColor(".focused .mark"),
+    focusHighlightColor: themeColor("--vscode-list-focusHighlightForeground"),
     menuFocus: contextMenu.focusedLabel(),
     hover: hoverCard.describe(),
     hoverGeometry: hoverCard.geometry(),
     fileRowMetrics: rowMetrics("file"),
     codeLineMetrics: rowMetrics("line"),
   };
+}
+
+function markColor(selector: string): string {
+  const mark = rowsElement.querySelector(selector);
+  return mark ? getComputedStyle(mark).color : "";
+}
+
+/** Resolves the theme color `variable` to the form that getComputedStyle reports. */
+function themeColor(variable: string): string {
+  const probe = document.createElement("span");
+  probe.style.color = `var(${variable})`;
+  document.body.append(probe);
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color;
 }
 
 function rowMetrics(kind: Row["kind"]): RowMetrics | undefined {
