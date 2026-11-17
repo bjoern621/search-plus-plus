@@ -370,14 +370,14 @@ body {
   stroke-width: 1.3;
 }
 
-/* The script sets `--line-height` from the editor font size. */
+/* Code lines take the editor font at the size of the workbench font, so they read as one list with the file rows, as in the Search view. */
 .line {
   --row-foreground: var(--vscode-descriptionForeground);
-  height: var(--line-height, 18px);
-  line-height: var(--line-height, 18px);
+  height: 22px;
+  line-height: 22px;
   color: var(--row-foreground);
   font-family: var(--vscode-editor-font-family);
-  font-size: var(--vscode-editor-font-size);
+  font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
   font-feature-settings: var(--vscode-editor-font-feature-settings);
   white-space: pre;
@@ -395,7 +395,7 @@ body {
 .line:has(.key-path),
 .hover-line:has(.key-path) {
   flex-wrap: wrap;
-  height: var(--line-height, 18px);
+  height: 22px;
   overflow: hidden;
 }
 
@@ -593,10 +593,10 @@ body {
   padding: 0 8px 0 7px;
   color: var(--vscode-descriptionForeground);
   font-family: var(--vscode-editor-font-family);
-  font-size: var(--vscode-editor-font-size);
+  font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
   font-feature-settings: var(--vscode-editor-font-feature-settings);
-  line-height: var(--line-height, 18px);
+  line-height: 22px;
   white-space: pre;
   tab-size: 4;
 }

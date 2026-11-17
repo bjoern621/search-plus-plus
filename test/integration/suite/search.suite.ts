@@ -257,24 +257,30 @@ describe("Structural Search view", () => {
   });
 
   it("drops the lines of the card that would leave the view, keeping the hovered line over its row", async () => {
+    // The lines of docs/changelog.md make the results outgrow any view.
+    // Walking down to a late entry scrolls its row to the bottom of the results.
+    // The entry above it keeps room for the card padding, while the lines after it would leave the view.
+    const snapshot = await search("Entry");
+    const index = snapshot.rows.findIndex((row) => row.startsWith("match 38:"));
+    assert.notEqual(index, -1, snapshot.rows.join("\n"));
+    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", Array.from({ length: index + 1 }, () => "ArrowDown"));
+    await vscode.commands.executeCommand("structuralSearch.test.hover", index - 1);
+    const hover = await shownHover();
+    const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
+    assert.ok(box, "no hover card");
+    assert.ok(hover.includes(snapshot.rows[index - 1] as string), hover.join("\n"));
+    assert.ok(!hover.some((line) => line.startsWith("match 42:")), `${hover.join("\n")}\n${JSON.stringify(box)}`);
+    assert.ok(Math.abs(box.lineTop - box.rowTop) <= 1, JSON.stringify(box));
+    assert.ok(box.cardTop >= 0 && box.cardBottom <= box.viewHeight, JSON.stringify(box));
+  });
+
+  it("draws code lines in the font size and the height of the file rows, whatever the editor font size", async () => {
     const editor = () => vscode.workspace.getConfiguration("editor");
-    await editor().update("fontSize", 60, vscode.ConfigurationTarget.Global);
+    await editor().update("fontSize", 30, vscode.ConfigurationTarget.Global);
     try {
-      await changedLineHeight(81);
-      // Every line matches, so the results outgrow any view.
-      // Hovering then scrolls the row to the top of the results, where the four lines before the match take more room than the inputs above the results leave.
-      const snapshot = await search("/\\S/");
-      const values = snapshot.rows.indexOf("file values.yaml");
-      const replicas = snapshot.rows.findIndex((row, index) => index > values && row.startsWith("match 5:"));
-      assert.notEqual(replicas, -1, snapshot.rows.join("\n"));
-      await vscode.commands.executeCommand("structuralSearch.test.hover", replicas);
-      const hover = await shownHover();
-      const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
-      assert.ok(box, "no hover card");
-      assert.equal(hover.at(-1), snapshot.rows[replicas]);
-      assert.ok(!hover.some((line) => line.startsWith("match 1:")), `${hover.join("\n")}\n${JSON.stringify(box)}`);
-      assert.ok(Math.abs(box.lineTop - box.rowTop) <= 1, JSON.stringify(box));
-      assert.ok(box.cardTop >= 0 && box.cardBottom <= box.viewHeight, JSON.stringify(box));
+      const snapshot = await search("4.1.0");
+      assert.ok(snapshot.fileRowMetrics && snapshot.codeLineMetrics, "no file row or code line");
+      assert.deepEqual(snapshot.codeLineMetrics, snapshot.fileRowMetrics);
     } finally {
       await editor().update("fontSize", undefined, vscode.ConfigurationTarget.Global);
     }
@@ -483,17 +489,6 @@ async function shownHover(): Promise<string[]> {
     hover = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hover;
   }
   return hover;
-}
-
-/** Waits until code lines in the view take `expected` pixels, since a font change reaches the view after the settings update resolves. */
-async function changedLineHeight(expected: number): Promise<void> {
-  const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
-  let lineHeight = 0;
-  while (Date.now() < deadline && lineHeight !== expected) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    lineHeight = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).lineHeight;
-  }
-  assert.equal(lineHeight, expected);
 }
 
 /** Waits for the clipboard to change from `before` and returns its text. */

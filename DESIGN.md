@@ -98,7 +98,8 @@ Below them come the quick actions:
 - The view follows the color theme of VS Code.
   Rows, inputs, menus and the hover card take the theme colors of their counterparts in the explorer, the Search view and the editor.
   High contrast themes draw hover and selection as outlines.
-- Code lines take the editor font with its size and weight, spaced as the editor spaces lines without a set line height.
+- Code lines take the family and weight of the editor font at the size of the workbench font, in rows as high as the folder and file rows.
+  The built-in Search view draws its result lines at that size and height as well, so code and file rows read as one list.
   Every other text takes the font of the workbench.
   A change of color theme or editor font redraws the view without a new search.
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Structural Search.

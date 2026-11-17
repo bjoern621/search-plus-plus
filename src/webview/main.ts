@@ -1,4 +1,4 @@
-import type { FileResult, HostMessage, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
+import type { FileResult, HostMessage, RowMetrics, SearchStatus, TestSnapshot, ViewMessage } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
@@ -10,7 +10,7 @@ import { matchMenu, type MenuAction } from "./menu";
 import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
-import { codeLineHeightPx, commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
+import { commitDay, describeLine, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 import { keyPathElement, shownKeyPath } from "./keyPath";
 
 interface ViewState extends FileFields {
@@ -75,8 +75,6 @@ let menuRow: Extract<Row, { kind: "line" }> | undefined;
 let menuScrollTop = 0;
 /** The scroll position at which the hover card got its match. */
 let hoverScrollTop = 0;
-/** The height of a code line in the results and the hover card. */
-let lineHeightPx = 0;
 
 const state: ViewState = { query: "", history: [], include: "", exclude: "", fileFieldsOpen: false, scope: WORKING_TREE, ...vscode.getState() };
 includeInput.value = state.include;
@@ -86,9 +84,6 @@ let historyIndex = state.history.length;
 setQuery(state.query);
 setFileFieldsOpen(state.fileFieldsOpen);
 renderSummary();
-applyEditorFont();
-// VS Code rewrites the style variables on the root element when the editor font or the color theme changes.
-new MutationObserver(applyEditorFont).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
 
 input.addEventListener("keydown", (event) => {
   switch (event.key) {
@@ -371,16 +366,6 @@ function refreshHint(): void {
   renderHint(hint, blockedHint ?? hintFor(parseQuery(input.value)), blockedHint !== undefined, runSuggestedQuery);
 }
 
-/** Sizes the code lines for the editor font that VS Code hands the view. */
-function applyEditorFont(): void {
-  const fontSize = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--vscode-editor-font-size"));
-  const height = codeLineHeightPx(fontSize, navigator.userAgent.includes("Macintosh"));
-  if (height === lineHeightPx) return;
-  lineHeightPx = height;
-  document.body.style.setProperty("--line-height", `${height}px`);
-  invalidateLayout();
-}
-
 function invalidateLayout(): void {
   layoutStale = true;
   scheduleRender();
@@ -398,7 +383,7 @@ function layout(): void {
   if (!layoutStale) return;
   layoutStale = false;
   rows = tree.rows(collapsed);
-  offsets = rowOffsets(rows, lineHeightPx);
+  offsets = rowOffsets(rows);
   if (focusedIndex >= rows.length) focusedIndex = rows.length - 1;
   rowsElement.style.height = `${offsets.at(-1) ?? 0}px`;
   const widest = rows.reduce((max, row) => (row.kind === "line" ? Math.max(max, row.line.line + 1) : max), 0);
@@ -564,12 +549,17 @@ function handleRowKey(press: KeyPress): boolean {
 function focusRow(index: number): void {
   focusedIndex = index;
   layout();
+  scrollRowIntoView(index);
+  results.setAttribute("aria-activedescendant", `row-${index}`);
+  render();
+}
+
+/** Scrolls the results by the least distance that brings the row at `index` into view. */
+function scrollRowIntoView(index: number): void {
   const top = offsets[index] ?? 0;
   const bottom = offsets[index + 1] ?? top;
   if (top < results.scrollTop) results.scrollTop = top;
   else if (bottom > results.scrollTop + results.clientHeight) results.scrollTop = bottom - results.clientHeight;
-  results.setAttribute("aria-activedescendant", `row-${index}`);
-  render();
 }
 
 /** Opens the context menu of the matched line at `index`. Returns false for any other row. */
@@ -644,7 +634,8 @@ function activate(row: Row, preserveFocus: boolean): void {
 }
 
 function snapshot(): TestSnapshot {
-  layout();
+  // Draws the rows that a pending frame would draw, since the snapshot measures them.
+  render();
   return {
     summary: summary.hidden ? "" : `${summaryText.textContent ?? ""} | ${scope.hidden ? "" : (scope.textContent ?? "")}`,
     hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
@@ -657,8 +648,15 @@ function snapshot(): TestSnapshot {
     menu: contextMenu.describe(),
     hover: hoverCard.describe(),
     hoverGeometry: hoverCard.geometry(),
-    lineHeight: lineHeightPx,
+    fileRowMetrics: rowMetrics("file"),
+    codeLineMetrics: rowMetrics("line"),
   };
+}
+
+function rowMetrics(kind: Row["kind"]): RowMetrics | undefined {
+  const element = [...rowsElement.querySelectorAll<HTMLElement>("[data-index]")].find((candidate) => rows[Number(candidate.dataset.index)]?.kind === kind);
+  if (!element) return undefined;
+  return { fontSize: Number.parseFloat(getComputedStyle(element).fontSize), height: element.getBoundingClientRect().height };
 }
 
 function describeRow(row: Row): string {
@@ -700,7 +698,7 @@ function clickRow(index: number): void {
 /** Scrolls the row at `index` into view and returns its element. */
 function showRow(index: number): HTMLElement | null {
   layout();
-  results.scrollTop = offsets[index] ?? 0;
+  scrollRowIntoView(index);
   render();
   return rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`);
 }

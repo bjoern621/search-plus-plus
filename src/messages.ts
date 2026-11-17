@@ -109,8 +109,16 @@ export interface TestSnapshot {
   hover: string[];
   /** Where the hovered line of the card sits against its row. Undefined while no card shows. */
   hoverGeometry: HoverGeometry | undefined;
-  /** The height of a code line in pixels. */
-  lineHeight: number;
+  /** How the first drawn file row measures. Undefined while the view draws none. */
+  fileRowMetrics: RowMetrics | undefined;
+  /** How the first drawn code line measures. Undefined while the view draws none. */
+  codeLineMetrics: RowMetrics | undefined;
+}
+
+/** Sizes in pixels. */
+export interface RowMetrics {
+  fontSize: number;
+  height: number;
 }
 
 /** Positions in pixels from the top left corner of the view. */
