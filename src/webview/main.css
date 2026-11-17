@@ -316,7 +316,7 @@ button {
 }
 
 /*
- * `--row-foreground` holds the color of a row, which hover and selection swap for the list colors of the theme.
+ * `--row-foreground` holds the color of a row, which context lines dim.
  * A tree row steps right of its parent by the indent of the workbench trees.
  * Code lines keep the left edge at any depth, so the code takes the full width of the side bar.
  */
@@ -339,15 +339,6 @@ button {
   right: 8px;
   border-top: 1px solid var(--vscode-menu-separatorBackground);
   pointer-events: none;
-}
-
-/* The rows below a hovered folder, file or commit take its hover. */
-.row:hover,
-.line:hover,
-.row.in-hovered,
-.line.in-hovered {
-  --row-foreground: var(--vscode-list-hoverForeground, var(--vscode-foreground));
-  background: var(--vscode-list-hoverBackground);
 }
 
 /* Placed as the twisties of the workbench trees: 16px wide, 6px before the icon, the chevron moved 3px right. */
@@ -506,49 +497,39 @@ button {
   outline: none;
 }
 
-/* The focused row carries the selection, as in the explorer: bright while the results hold the focus, dim after. */
-/* The rows below a focused folder, file or commit take its selection, without the outline. */
-.focused,
-.focused:hover,
-.in-focused,
-.in-focused:hover {
-  --row-foreground: var(--vscode-list-inactiveSelectionForeground, var(--vscode-foreground));
-  background: var(--vscode-list-inactiveSelectionBackground);
+/*
+ * Hover and selection draw one rounded outline around a group of rows and fill none of them.
+ * The selection outline takes the focus color of the workbench lists, dimmed while the results lack the focus. The hover outline takes it fainter still.
+ */
+.group-outline {
+  --outline-color: var(--vscode-list-focusOutline, var(--vscode-focusBorder));
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--outline-color);
+  border-radius: var(--widget-corner-radius);
+  pointer-events: none;
 }
 
-.results:focus .focused,
-.results:focus .in-focused {
-  --row-foreground: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
-  background: var(--vscode-list-activeSelectionBackground);
+.group-outline.hovered {
+  border-color: color-mix(in srgb, var(--outline-color) 40%, transparent);
 }
 
-.results:focus .focused {
-  outline: 1px solid var(--vscode-list-focusAndSelectionOutline, var(--vscode-list-focusOutline, var(--vscode-focusBorder)));
-  outline-offset: -1px;
+.group-outline.focused {
+  border-color: color-mix(in srgb, var(--outline-color) 60%, transparent);
 }
 
-/* The translucent match fill turns grey on the selection, so the match takes the color that the workbench lists give a highlight on a focused row. */
-.results:focus .focused .mark,
-.results:focus .in-focused .mark {
-  outline-color: var(--vscode-list-focusHighlightForeground);
-  color: var(--vscode-list-focusHighlightForeground);
+.results:focus .group-outline.focused {
+  border-color: var(--outline-color);
 }
 
-.results:focus .focused .twisty,
-.results:focus .in-focused .twisty {
-  color: var(--vscode-list-activeSelectionIconForeground, var(--vscode-icon-foreground));
+.vscode-high-contrast .group-outline {
+  --outline-color: var(--vscode-contrastActiveBorder);
 }
 
-/* High contrast themes draw hover and selection as outlines. */
-.vscode-high-contrast .row:hover,
-.vscode-high-contrast .line:hover {
-  outline: 1px dashed var(--vscode-contrastActiveBorder);
-  outline-offset: -1px;
-}
-
-.vscode-high-contrast .results:not(:focus) .focused {
-  outline: 1px dotted var(--vscode-contrastActiveBorder);
-  outline-offset: -1px;
+.vscode-high-contrast .group-outline.hovered {
+  border-style: dashed;
 }
 
 .menu {

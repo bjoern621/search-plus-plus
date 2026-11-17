@@ -11,7 +11,7 @@ import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { commitDay, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
 import { fitKeyPaths, keyPathElement, shownKeys } from "./keyPath";
-import { blockDedents, cutToMatch, dedent } from "./codeLines";
+import { blockAround, blockDedents, cutToMatch, dedent } from "./codeLines";
 
 interface ViewState extends FileFields {
   query: string;
@@ -452,14 +452,14 @@ function render(): void {
   const top = results.scrollTop;
   const first = Math.max(0, rowAt(offsets, top) - OVERSCAN_ROWS);
   const last = Math.min(rows.length, rowAt(offsets, top + results.clientHeight) + OVERSCAN_ROWS + 1);
-  focusedSubtree = subtreeOf(focusedIndex);
-  hoveredSubtree = subtreeOf(hoveredIndex);
   const elements: HTMLElement[] = [];
   for (let index = first; index < last; index++) {
     const row = rows[index];
     if (row) elements.push(rowElement(row, index));
   }
-  rowsElement.replaceChildren(...elements);
+  rowsElement.replaceChildren(...elements, hoveredOutline, focusedOutline);
+  placeOutline(hoveredOutline, hoveredIndex);
+  placeOutline(focusedOutline, focusedIndex);
   cutMatchLines();
   fitKeyPaths(rowsElement.querySelectorAll<HTMLElement>(".key-path"));
 }
@@ -468,9 +468,6 @@ function rowElement(row: Row, index: number): HTMLElement {
   const element = document.createElement("div");
   element.dataset.index = String(index);
   element.id = `row-${index}`;
-  if (index === focusedIndex) element.classList.add("focused");
-  if (inSubtree(focusedSubtree, index)) element.classList.add("in-focused");
-  if (inSubtree(hoveredSubtree, index)) element.classList.add("in-hovered");
   element.style.top = `${offsets[index] ?? 0}px`;
   element.setAttribute("role", "treeitem");
   switch (row.kind) {
@@ -547,36 +544,44 @@ function skipsLines(index: number): boolean {
   return row.line.line !== above.line.line + 1;
 }
 
-/** The rows below a folder, file or commit row, which take its hover and its selection. */
-interface Subtree {
-  first: number;
-  last: number;
+/** One rounded outline around the group of the hovered row, one around the group of the focused row. */
+const hoveredOutline = outlineElement("hovered");
+const focusedOutline = outlineElement("focused");
+
+function outlineElement(kind: string): HTMLDivElement {
+  const element = document.createElement("div");
+  element.className = `group-outline ${kind}`;
+  element.hidden = true;
+  return element;
 }
 
-let focusedSubtree: Subtree | undefined;
-let hoveredSubtree: Subtree | undefined;
-
-/** Finds the rows below the row at `index`. Undefined for a code line and for a collapsed row. */
-function subtreeOf(index: number): Subtree | undefined {
+/**
+ * Finds the rows that hover and selection mark together.
+ * A folder, file or commit takes the rows inside it. A code line takes its result block, meaning its match with the context lines.
+ */
+function groupOf(index: number): { first: number; last: number } | undefined {
   const row = rows[index];
-  if (!row || row.kind === "line") return undefined;
+  if (!row) return undefined;
+  if (row.kind === "line") return blockAround(rows, index);
   let last = index;
   while (last + 1 < rows.length && (rows[last + 1]?.depth ?? 0) > row.depth) last++;
-  return last > index ? { first: index + 1, last } : undefined;
+  return { first: index, last };
 }
 
-function inSubtree(subtree: Subtree | undefined, index: number): boolean {
-  return subtree !== undefined && index >= subtree.first && index <= subtree.last;
+function placeOutline(outline: HTMLElement, index: number): void {
+  const group = groupOf(index);
+  outline.hidden = group === undefined;
+  if (!group) return;
+  const top = offsets[group.first] ?? 0;
+  outline.style.top = `${top}px`;
+  outline.style.height = `${(offsets[group.last + 1] ?? top) - top}px`;
 }
 
-/** Lights the rows below the row under the pointer, on the rows in view, without a render. */
+/** Moves the hover outline to the group of the row under the pointer, without a render. */
 function hoverRow(index: number): void {
   if (index === hoveredIndex) return;
   hoveredIndex = index;
-  hoveredSubtree = subtreeOf(index);
-  for (const element of rowsElement.querySelectorAll<HTMLElement>("[data-index]")) {
-    element.classList.toggle("in-hovered", inSubtree(hoveredSubtree, Number(element.dataset.index)));
-  }
+  placeOutline(hoveredOutline, index);
 }
 
 /** A button that adds `entry` to files to exclude, drawn as a circle with a slash. */

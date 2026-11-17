@@ -21,6 +21,19 @@ export function indentColumns(line: ResultLine): number | undefined {
  * A block runs over the rows of one result block, meaning a match with its context, blank lines that take no row left out.
  * Every line of a block loses the same columns, so the lines keep their indentation relative to each other.
  */
+/** Finds the first and the last row of the result block that holds the code line at `index`. */
+export function blockAround(rows: readonly Row[], index: number): { first: number; last: number } {
+  const row = rows[index];
+  if (row?.kind !== "line") return { first: index, last: index };
+  const block = row.file.blocks.find((lines) => lines.includes(row.line));
+  const inBlock = (other: Row | undefined) => other?.kind === "line" && other.file === row.file && (block?.includes(other.line) ?? false);
+  let first = index;
+  let last = index;
+  while (inBlock(rows[first - 1])) first--;
+  while (inBlock(rows[last + 1])) last++;
+  return { first, last };
+}
+
 export function blockDedents(rows: readonly Row[]): number[] {
   const dedents = rows.map(() => 0);
   const blockOf = new Map<ResultLine, readonly ResultLine[]>();

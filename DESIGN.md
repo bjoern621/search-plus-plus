@@ -122,7 +122,8 @@ Below them come the quick actions:
 - The view renders in a webview, which draws the inputs and the dimmed context lines.
 - The view follows the color theme of VS Code.
   Rows, inputs and menus take the theme colors of their counterparts in the explorer, the Search view and the editor.
-  High contrast themes draw hover and selection as outlines.
+  Hover and selection draw one rounded outline around a group of rows and fill none of them.
+  A folder, file or commit groups the rows inside it. A code line groups its match with the context lines.
 - Twisties, buttons and menu checks take their icons from the codicon font of the workbench (`@vscode/codicons`), so they match the icons of the built-in views.
   A twisty sits where the workbench trees place theirs, with the chevron 16px wide and 6px before the file icon.
 - Code lines take the family and weight of the editor font at the size of the workbench font, in rows as high as the folder and file rows.
