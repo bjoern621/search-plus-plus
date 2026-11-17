@@ -1,13 +1,13 @@
-# Structural Search design
+# Search++ design
 
-This document records the decisions behind Structural Search, a VS Code extension that takes over the job of the built-in Search view.
+This document records the decisions behind Search++, a VS Code extension that takes over the job of the built-in Search view.
 Each decision takes one line.
 Open questions sit at the end until we settle them.
 
 ## Goal
 
 Search stays as simple as the built-in Search view: type text, read results.
-Structural Search reads the intent from the query and the file type.
+Search++ reads the intent from the query and the file type.
 Most searches need no option.
 Structural search feels like typing plain text.
 
@@ -132,7 +132,7 @@ Below them come the quick actions:
 
 ## Place in VS Code
 
-- Structural Search brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
+- Search++ brings its own view, since VS Code lets no extension replace the built-in Search view (`TextSearchProvider` stays a proposed API and skips `file://` files).
 - The view sits in the side bar.
   A popover over the editor would have to use the VS Code Quick Pick, which shows a flat list and offers no tree.
 - The view renders in a webview, which draws the inputs and the dimmed context lines.
@@ -149,7 +149,7 @@ Below them come the quick actions:
   The built-in Search view draws its result lines at that size and height as well, so code and file rows read as one list.
   Every other text takes the font of the workbench.
   A change of color theme or editor font redraws the view without a new search.
-- To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Structural Search.
+- To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Search++.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
 - The view keeps the core of the built-in Search view: query input, files to include and exclude, results as a list or a folder tree.
 - Replace stays with the built-in Search view.
@@ -237,7 +237,7 @@ A hint that stopped the search shows in the error colors of an input, as the bui
 
 - A search engine reads a query and a file and returns its matches.
 - Each search engine sits in its own module behind one interface.
-- Other VS Code extensions add search engines through the API that Structural Search exports from its `activate` function.
+- Other VS Code extensions add search engines through the API that Search++ exports from its `activate` function.
 - A search engine declares the file types and the queries that it accepts.
 - Every query runs in every search engine that accepts it.
   `example.com` runs the plain text engine in every file and the key path engines in YAML, JSON and TOML files.
@@ -338,7 +338,7 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 
 ## Configuration
 
-- Structural Search reads no per-project config file.
+- Search++ reads no per-project config file.
 - Every option lives in the VS Code settings and works with its default.
 
 ## Dependencies

@@ -506,7 +506,7 @@ function summaryFor(): string | undefined {
         case "noFolder":
             return "Open a folder to search it."
         case "failed":
-            return "The search could not finish. The Structural Search output says why."
+            return "The search could not finish. The Search++ output says why."
         case "running":
             return tree.matchCount === 0
                 ? undefined

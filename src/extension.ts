@@ -2,14 +2,14 @@ import * as vscode from "vscode"
 import { textEngine } from "./engines/text"
 import { RegexEngine } from "./engines/regex"
 import { LanguageIndex, languageContributions } from "./search/languages"
-import { EngineRegistry, type StructuralSearchApi } from "./search/registry"
+import { EngineRegistry, type SearchPlusPlusApi } from "./search/registry"
 import { findRipgrep } from "./search/ripgrep"
 import { SearchRunner } from "./search/runner"
 import { SearchViewProvider } from "./searchViewProvider"
 import { structuralEngines } from "./structural"
 
-export function activate(context: vscode.ExtensionContext): StructuralSearchApi {
-    const log = vscode.window.createOutputChannel("Structural Search", { log: true })
+export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
+    const log = vscode.window.createOutputChannel("Search++", { log: true })
     const rgPath = findRipgrep(vscode.env.appRoot)
     if (!rgPath)
         log.warn(`No ripgrep found under ${vscode.env.appRoot}, listing files through VS Code`)
@@ -56,17 +56,17 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
         vscode.window.registerWebviewViewProvider(SearchViewProvider.viewId, provider, {
             webviewOptions: { retainContextWhenHidden: true }
         }),
-        vscode.commands.registerCommand("structuralSearch.focus", () => provider.focus()),
-        vscode.commands.registerCommand("structuralSearch.openSettings", () =>
+        vscode.commands.registerCommand("searchPlusPlus.focus", () => provider.focus()),
+        vscode.commands.registerCommand("searchPlusPlus.openSettings", () =>
             vscode.commands.executeCommand(
                 "workbench.action.openSettings",
                 `@ext:${context.extension.id}`
             )
         ),
-        vscode.commands.registerCommand("structuralSearch.viewAsTree", () =>
+        vscode.commands.registerCommand("searchPlusPlus.viewAsTree", () =>
             provider.setResultsLayout("tree")
         ),
-        vscode.commands.registerCommand("structuralSearch.viewAsList", () =>
+        vscode.commands.registerCommand("searchPlusPlus.viewAsList", () =>
             provider.setResultsLayout("list")
         )
     )

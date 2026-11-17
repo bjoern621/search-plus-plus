@@ -2,7 +2,7 @@ import type * as vscode from "vscode"
 import type { SearchEngine } from "./types"
 
 /** The API that `activate` returns to other extensions. */
-export interface StructuralSearchApi {
+export interface SearchPlusPlusApi {
     /**
      * Adds a search engine to every search that starts after the call.
      * Throws if the id is empty or an engine with the same id is registered already.

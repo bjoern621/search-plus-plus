@@ -1,6 +1,6 @@
 {
-    "name": "structural-search",
-    "displayName": "Structural Search",
+    "name": "search-plus-plus",
+    "displayName": "Search++",
     "description": "Search by key paths in YAML, JSON and TOML, with typo and umlaut matching by default.",
     "version": "0.0.1",
     "publisher": "bjoern621",
@@ -18,48 +18,48 @@
         "viewsContainers": {
             "activitybar": [
                 {
-                    "id": "structuralSearch",
-                    "title": "Structural Search",
+                    "id": "searchPlusPlus",
+                    "title": "Search++",
                     "icon": "media/search.svg"
                 }
             ]
         },
         "views": {
-            "structuralSearch": [
+            "searchPlusPlus": [
                 {
                     "type": "webview",
-                    "id": "structuralSearch.view",
-                    "name": "Structural Search"
+                    "id": "searchPlusPlus.view",
+                    "name": "Search++"
                 }
             ]
         },
         "commands": [
             {
-                "command": "structuralSearch.focus",
-                "title": "Structural Search: Focus Search"
+                "command": "searchPlusPlus.focus",
+                "title": "Search++: Focus Search"
             },
             {
-                "command": "structuralSearch.openSettings",
+                "command": "searchPlusPlus.openSettings",
                 "title": "Open Settings",
-                "category": "Structural Search",
+                "category": "Search++",
                 "icon": "$(gear)"
             },
             {
-                "command": "structuralSearch.viewAsTree",
+                "command": "searchPlusPlus.viewAsTree",
                 "title": "View as Tree",
-                "category": "Structural Search",
-                "enablement": "structuralSearch.resultsLayout != tree"
+                "category": "Search++",
+                "enablement": "searchPlusPlus.resultsLayout != tree"
             },
             {
-                "command": "structuralSearch.viewAsList",
+                "command": "searchPlusPlus.viewAsList",
                 "title": "View as List",
-                "category": "Structural Search",
-                "enablement": "structuralSearch.resultsLayout != list"
+                "category": "Search++",
+                "enablement": "searchPlusPlus.resultsLayout != list"
             }
         ],
         "submenus": [
             {
-                "id": "structuralSearch.viewAs",
+                "id": "searchPlusPlus.viewAs",
                 "label": "View As",
                 "icon": "$(list-flat)"
             }
@@ -67,38 +67,38 @@
         "menus": {
             "view/title": [
                 {
-                    "submenu": "structuralSearch.viewAs",
-                    "when": "view == structuralSearch.view",
+                    "submenu": "searchPlusPlus.viewAs",
+                    "when": "view == searchPlusPlus.view",
                     "group": "navigation@1"
                 },
                 {
-                    "command": "structuralSearch.openSettings",
-                    "when": "view == structuralSearch.view",
+                    "command": "searchPlusPlus.openSettings",
+                    "when": "view == searchPlusPlus.view",
                     "group": "navigation@2"
                 }
             ],
-            "structuralSearch.viewAs": [
+            "searchPlusPlus.viewAs": [
                 {
-                    "command": "structuralSearch.viewAsTree",
+                    "command": "searchPlusPlus.viewAsTree",
                     "group": "navigation@1"
                 },
                 {
-                    "command": "structuralSearch.viewAsList",
+                    "command": "searchPlusPlus.viewAsList",
                     "group": "navigation@2"
                 }
             ]
         },
         "keybindings": [
             {
-                "command": "structuralSearch.focus",
+                "command": "searchPlusPlus.focus",
                 "key": "ctrl+shift+f",
                 "mac": "cmd+shift+f"
             }
         ],
         "configuration": {
-            "title": "Structural Search",
+            "title": "Search++",
             "properties": {
-                "structuralSearch.contextLines": {
+                "searchPlusPlus.contextLines": {
                     "type": "integer",
                     "default": 1,
                     "minimum": 0,

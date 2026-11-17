@@ -29,11 +29,11 @@ import type { SearchRoot } from "./search/workspaceEngine"
 /** The workspace state key of the results layout. */
 const RESULTS_LAYOUT_KEY = "resultsLayout"
 /** The context key that the View As menu of the view title reads, holding the results layout. */
-const RESULTS_LAYOUT_CONTEXT_KEY = "structuralSearch.resultsLayout"
+const RESULTS_LAYOUT_CONTEXT_KEY = "searchPlusPlus.resultsLayout"
 const DEFAULT_RESULTS_LAYOUT: ResultsLayout = "list"
 
 export class SearchViewProvider implements vscode.WebviewViewProvider {
-    static readonly viewId = "structuralSearch.view"
+    static readonly viewId = "searchPlusPlus.view"
 
     private view: vscode.WebviewView | undefined
     /** Resolves once the script of the current view listens for messages. */
@@ -108,7 +108,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
                     query: parseQuery(raw),
                     roots,
                     contextLines: vscode.workspace
-                        .getConfiguration("structuralSearch")
+                        .getConfiguration("searchPlusPlus")
                         .get<number>("contextLines", 1),
                     fields,
                     signal: controller.signal,

@@ -23,7 +23,7 @@ export function ripgrepOnPath(): string {
 
 /** Creates a folder that holds `files`, which map a relative path to its text. */
 export async function folderWith(files: Record<string, string>): Promise<string> {
-    const dir = await mkdtemp(path.join(tmpdir(), "structural-search-test-"))
+    const dir = await mkdtemp(path.join(tmpdir(), "search-plus-plus-test-"))
     for (const [relativePath, text] of Object.entries(files)) {
         await mkdir(path.dirname(path.join(dir, relativePath)), { recursive: true })
         await writeFile(path.join(dir, relativePath), text)

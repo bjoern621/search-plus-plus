@@ -95,9 +95,9 @@
     },
     "component": {
       "type": "application",
-      "name": "structural-search",
+      "name": "search-plus-plus",
       "version": "0.0.1",
-      "bom-ref": "structural-search@0.0.1",
+      "bom-ref": "search-plus-plus@0.0.1",
       "description": "Search by key paths in YAML, JSON and TOML, with typo and umlaut matching by default.",
       "licenses": [
         {
@@ -107,7 +107,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/structural-search@0.0.1",
+      "purl": "pkg:npm/search-plus-plus@0.0.1",
       "properties": [
         {
           "name": "cdx:npm:package:constraint:engine:vscode",
@@ -136,7 +136,7 @@
       "name": "codicons",
       "group": "@vscode",
       "version": "0.0.45",
-      "bom-ref": "structural-search@0.0.1|@vscode/codicons@0.0.45",
+      "bom-ref": "search-plus-plus@0.0.1|@vscode/codicons@0.0.45",
       "author": "Microsoft Corporation",
       "description": "The icon font for Visual Studio Code",
       "licenses": [
@@ -187,7 +187,7 @@
       "type": "library",
       "name": "jsonc-parser",
       "version": "3.3.1",
-      "bom-ref": "structural-search@0.0.1|jsonc-parser@3.3.1",
+      "bom-ref": "search-plus-plus@0.0.1|jsonc-parser@3.3.1",
       "author": "Microsoft Corporation",
       "description": "Scanner and parser for JSON with comments.",
       "licenses": [
@@ -237,17 +237,17 @@
   ],
   "dependencies": [
     {
-      "ref": "structural-search@0.0.1",
+      "ref": "search-plus-plus@0.0.1",
       "dependsOn": [
-        "structural-search@0.0.1|@vscode/codicons@0.0.45",
-        "structural-search@0.0.1|jsonc-parser@3.3.1"
+        "search-plus-plus@0.0.1|@vscode/codicons@0.0.45",
+        "search-plus-plus@0.0.1|jsonc-parser@3.3.1"
       ]
     },
     {
-      "ref": "structural-search@0.0.1|@vscode/codicons@0.0.45"
+      "ref": "search-plus-plus@0.0.1|@vscode/codicons@0.0.45"
     },
     {
-      "ref": "structural-search@0.0.1|jsonc-parser@3.3.1"
+      "ref": "search-plus-plus@0.0.1|jsonc-parser@3.3.1"
     }
   ]
 }
