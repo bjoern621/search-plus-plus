@@ -96,6 +96,8 @@ export interface TestSnapshot {
   hint: string;
   include: string;
   exclude: string;
+  /** True while files to include and files to exclude show. */
+  fileFieldsOpen: boolean;
   rows: string[];
   /** The icon definition id of each row, empty for a row without icon. */
   icons: string[];

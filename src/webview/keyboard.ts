@@ -15,6 +15,7 @@ export interface KeyPress {
 /**
  * Maps a key pressed on the results to a command on the focused row at `index`, as the tree of the built-in Search view does.
  * Up and Down move the focus, Left and Right collapse, expand or move to the parent, Enter opens, Space opens and keeps the focus.
+ * Up, Down, Home, End and Right pass over context lines, since the tree of the built-in Search view holds none.
  * The context menu key or Shift+F10 opens the menu of a matched line.
  * `index` -1 means that no row holds the focus. Returns `undefined` for a key without a command.
  */
@@ -23,13 +24,13 @@ export function rowCommand(rows: readonly Row[], index: number, press: KeyPress)
   const row = rows[index];
   switch (press.key) {
     case "ArrowDown":
-      return { kind: "focus", index: Math.min(index + 1, rows.length - 1) };
+      return focusStop(rows, index < 0 ? firstStop(rows) : (stopAfter(rows, index, 1) ?? index));
     case "ArrowUp":
-      return { kind: "focus", index: Math.max(index - 1, 0) };
+      return focusStop(rows, index < 0 ? firstStop(rows) : (stopAfter(rows, index, -1) ?? index));
     case "Home":
-      return { kind: "focus", index: 0 };
+      return focusStop(rows, firstStop(rows));
     case "End":
-      return { kind: "focus", index: rows.length - 1 };
+      return focusStop(rows, stopAfter(rows, rows.length, -1));
   }
   if (!row) return undefined;
   switch (press.key) {
@@ -43,7 +44,7 @@ export function rowCommand(rows: readonly Row[], index: number, press: KeyPress)
     case "ArrowRight":
       if (row.kind === "line") return undefined;
       if (row.collapsed) return { kind: "toggle" };
-      return index + 1 < rows.length ? { kind: "focus", index: index + 1 } : undefined;
+      return focusStop(rows, stopAfter(rows, index, 1));
     case "ContextMenu":
       return isMatch(row) ? { kind: "menu" } : undefined;
     case "F10":
@@ -54,6 +55,33 @@ export function rowCommand(rows: readonly Row[], index: number, press: KeyPress)
 
 function isMatch(row: Row): boolean {
   return row.kind === "line" && row.line.match;
+}
+
+/** Says whether Up and Down stop on `row`: every row except a context line. */
+function isStop(row: Row): boolean {
+  return row.kind !== "line" || row.line.match;
+}
+
+/** Returns the index of the first row from `index` in the direction of `step` that Up and Down stop on, `index` itself left out. Undefined past the last one. */
+function stopAfter(rows: readonly Row[], index: number, step: 1 | -1): number | undefined {
+  for (let candidate = index + step; candidate >= 0 && candidate < rows.length; candidate += step) {
+    if (isStop(rows[candidate] as Row)) return candidate;
+  }
+  return undefined;
+}
+
+function firstStop(rows: readonly Row[]): number | undefined {
+  return stopAfter(rows, -1, 1);
+}
+
+/** Focuses the row at `index`. Undefined for a missing index. */
+function focusStop(rows: readonly Row[], index: number | undefined): RowCommand | undefined {
+  return index === undefined || index < 0 || index >= rows.length ? undefined : { kind: "focus", index };
+}
+
+/** The first row that Up and Down stop on. -1 without rows. */
+export function firstFocusableRow(rows: readonly Row[]): number {
+  return firstStop(rows) ?? -1;
 }
 
 /** How deep each kind of row sits in the tree. A row's parent sits one level or more above it. */

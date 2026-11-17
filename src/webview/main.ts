@@ -5,7 +5,7 @@ import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions";
 import { ContextMenu } from "./contextMenu";
 import { HoverCard } from "./hoverCard";
-import { type KeyPress, rowCommand } from "./keyboard";
+import { firstFocusableRow, type KeyPress, rowCommand } from "./keyboard";
 import { matchMenu, type MenuAction } from "./menu";
 import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
@@ -86,6 +86,10 @@ setFileFieldsOpen(state.fileFieldsOpen);
 renderSummary();
 
 input.addEventListener("keydown", (event) => {
+  if (moveBetweenFields(event)) {
+    event.preventDefault();
+    return;
+  }
   switch (event.key) {
     case "Enter":
       submit();
@@ -111,7 +115,8 @@ scope.addEventListener("click", (event) => openScopeMenu(event.detail === 0));
 
 for (const field of [includeInput, excludeInput]) {
   field.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") submit();
+    if (moveBetweenFields(event)) event.preventDefault();
+    else if (event.key === "Enter") submit();
   });
   field.addEventListener("input", () => applyFileFields());
 }
@@ -319,6 +324,41 @@ function setFileFieldsOpen(open: boolean): void {
   detailsButton.setAttribute("aria-expanded", String(open));
   state.fileFieldsOpen = open;
   saveState();
+}
+
+/**
+ * Moves the focus with Ctrl+Down and Ctrl+Up, or Cmd on macOS, as the built-in Search view does.
+ * Ctrl+Down goes from the query to files to include and files to exclude while they show, then into the results.
+ * Ctrl+Up goes back from files to exclude to the query.
+ * Returns false for any other key.
+ */
+function moveBetweenFields(event: KeyboardEvent): boolean {
+  if (!(event.ctrlKey || event.metaKey) || (event.key !== "ArrowDown" && event.key !== "ArrowUp")) return false;
+  const fields = fileFieldsElement.hidden ? [input] : [input, includeInput, excludeInput];
+  const index = fields.indexOf(event.target as HTMLInputElement);
+  if (index < 0) return false;
+  if (event.key === "ArrowUp") {
+    const previous = fields[index - 1];
+    if (!previous) return false;
+    previous.focus();
+    previous.select();
+    return true;
+  }
+  const next = fields[index + 1];
+  if (next) {
+    next.focus();
+    next.select();
+    return true;
+  }
+  focusResults();
+  return true;
+}
+
+/** Moves the keyboard focus into the results, onto the first row unless a row holds it already. */
+function focusResults(): void {
+  layout();
+  results.focus();
+  if (focusedIndex < 0 && rows.length > 0) focusRow(firstFocusableRow(rows));
 }
 
 function walkHistory(step: -1 | 1): void {
@@ -610,13 +650,24 @@ function runMenuAction(action: MenuAction): void {
   }
 }
 
-/** Presses `key` on the focused element of the results or the context menu, as a person would. `Shift+` in front holds Shift. */
+/**
+ * Presses `key` on the focused element of the results or the context menu, as a person would.
+ * `Shift+` in front holds Shift, `Ctrl+` holds Ctrl.
+ * `query:` in front presses the key in the query input, `field:` in the focused input.
+ */
 function pressKey(key: string): void {
+  const inQuery = key.startsWith("query:");
+  const inField = key.startsWith("field:") && document.activeElement instanceof HTMLInputElement;
+  let name = key.replace(/^(query|field):/, "");
+  const ctrlKey = name.startsWith("Ctrl+");
+  if (ctrlKey) name = name.slice("Ctrl+".length);
+  const shiftKey = name.startsWith("Shift+");
+  if (shiftKey) name = name.slice("Shift+".length);
   const inMenu = document.activeElement?.closest(".menu");
-  if (!inMenu) results.focus();
-  const target = inMenu ? (document.activeElement as HTMLElement) : results;
-  const shiftKey = key.startsWith("Shift+");
-  target.dispatchEvent(new KeyboardEvent("keydown", { key: shiftKey ? key.slice("Shift+".length) : key, shiftKey, bubbles: true, cancelable: true }));
+  if (inQuery) input.focus();
+  else if (!inMenu && !inField) results.focus();
+  const target = inQuery ? input : inMenu || inField ? (document.activeElement as HTMLElement) : results;
+  target.dispatchEvent(new KeyboardEvent("keydown", { key: name, ctrlKey, shiftKey, bubbles: true, cancelable: true }));
 }
 
 /** A line opens its file at the match. A commit, folder or file row collapses or expands. */
@@ -643,6 +694,7 @@ function snapshot(): TestSnapshot {
     hint: hint.hidden ? "" : (hint.dataset.text ?? ""),
     include: includeInput.value,
     exclude: excludeInput.value,
+    fileFieldsOpen: !fileFieldsElement.hidden,
     rows: rows.map(describeRow),
     icons: rows.map(rowIcon),
     keyPaths: rows.map((row) => (row.kind === "line" ? (shownKeyPath(row.line) ?? "") : "")),

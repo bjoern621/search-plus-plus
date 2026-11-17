@@ -213,10 +213,20 @@ describe("Structural Search view", () => {
     assert.ok(written.rows.includes("match 3: Set the [Größe] of each volume."), written.rows.join("\n"));
   });
 
+  it("moves from the query into the results with Ctrl+Down, as the built-in Search view does", async () => {
+    const snapshot = await search("replicas");
+    // Files to include and files to exclude sit between the query and the results while they show.
+    const fieldKeys = snapshot.fileFieldsOpen ? ["field:Ctrl+ArrowDown", "field:Ctrl+ArrowDown"] : [];
+    const first = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["query:Ctrl+ArrowDown", ...fieldKeys]);
+    assert.equal(first.focused, 0);
+    const match = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown", "ArrowDown"]);
+    assert.equal(snapshot.rows[match.focused], "match 5:   [replicas]: 2");
+  });
+
   it("opens the context menu of the focused match with Shift+F10 and closes it with Escape", async () => {
     const before = await search("replicas");
     const index = before.rows.indexOf("match 5:   [replicas]: 2");
-    const keys = Array.from({ length: index + 1 }, () => "ArrowDown");
+    const keys = downTo(before.rows, index);
     const open = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", [...keys, "Shift+F10"]);
     assert.deepEqual(open.menu, ["Exclude values.yaml", "Exclude folder charts/apim", "-", "Copy line"]);
     assert.equal(open.menuFocus, "Exclude values.yaml");
@@ -304,7 +314,7 @@ describe("Structural Search view", () => {
     const snapshot = await search("Entry");
     const index = snapshot.rows.findIndex((row) => row.startsWith("match 38:"));
     assert.notEqual(index, -1, snapshot.rows.join("\n"));
-    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", Array.from({ length: index + 1 }, () => "ArrowDown"));
+    await vscode.commands.executeCommand("structuralSearch.test.pressKeys", downTo(snapshot.rows, index));
     await vscode.commands.executeCommand("structuralSearch.test.hover", index - 1);
     const hover = await shownHover();
     const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
@@ -355,13 +365,14 @@ describe("Structural Search view", () => {
     assert.deepEqual(await settledSelection("charts/apim/values.yaml", [4, 2, 4, 10]), [4, 2, 4, 10]);
   });
 
-  it("moves through the rows with Down and opens the focused line with Enter", async () => {
+  it("moves through the rows with Down, past the context lines, and opens the focused line with Enter", async () => {
     const snapshot = await search("replicas");
     const index = snapshot.rows.indexOf("match 5:   [replicas]: 2");
     assert.notEqual(index, -1, snapshot.rows.join("\n"));
 
-    const keys = [...Array.from({ length: index + 1 }, () => "ArrowDown"), "ArrowUp", "ArrowDown"];
-    const focused = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", keys);
+    const file = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown", "ArrowDown"]);
+    assert.equal(snapshot.rows[file.focused], "file values.yaml");
+    const focused = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown", "ArrowDown", "ArrowUp", "ArrowDown"]);
     assert.equal(focused.focused, index);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     await vscode.commands.executeCommand("structuralSearch.test.pressKeys", ["Enter"]);
@@ -519,6 +530,11 @@ async function changedIcons(settled: (icons: Record<string, string>) => boolean)
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   return icons;
+}
+
+/** The Down presses that move the focus from no row to the row at `index`. Down passes over context lines. */
+function downTo(rows: string[], index: number): string[] {
+  return rows.slice(0, index + 1).filter((row) => !row.startsWith("context ")).map(() => "ArrowDown");
 }
 
 /** Maps each match row to the key path that it shows, empty for a row without one. */

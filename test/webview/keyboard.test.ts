@@ -26,6 +26,26 @@ describe("rowCommand", () => {
     expect(rowCommand(rows(), 3, press("Home"))).toEqual({ kind: "focus", index: 0 });
   });
 
+  it("passes over context lines with Up, Down, Home, End and Right", () => {
+    const context = { ...line, match: false };
+    const withContext: Row[] = [
+      { kind: "file", key: file.uri, file, collapsed: false },
+      { kind: "line", file, line: { ...context, line: 0 } },
+      { kind: "line", file, line: { ...line, line: 1 } },
+      { kind: "line", file, line: { ...context, line: 2 } },
+      { kind: "line", file, line: { ...context, line: 5 } },
+      { kind: "line", file, line: { ...line, line: 6 } },
+      { kind: "line", file, line: { ...context, line: 7 } },
+    ];
+    expect(rowCommand(withContext, 0, press("ArrowDown"))).toEqual({ kind: "focus", index: 2 });
+    expect(rowCommand(withContext, 2, press("ArrowDown"))).toEqual({ kind: "focus", index: 5 });
+    expect(rowCommand(withContext, 5, press("ArrowDown"))).toEqual({ kind: "focus", index: 5 });
+    expect(rowCommand(withContext, 5, press("ArrowUp"))).toEqual({ kind: "focus", index: 2 });
+    expect(rowCommand(withContext, 2, press("ArrowUp"))).toEqual({ kind: "focus", index: 0 });
+    expect(rowCommand(withContext, 0, press("End"))).toEqual({ kind: "focus", index: 5 });
+    expect(rowCommand(withContext, 0, press("ArrowRight"))).toEqual({ kind: "focus", index: 2 });
+  });
+
   it("opens with Enter and keeps the focus with Space", () => {
     expect(rowCommand(rows(), 2, press("Enter"))).toEqual({ kind: "activate", preserveFocus: false });
     expect(rowCommand(rows(), 2, press(" "))).toEqual({ kind: "activate", preserveFocus: true });
