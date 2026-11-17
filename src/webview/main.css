@@ -494,11 +494,11 @@ button {
 }
 
 .group-outline.hovered {
-  border-color: color-mix(in srgb, var(--outline-color) 40%, transparent);
+  border-color: color-mix(in srgb, var(--outline-color) 70%, transparent);
 }
 
 .group-outline.focused {
-  border-color: color-mix(in srgb, var(--outline-color) 60%, transparent);
+  border-color: color-mix(in srgb, var(--outline-color) 85%, transparent);
 }
 
 .results:focus .group-outline.focused {
