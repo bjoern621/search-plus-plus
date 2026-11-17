@@ -1,0 +1,13 @@
+// config.server.port in a comment stays out
+const label = "config.server.port";
+export function start(config: Config): void {
+  listen(this.config.server.port);
+  listen(config?.server.port);
+  listen(config["server"].port);
+  const port = config
+    .server
+    .port;
+  const text = `port ${config.server.port} and config.server.port`;
+  const pattern = /config.server.port/;
+  load().server.port;
+}
