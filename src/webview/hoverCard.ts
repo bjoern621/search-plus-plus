@@ -61,13 +61,18 @@ export class HoverCard {
     header.className = "hover-file";
     const keyPath = shownKeyPath(lines[hit] as ResultLine);
     if (keyPath !== undefined) {
-      const key = document.createElement("span");
-      key.className = "hover-key-path";
-      key.textContent = keyPath;
-      header.append(key, " · ");
+      const separator = document.createElement("span");
+      separator.className = "hover-separator";
+      separator.textContent = " · ";
+      header.append(headerPart("hover-key-path", keyPath), separator);
       elements[hit]?.append(keyPathElement(keyPath));
     }
-    header.append([file.root, relativePath(file)].filter((part) => part !== "").join("/"));
+    const path = [file.root, relativePath(file)].filter((part) => part !== "").join("/");
+    const nameStart = path.lastIndexOf("/") + 1;
+    const name = document.createElement("span");
+    name.className = "hover-file-name";
+    name.textContent = path.slice(nameStart);
+    header.append(headerPart("hover-folder", path.slice(0, nameStart)), name);
     this.element.replaceChildren(header, ...elements);
     // The numbers take the width of the numbers in the results, so the text of the hovered line starts where its row's text starts.
     const rowNumberWidth = getComputedStyle(row).getPropertyValue("--line-number-width").trim() || "2ch";
@@ -125,6 +130,16 @@ export class HoverCard {
       viewHeight: window.innerHeight,
     };
   }
+}
+
+/** A part of the header that gets cut from the left once the header runs out of room, so its end stays in view. */
+function headerPart(className: string, text: string): HTMLElement {
+  const element = document.createElement("span");
+  element.className = className;
+  const isolated = document.createElement("bdi");
+  isolated.textContent = text;
+  element.append(isolated);
+  return element;
 }
 
 function lineElement(line: ResultLine, hovered: boolean): HTMLElement {

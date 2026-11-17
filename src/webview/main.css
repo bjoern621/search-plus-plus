@@ -575,17 +575,40 @@ body {
 
 /* The border plus the left padding of the card match the padding of a row, so the line numbers of both start together. */
 .hover-file {
+  display: flex;
   padding: 0 8px 4px 7px;
   color: var(--vscode-descriptionForeground);
   font-size: var(--small-font-size);
   line-height: 18px;
   white-space: nowrap;
   overflow: hidden;
+}
+
+/* A header too long for the card cuts the folder first, then the key path. The file name stays whole. */
+.hover-key-path,
+.hover-folder {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  direction: rtl;
+}
+
+.hover-folder {
+  flex-shrink: 1000;
+}
+
+.hover-file-name {
+  flex: none;
 }
 
 .hover-key-path {
   color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+}
+
+.hover-separator {
+  flex: none;
+  white-space: pre;
 }
 
 .hover-line {

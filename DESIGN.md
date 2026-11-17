@@ -64,6 +64,7 @@ The summary line shows a scope other than the working tree in color, so a histor
   The summary line holds the total.
 - Hovering a match shows a larger excerpt of its file in a card.
   The card names the file above its lines, after the key path of the match where the row shows one: `gateway.image.tag · charts/apim/values.yaml`.
+  A header too long for the card loses its folder first, then the start of the key path, so the last keys and the file name stay in view.
   Its copy of the hovered line covers the row in place, in the same font and size, so the code keeps its place while the lines before it appear above and the lines after it below.
   Near an edge of the view, the card drops the lines on that side that would leave the view.
   Once no line is left to drop there, the card moves into the view.
