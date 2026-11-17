@@ -316,7 +316,7 @@ button {
 }
 
 /*
- * `--row-foreground` holds the color of a row, so a list color that the theme leaves unset keeps it.
+ * `--row-foreground` holds the color of a row, which hover and selection swap for the list colors of the theme.
  * A tree row steps right of its parent by the indent of the workbench trees.
  * Code lines keep the left edge at any depth, so the code takes the full width of the side bar.
  */
@@ -381,9 +381,10 @@ button {
 /* The rows below a hovered folder, file or commit take its hover. */
 .row:hover,
 .line:hover,
-.in-hovered {
+.row.in-hovered,
+.line.in-hovered {
+  --row-foreground: var(--vscode-list-hoverForeground, var(--vscode-foreground));
   background: var(--vscode-list-hoverBackground);
-  color: var(--vscode-list-hoverForeground, var(--row-foreground));
 }
 
 /* Placed as the twisties of the workbench trees: 16px wide, 6px before the icon, the chevron moved 3px right. */
@@ -471,9 +472,8 @@ button {
 
 
 /* Code lines take the editor font at the size of the workbench font, so they read as one list with the file rows, as in the Search view. */
-/* Context lines dim the text colour, since descriptionForeground takes a hue of its own in some themes. */
 .line {
-  --row-foreground: color-mix(in srgb, var(--vscode-foreground) 65%, transparent);
+  --row-foreground: var(--vscode-foreground);
   height: 22px;
   line-height: 22px;
   color: var(--row-foreground);
@@ -485,9 +485,16 @@ button {
   tab-size: 4;
 }
 
-.line.match,
+/*
+ * Context lines dim the color of their row, since descriptionForeground takes a hue of its own in some themes.
+ * They stay dimmed on hover and on the selection, as an ignored file does in the explorer.
+ */
+.line:not(.match) {
+  color: color-mix(in srgb, var(--row-foreground) 65%, transparent);
+}
+
 .vscode-high-contrast .line {
-  --row-foreground: var(--vscode-foreground);
+  color: var(--row-foreground);
 }
 
 /* The key path grows up to its full width in the room that the line text leaves. The script cuts it to that room at key boundaries. */
@@ -542,14 +549,14 @@ button {
 .focused:hover,
 .in-focused,
 .in-focused:hover {
+  --row-foreground: var(--vscode-list-inactiveSelectionForeground, var(--vscode-foreground));
   background: var(--vscode-list-inactiveSelectionBackground);
-  color: var(--vscode-list-inactiveSelectionForeground, var(--row-foreground));
 }
 
 .results:focus .focused,
 .results:focus .in-focused {
+  --row-foreground: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
   background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground, var(--row-foreground));
 }
 
 .results:focus .focused {
@@ -679,7 +686,7 @@ button {
 .hover-file {
   display: flex;
   padding: 0 7px 4px;
-  color: var(--vscode-descriptionForeground);
+  color: color-mix(in srgb, var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground)) 65%, transparent);
   font-size: var(--small-font-size);
   line-height: 18px;
   white-space: nowrap;
@@ -724,10 +731,11 @@ button {
   white-space: pre;
 }
 
+/* Context lines in the card dim the card's text color, as in the results. */
 .hover-line {
   display: flex;
   padding: 0 7px;
-  color: var(--vscode-descriptionForeground);
+  color: color-mix(in srgb, var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground)) 65%, transparent);
   font-family: var(--code-font-family);
   font-size: var(--vscode-font-size);
   font-weight: var(--vscode-editor-font-weight);
