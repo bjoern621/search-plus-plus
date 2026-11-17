@@ -502,8 +502,9 @@ button {
 
 
 /* Code lines take the editor font at the size of the workbench font, so they read as one list with the file rows, as in the Search view. */
+/* Context lines dim the text colour, since descriptionForeground takes a hue of its own in some themes. */
 .line {
-  --row-foreground: var(--vscode-descriptionForeground);
+  --row-foreground: color-mix(in srgb, var(--vscode-foreground) 65%, transparent);
   height: 22px;
   line-height: 22px;
   color: var(--row-foreground);
@@ -515,7 +516,8 @@ button {
   tab-size: 4;
 }
 
-.line.match {
+.line.match,
+.vscode-high-contrast .line {
   --row-foreground: var(--vscode-foreground);
 }
 
