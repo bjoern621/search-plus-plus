@@ -11,7 +11,7 @@ const MENU_RIGHT_PX = 12;
 export class ContextMenu {
   private readonly reasons: HTMLDivElement;
   private readonly list: HTMLDivElement;
-  /** The items that take focus and run, in the order of the menu. Disabled items stay out. */
+  /** The items that take focus and run, in the order of the menu. */
   private items: { element: HTMLDivElement; action: MenuAction }[] = [];
 
   constructor(
@@ -64,7 +64,7 @@ export class ContextMenu {
       if (index > 0) children.push(separator());
       for (const item of group) {
         const element = itemElement(item);
-        if (!item.disabled) this.items.push({ element, action: item.action });
+        this.items.push({ element, action: item.action });
         children.push(element);
       }
     });
@@ -138,32 +138,15 @@ export class ContextMenu {
   }
 }
 
-/** A check mark column, the label and the dimmer description. */
 function itemElement(item: MenuItem): HTMLDivElement {
-  const element = document.createElement("div");
-  element.className = item.disabled ? "menu-item disabled" : "menu-item";
+  const element = textElement("menu-item", item.label);
   element.tabIndex = -1;
-  if (item.checked === undefined) element.setAttribute("role", "menuitem");
-  else {
-    element.setAttribute("role", "menuitemradio");
-    element.setAttribute("aria-checked", String(item.checked));
-    element.append(spanElement(item.checked ? "menu-check codicon codicon-check" : "menu-check", ""));
-  }
-  if (item.disabled) element.setAttribute("aria-disabled", "true");
-  element.append(spanElement("menu-label", item.label));
-  if (item.description !== undefined) element.append(spanElement("menu-description", item.description));
+  element.setAttribute("role", "menuitem");
   return element;
 }
 
 function textElement(className: string, text: string): HTMLDivElement {
   const element = document.createElement("div");
-  element.className = className;
-  element.textContent = text;
-  return element;
-}
-
-function spanElement(className: string, text: string): HTMLSpanElement {
-  const element = document.createElement("span");
   element.className = className;
   element.textContent = text;
   return element;

@@ -1,9 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { HistorySource } from "../../src/git/sources";
 import { RESULT_LINE_LIMIT } from "../../src/search/config";
-import { git, repositoryWith } from "../git/repositorySetup";
 import { Uri, workspace } from "../vscodeStub";
 import { folderWith, matchedLines, rootAt, runSearch } from "./runnerSetup";
 
@@ -65,16 +63,6 @@ describe("SearchRunner", () => {
     for (const query of ["needle", "/needle/"]) {
       const result = await runSearch(query, [rootAt(0, dir)]);
       expect(matchedLines(result.files)).toEqual(["a.txt:2: needle"]);
-    }
-  });
-
-  it("counts a lone carriage return as a line break in the lines that a commit added", async () => {
-    const place = await repositoryWith(0, { "a.txt": "needle\n" });
-    await writeFile(path.join(place.cwd, "a.txt"), "needle\rneedle\n");
-    git(place.cwd, "commit", "--quiet", "--all", "--message", "Add a needle");
-    for (const query of ["needle", "/needle/"]) {
-      const result = await runSearch(query, [place.root], { files: { kind: "revisions", source: new HistorySource("git", [place], () => {}) } });
-      expect(matchedLines(result.files)).toEqual(["a.txt:1: needle", "a.txt:1: needle", "a.txt:2: needle"]);
     }
   });
 });

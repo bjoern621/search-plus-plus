@@ -36,19 +36,17 @@ The level decides how far the view keeps the feature from the query input.
 | Context menu on a match | Frequent | on right-click on a match |
 | Results as paths or a folder tree | Frequent | View As menu in the view title |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
-| Scope | Rare | menu at the end of the results summary line |
 | Settings for the matching defaults | Rare | behind the gear in the view title |
 
 The empty query input names both kinds of query in its placeholder: `Text or key path: gateway.image.tag`.
 It stays short enough to show whole in a side bar of the default width.
-The summary line holds the scope button from the start, so the scope can change before the first search.
-It shows a scope other than the working tree in color, so a history search never passes for a working tree search.
 
 As in the built-in Search view, typing in the query input or the file fields searches once typing pauses for `search.searchOnTypeDebouncePeriod`, while `search.searchOnType` stays on.
 Enter searches at once.
 A keystroke cancels the search that runs.
 An empty query clears the results.
 A query enters the search history on Enter or once no other search replaced it for two seconds, as in the built-in Search view.
+Every search covers the files that the ignore files and the exclude settings of VS Code hide.
 
 ## Results
 
@@ -69,7 +67,6 @@ A query enters the search history on Enter or once no other search replaced it f
   The paths show the path of a file relative to its workspace folder, the file name in bold: `charts/apim/values.yaml`.
   A narrow side bar drops whole folders from the front of the path and keeps the file name whole: `…/apim/values.yaml`.
   In a multi-root workspace, the folders start with the name of the workspace folder.
-  In the Git history scope, the files of a commit sit under its row.
 - In the tree, folders nest as in the explorer, subfolders before files.
   A chain of folders without matched files of their own shares one row, such as `charts/apim`.
   A chain that leads to one file and nothing else folds into the row of that file: `docs.md` followed by `atticd-speed/argocd/applications/gitlab`, dimmed.
@@ -133,8 +130,8 @@ Below them come the quick actions:
 - The view follows the color theme of VS Code.
   Rows, inputs and menus take the theme colors of their counterparts in the explorer, the Search view and the editor.
   Hover and selection draw one rounded outline around a group of rows and fill none of them.
-  A folder, file or commit groups the rows inside it. A code line groups its match with the context lines.
-- Twisties, buttons and menu checks take their icons from the codicon font of the workbench (`@vscode/codicons`), so they match the icons of the built-in views.
+  A folder or file groups the rows inside it. A code line groups its match with the context lines.
+- Twisties and buttons take their icons from the codicon font of the workbench (`@vscode/codicons`), so they match the icons of the built-in views.
   A twisty sits where the workbench trees place theirs, with the chevron 16px wide and 6px before the file icon.
 - Code lines take the family and weight of the editor font at the size of the workbench font, in rows as high as the folder and file rows.
   The built-in Search view draws its result lines at that size and height as well, so code and file rows read as one list.
@@ -236,7 +233,7 @@ A hint that stopped the search shows in the error colors of an input, as the bui
 - The plain text engine accepts every file, so a file type without an engine of its own still gets results.
 - The first version brings search engines for plain text, regex and key paths in YAML, JSON and TOML.
 - The search engines get picked during implementation.
-  Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code, the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths, `git grep` and `git log -G` for branches and history.
+  Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code and the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths.
 
 ## Structural search
 
@@ -325,29 +322,6 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 - Excluding adds the folder or file to files to exclude and drops its results without a new search.
 - Removing the entry from files to exclude brings its results back.
 
-## Scope
-
-A menu at the end of the results summary line picks where the search runs:
-
-- Working tree (the default)
-- Files changed against the default branch
-- Another branch
-- Git history
-
-The button names the scope that the search runs in, such as `Branch feature`.
-The branch and history scopes read Git without a checkout.
-Files to include and files to exclude apply in every scope.
-Every search covers the files that the ignore files and the exclude settings of VS Code hide.
-
-- The changed files scope searches the files that differ from the merge base with `main` or `master`, uncommitted and untracked files included.
-- The branch scope lists the branches in a quick pick, the most recent commit first.
-- The history scope searches the lines that the latest commits on HEAD added or changed.
-  `HISTORY_COMMIT_LIMIT` in `src/search/config.ts` sets how many commits it reads.
-- The history scope groups results by commit, the newest first.
-  A commit row shows the short hash, the subject, the author and the day.
-- A result from a branch or a commit opens read-only at the match.
-- Outside a Git repository, the menu shows the Git scopes disabled and says why.
-
 ## Configuration
 
 - Structural Search reads no per-project config file.
@@ -363,5 +337,6 @@ Every search covers the files that the ignore files and the exclude settings of 
 ## Out of scope
 
 - Helm cross-references between `values.yaml` and templates belong in a separate extension.
+- Search in other branches and in the Git history belongs in a separate extension.
 - Replace stays with the built-in Search view until a need comes up.
 - Refining by content, conditions across one YAML document, proximity search, case variants of identifiers, keys-only search and skipping comments stay out until a need comes up.

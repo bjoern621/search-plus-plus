@@ -1,5 +1,4 @@
 import type { FileResult, ResultLine } from "../messages";
-import type { SearchScope } from "../search/scope";
 import type { MatchReason } from "../search/types";
 import { fileEntry, folderEntry } from "./exclusions";
 import { keyPathText } from "./keyPath";
@@ -8,20 +7,11 @@ export type MenuAction =
   | { kind: "search"; query: string }
   | { kind: "exclude"; entry: string }
   | { kind: "copyLine" }
-  | { kind: "copy"; text: string }
-  | { kind: "scope"; scope: SearchScope }
-  /** Asks the host for a branch, then searches it. */
-  | { kind: "pickBranch" };
+  | { kind: "copy"; text: string };
 
 export interface MenuItem {
   label: string;
   action: MenuAction;
-  /** Shown after the label in a dimmer color, such as the number of commits that a scope reads. */
-  description?: string;
-  /** Marks the current choice of a menu that picks one option. */
-  checked?: boolean;
-  /** A disabled item shows, takes no focus and runs nothing. Its description should say why. */
-  disabled?: boolean;
 }
 
 /** A menu: lines that explain it, then groups of actions with a separator between them. */

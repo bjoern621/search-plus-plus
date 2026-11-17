@@ -25,6 +25,6 @@ export interface WorkspaceSearchEngine {
   check(query: Query, signal: AbortSignal): Promise<Hint | undefined>;
   /** Calls `onFile` once per file with matches. `relativePath` uses `/` as separator. */
   search(roots: readonly SearchRoot[], query: Query, signal: AbortSignal, onFile: (root: SearchRoot, relativePath: string, matches: LineMatch[]) => void): Promise<void>;
-  /** Searches texts in place of files on disk, such as files that Git holds or the text of an editor with unsaved changes. Returns the matches of each text in the order of `texts`. */
+  /** Searches texts in place of files on disk, such as the text of an editor with unsaved changes. Returns the matches of each text in the order of `texts`. */
   searchTexts(texts: readonly string[], query: Query, signal: AbortSignal): Promise<LineMatch[][]>;
 }

@@ -20,10 +20,3 @@ export const LINE_EXCERPT_LEAD_CHARS = 40;
 /** The bounds that VS Code sets on `workbench.tree.indent`. */
 export const TREE_INDENT_MIN_PX = 4;
 export const TREE_INDENT_MAX_PX = 40;
-
-/** The Git history scope reads this many commits back from HEAD, since `git log --patch` takes longer with every commit. */
-export const HISTORY_COMMIT_LIMIT = 200;
-
-/** The branch and history scopes read files from Git and search them in batches of at most this many files and bytes. */
-export const REVISION_BATCH_FILE_COUNT = 100;
-export const REVISION_BATCH_SIZE_BYTES = 16 * 1024 * 1024;

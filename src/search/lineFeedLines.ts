@@ -3,8 +3,8 @@ import type { LineMatch, Range } from "./types";
 const LONE_CARRIAGE_RETURN = /\r(?!\n)/;
 
 /**
- * Maps lines as ripgrep and git count them to lines as VS Code counts them.
- * ripgrep and git end a line at `\n` alone. VS Code ends one at a lone `\r` as well.
+ * Maps lines as ripgrep counts them to lines as VS Code counts them.
+ * ripgrep ends a line at `\n` alone. VS Code ends one at a lone `\r` as well.
  * For example, ripgrep reads `a\rb\nc` as the lines `a\rb` and `c`, VS Code as `a`, `b` and `c`.
  */
 export class LineFeedLineMap {

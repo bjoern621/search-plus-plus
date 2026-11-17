@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { CommitInfo, FileResult } from "../messages";
+import type { FileResult } from "../messages";
 import type { Hint } from "../query/types";
 import { assert } from "./assert";
 import { BatchSender } from "./batch";
@@ -12,9 +12,7 @@ import { mergeLineMatches } from "./merge";
 import { readSearchText, unsavedTexts } from "./reader";
 import type { EngineRegistry } from "./registry";
 import { buildFileResult, splitLines } from "./results";
-import type { RevisionFile, RevisionSource } from "./revisions";
 import type { FileInfo, LineMatch, Query, SearchEngine } from "./types";
-import { WalkExcludes } from "./walk";
 import type { SearchRoot, WorkspaceSearchEngine } from "./workspaceEngine";
 
 export type SearchOutcome = { status: "complete" } | { status: "capped"; limit: number } | { status: "blocked"; hint: Hint } | { status: "aborted" };
@@ -27,15 +25,8 @@ export interface SearchRunnerDeps {
   log: (message: string) => void;
 }
 
-/** Where the files of a search come from. */
-export type FileSource =
-  /** `onlyPaths` maps a root index to the paths that the search may read. A root missing from it gets no search. Missing: every file. */
-  | { kind: "disk"; onlyPaths?: ReadonlyMap<number, ReadonlySet<string>> }
-  | { kind: "revisions"; source: RevisionSource };
-
 export interface SearchRequest {
   query: Query;
-  files: FileSource;
   roots: readonly SearchRoot[];
   contextLines: number;
   /** The files to include and exclude fields of the view. */
@@ -106,9 +97,7 @@ class RunningSearch {
   }
 
   async run(): Promise<void> {
-    const files = this.request.files;
-    if (files.kind === "revisions") await this.searchRevisions(files.source);
-    else await this.searchDisk(files.onlyPaths);
+    await this.searchDisk();
     this.sender.flush();
   }
 
@@ -118,14 +107,13 @@ class RunningSearch {
    * The other listed files follow once the workspace engine ends.
    * The workspace engine reads a file with unsaved changes from disk, so its text in the editor gets searched in place of what the engine reports.
    */
-  private async searchDisk(onlyPaths: ReadonlyMap<number, ReadonlySet<string>> | undefined): Promise<void> {
+  private async searchDisk(): Promise<void> {
     const fieldFilter = new PathFilter(this.request.fields);
-    const accepts = (root: SearchRoot, relativePath: string) => fieldFilter.accepts(relativePath) && (onlyPaths?.get(root.index)?.has(relativePath) ?? onlyPaths === undefined);
     const queue = new WorkQueue(FILE_READ_CONCURRENCY, this.signal);
     // Nested workspace folders list a file twice.
     const takenUris = new Set<string>();
     const take = (item: PendingFile) => {
-      if (!accepts(item.root, item.relativePath)) return;
+      if (!fieldFilter.accepts(item.relativePath)) return;
       const uri = this.fileUri(item.root, item.relativePath);
       if (takenUris.has(uri)) return;
       takenUris.add(uri);
@@ -139,7 +127,7 @@ class RunningSearch {
     ]);
     const unsaved = files.flatMap((file) => {
       const text = this.unsaved.get(this.fileUri(file.root, file.relativePath));
-      return text === undefined || !accepts(file.root, file.relativePath) ? [] : [{ file, text }];
+      return text === undefined || !fieldFilter.accepts(file.relativePath) ? [] : [{ file, text }];
     });
     if (unsaved.length > 0) {
       const found = await this.searchTextsWithWorkspaceEngines(unsaved.map((item) => item.text));
@@ -147,30 +135,6 @@ class RunningSearch {
     }
     for (const file of files) take({ root: file.root, relativePath: file.relativePath, lists: [] });
     await queue.drained();
-  }
-
-  /**
-   * Searches the files that Git holds, batch by batch.
-   * The files to include and exclude fields pick the files, as on disk.
-   */
-  private async searchRevisions(source: RevisionSource): Promise<void> {
-    const fieldFilter = new PathFilter(this.request.fields);
-    const excludes = new Map(this.request.roots.map((root) => [root.index, new WalkExcludes(root.walk.excludeGlobs)]));
-    const accepts = (root: SearchRoot, relativePath: string) => fieldFilter.accepts(relativePath) && !(excludes.get(root.index)?.excludes(relativePath) ?? false);
-    try {
-      for await (const batch of source.batches(accepts, this.signal)) {
-        if (this.signal.aborted) return;
-        const found = await this.searchTextsWithWorkspaceEngines(batch.map((file) => file.text));
-        await forEachConcurrent(
-          batch.map((file, index) => ({ file, lists: found.map((lists) => lists[index] ?? []) })),
-          FILE_READ_CONCURRENCY,
-          this.signal,
-          (item) => this.searchRevisionFile(item.file, item.lists).catch((error: unknown) => this.deps.log(`Search failed on ${item.file.uri}: ${String(error)}`)),
-        );
-      }
-    } catch (error) {
-      if (!this.signal.aborted) this.deps.log(`Reading files from Git failed: ${String(error)}`);
-    }
   }
 
   /** Returns per workspace engine the matches of each text in `texts`. */
@@ -183,21 +147,6 @@ class RunningSearch {
         }),
       ),
     );
-  }
-
-  /** Searches one file from Git. In the history scope, a match counts on a line that the commit added or changed alone. */
-  private async searchRevisionFile(revision: RevisionFile, workspaceLists: readonly LineMatch[][]): Promise<void> {
-    const file: FileInfo = { uri: revision.uri, relativePath: revision.relativePath, languageId: this.languageOf(revision.relativePath) };
-    const lists = workspaceEditorLines(revision.text, workspaceLists);
-    for (const engine of this.fileEngines.filter((candidate) => this.accepts(candidate, file))) {
-      if (this.signal.aborted) return;
-      const found = await this.searchWith(engine, { ...file, text: revision.text });
-      if (found) lists.push(found);
-    }
-    const lines = splitLines(revision.text);
-    const merged = mergeLineMatches(lists.map((list) => validMatches(list, lines)));
-    const matchable = revision.matchableLines;
-    this.emit(revision.root, file, lines, matchable ? merged.filter((match) => matchable.has(match.line)) : merged, revision.commit);
   }
 
   private async runWorkspaceEngines(onFile: (root: SearchRoot, relativePath: string, matches: LineMatch[]) => void): Promise<void> {
@@ -233,7 +182,7 @@ class RunningSearch {
     return this.languages.languageOf(relativePath.slice(relativePath.lastIndexOf("/") + 1));
   }
 
-  private emit(root: SearchRoot, file: FileInfo, lines: string[], merged: LineMatch[], commit?: CommitInfo): void {
+  private emit(root: SearchRoot, file: FileInfo, lines: string[], merged: LineMatch[]): void {
     const room = RESULT_LINE_LIMIT - this.matchedLines;
     if (merged.length === 0 || room <= 0 || this.signal.aborted) return;
     const kept = merged.slice(0, room);
@@ -243,9 +192,7 @@ class RunningSearch {
       this.stop.abort();
     }
     const place = { rootIndex: root.index, root: root.name, uri: file.uri, relativePath: file.relativePath, languageId: file.languageId };
-    const result = buildFileResult(place, lines, kept, this.request.contextLines);
-    if (commit) result.commit = commit;
-    this.sender.push(result);
+    this.sender.push(buildFileResult(place, lines, kept, this.request.contextLines));
   }
 
   private accepts(engine: SearchEngine, file: FileInfo): boolean {
@@ -328,14 +275,3 @@ class WorkQueue {
   }
 }
 
-/** Runs `work` on each item, at most `limit` at a time, and stops taking items once `signal` aborts. */
-async function forEachConcurrent<T>(items: readonly T[], limit: number, signal: AbortSignal, work: (item: T) => Promise<void>): Promise<void> {
-  let next = 0;
-  const worker = async () => {
-    while (!signal.aborted && next < items.length) {
-      const item = items[next++] as T;
-      await work(item);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-}

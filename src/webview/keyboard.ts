@@ -84,7 +84,7 @@ export function firstFocusableRow(rows: readonly Row[]): number {
   return firstStop(rows) ?? -1;
 }
 
-/** Moves the focus to the nearest row above that sits higher in the tree: from a line to its file, from a file to its folder, from a folder to its parent folder or commit. */
+/** Moves the focus to the nearest row above that sits higher in the tree: from a line to its file, from a file to its folder, from a folder to its parent folder. */
 function focusParent(rows: readonly Row[], index: number): RowCommand | undefined {
   const row = rows[index];
   if (!row) return undefined;

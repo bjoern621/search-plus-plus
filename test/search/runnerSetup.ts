@@ -9,7 +9,7 @@ import { parseQuery } from "../../src/query";
 import { NO_FILE_FIELDS } from "../../src/search/globs";
 import { LanguageIndex } from "../../src/search/languages";
 import { EngineRegistry } from "../../src/search/registry";
-import { type FileSource, SearchRunner, type SearchOutcome } from "../../src/search/runner";
+import { SearchRunner, type SearchOutcome } from "../../src/search/runner";
 import type { SearchRoot } from "../../src/search/workspaceEngine";
 
 /** The ripgrep binary on the PATH. The runner tests need one, as VS Code ships one to the extension. */
@@ -48,7 +48,7 @@ export interface RunResult {
 }
 
 /** Runs `raw` through a runner with the text and regex engines, as the extension builds it. */
-export async function runSearch(raw: string, roots: SearchRoot[], options: { rgPath?: string; files?: FileSource } = {}): Promise<RunResult> {
+export async function runSearch(raw: string, roots: SearchRoot[], options: { rgPath?: string } = {}): Promise<RunResult> {
   const rgPath = "rgPath" in options ? options.rgPath : ripgrepOnPath();
   const log: string[] = [];
   const registry = new EngineRegistry();
@@ -63,7 +63,6 @@ export async function runSearch(raw: string, roots: SearchRoot[], options: { rgP
   const files: FileResult[] = [];
   const outcome = await runner.run({
     query: parseQuery(raw),
-    files: options.files ?? { kind: "disk" },
     roots,
     contextLines: 0,
     fields: NO_FILE_FIELDS,

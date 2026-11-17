@@ -49,7 +49,7 @@ function anchorGlob(glob: string): string {
 }
 
 /**
- * Tests a path from a Git listing against the exclude globs of a folder, as ripgrep tests them during its walk.
+ * Tests a listed path against the exclude globs of a folder, as ripgrep tests them during its walk.
  * A glob that matches a folder excludes everything below it.
  * Paths are relative to the workspace folder, with `/` as separator.
  */

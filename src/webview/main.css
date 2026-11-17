@@ -255,39 +255,9 @@ button {
 }
 
 .summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   padding: 8px 8px 4px 12px;
   color: var(--vscode-descriptionForeground);
   font-size: var(--small-font-size);
-}
-
-.scope {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: none;
-  padding: 1px 4px;
-  border: 0;
-  border-radius: 3px;
-  background: none;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-}
-
-.scope:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-
-.scope:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-}
-
-/* A scope other than the working tree shows in color, so a Git search never passes for a working tree search. */
-.scope.other {
-  color: var(--vscode-editorWarning-foreground);
 }
 
 .results {
@@ -403,27 +373,6 @@ button {
   text-overflow: ellipsis;
   font-size: 0.9em;
   opacity: 0.7;
-}
-
-.commit .sha {
-  flex: none;
-  margin-right: 6px;
-  font-family: var(--code-font-family);
-  color: var(--vscode-textLink-foreground);
-}
-
-.commit .label {
-  flex: 0 1 auto;
-}
-
-.commit-meta {
-  flex: 1 1 0;
-  min-width: 0;
-  margin-left: 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--vscode-descriptionForeground);
 }
 
 /* The exclude button shows while the pointer rests on its row, as in the built-in Search view. */
@@ -579,38 +528,6 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.menu-item {
-  display: flex;
-  gap: 6px;
-}
-
-.menu-check {
-  flex: none;
-  align-self: center;
-  width: 16px;
-}
-
-/* In a narrow view, the description gives up its width before the label does. */
-.menu-label {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.menu-description {
-  flex: 0 1000 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0.7;
-}
-
-.menu-item.disabled {
-  color: var(--vscode-disabledForeground);
-  cursor: default;
 }
 
 .menu-item:focus {

@@ -1,7 +1,4 @@
 import * as vscode from "vscode";
-import { REVISION_SCHEME, type RevisionDocuments } from "./git/revisionDocuments";
-import { listBranches } from "./git/repository";
-import { describeGit, prepareScope, rootRepositories } from "./git/scopes";
 import { fileIcons, IconResolver, iconTable } from "./icons/iconTheme";
 import { activeIconThemeId, colorKind, iconThemeExtensionFolders, type LoadedIconTheme, loadIconTheme } from "./icons/loadIconTheme";
 import type { FileIcons, FileResult, HostMessage, IconTable, ResultsLayout, SearchStatus, ViewMessage } from "./messages";
@@ -12,17 +9,8 @@ import { parseQuery } from "./query";
 import { readSearchText, unsavedTexts } from "./search/reader";
 import { splitLines } from "./search/results";
 import { searchRoots } from "./search/roots";
-import type { SearchOutcome, SearchRunner } from "./search/runner";
-import { type SearchScope, WORKING_TREE } from "./search/scope";
+import type { SearchRunner } from "./search/runner";
 import type { SearchRoot } from "./search/workspaceEngine";
-
-/** How the view reaches Git. */
-export interface GitAccess {
-  /** The git binary that the Git extension uses, else `git` on the PATH. */
-  gitPath: () => string;
-  documents: RevisionDocuments;
-  log: (message: string) => void;
-}
 
 /** The workspace state key of the results layout. */
 const RESULTS_LAYOUT_KEY = "resultsLayout";
@@ -50,7 +38,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   constructor(
     private readonly extensionUri: vscode.Uri,
     private readonly runner: SearchRunner,
-    private readonly git: GitAccess,
     private readonly log: (message: string) => void,
     /** Keeps the results layout per workspace across reloads. */
     private readonly workspaceState: vscode.Memento,
@@ -81,18 +68,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.post({ type: "focus" });
   }
 
-  /** Tells the view whether the Git scopes can run. */
-  async sendGitInfo(): Promise<void> {
-    const git = await describeGit(this.git.gitPath(), searchRoots());
-    this.post({ type: "git", git });
-  }
-
   /**
-   * Cancels the running search and starts one for `raw` in the files that `fields` and `scope` pick.
+   * Cancels the running search and starts one for `raw` in the files that `fields` pick.
    * Resolves once the new search ends or a newer one replaces it.
    * A search that throws ends as `failed` with a log line, so the view never waits for a search that has stopped.
    */
-  async search(raw: string, fields: FileFields = NO_FILE_FIELDS, scope: SearchScope = WORKING_TREE): Promise<void> {
+  async search(raw: string, fields: FileFields = NO_FILE_FIELDS): Promise<void> {
     this.running?.abort();
     const controller = new AbortController();
     this.running = controller;
@@ -104,20 +85,16 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     if (raw === "") return this.finish(searchId, "empty");
     if (roots.length === 0) return this.finish(searchId, "noFolder");
     const outcome = await vscode.window
-      .withProgress({ location: { viewId: SearchViewProvider.viewId } }, async (): Promise<SearchOutcome | { status: "noRepository" }> => {
-        const prepared = await prepareScope(this.git.gitPath(), scope, roots, controller.signal, this.git.log);
-        if (controller.signal.aborted) return { status: "aborted" };
-        if (prepared.kind === "noRepository") return { status: "noRepository" };
-        return this.runner.run({
+      .withProgress({ location: { viewId: SearchViewProvider.viewId } }, () =>
+        this.runner.run({
           query: parseQuery(raw),
-          files: prepared.files,
           roots,
           contextLines: vscode.workspace.getConfiguration("structuralSearch").get<number>("contextLines", 1),
           fields,
           signal: controller.signal,
           onBatch: (files) => this.post({ type: "results", searchId, files: files.map((file) => this.withIcons(file)) }),
-        });
-      })
+        }),
+      )
       .then(undefined, (error: unknown): { status: "aborted" | "failed" } => {
         if (controller.signal.aborted) return { status: "aborted" };
         this.log(`The search for ${raw} stopped: ${String(error)}`);
@@ -128,8 +105,6 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         return;
       case "failed":
         return this.finish(searchId, "failed");
-      case "noRepository":
-        return this.finish(searchId, "noRepository");
       case "blocked":
         this.post({ type: "hint", searchId, hint: outcome.hint });
         return this.finish(searchId, "blocked");
@@ -202,16 +177,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         this.sendIcons();
         this.sendSettings();
         this.post({ type: "resultsLayout", layout: this.resultsLayout() });
-        void this.sendGitInfo();
         return;
       case "search":
-        void this.search(message.query, { include: message.include, exclude: message.exclude }, message.scope);
+        void this.search(message.query, { include: message.include, exclude: message.exclude });
         return;
       case "cancelSearch":
         this.running?.abort();
-        return;
-      case "pickBranch":
-        void this.pickBranch();
         return;
       case "open":
         void this.open(message);
@@ -236,28 +207,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  /** Shows the branches of the first workspace folder in a repository and sends the one that the person picks. Nothing happens on cancel. */
-  private async pickBranch(): Promise<void> {
-    const [first] = await rootRepositories(this.git.gitPath(), searchRoots());
-    const branches = first ? await listBranches(this.git.gitPath(), first.cwd).catch(() => []) : [];
-    const items = branches.map((branch) => ({ label: branch.name, description: branch.relativeDate, detail: branch.subject }));
-    const picked = await vscode.window.showQuickPick(items, {
-      title: "Search a branch",
-      placeHolder: items.length === 0 ? "No other branch to search" : "Pick a branch to search",
-      matchOnDetail: true,
-    });
-    if (picked) this.post({ type: "branchPicked", branch: picked.label });
-  }
-
-  /** Reads a file of the working tree as the editor holds it, unsaved changes included, or a file that a branch or commit holds. */
-  private readText(uri: vscode.Uri): Promise<string | undefined> {
-    if (uri.scheme === REVISION_SCHEME) return this.git.documents.read(uri);
-    return readSearchText(uri, unsavedTexts());
-  }
-
   /** Copies line `line` of the file as the editor holds it, unsaved changes included. Nothing happens if the file has no such line. */
   private async copyLine(uri: string, line: number): Promise<void> {
-    const text = await this.readText(vscode.Uri.parse(uri));
+    const text = await readSearchText(vscode.Uri.parse(uri), unsavedTexts());
     const lineText = text === undefined ? undefined : splitLines(text)[line];
     if (lineText === undefined) return;
     await vscode.env.clipboard.writeText(lineText);
@@ -347,10 +299,7 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   </div>
   <div id="hint" class="hint" role="status" hidden></div>
 </div>
-<div id="summary" class="summary">
-  <span id="summary-text"></span>
-  <button id="scope" class="scope" aria-label="Change scope"><span id="scope-label">Working tree</span><span class="codicon codicon-chevron-down" aria-hidden="true"></span></button>
-</div>
+<div id="summary" class="summary"></div>
 <div id="results" class="results" role="tree" aria-label="Results" tabindex="0"><div id="rows" class="rows"></div></div>
 <div id="menu" class="menu"></div>
 <script nonce="${nonce}" src="${script}"></script>
