@@ -45,7 +45,19 @@
         "key": "ctrl+shift+f",
         "mac": "cmd+shift+f"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Structural Search",
+      "properties": {
+        "structuralSearch.contextLines": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Lines shown dimmed before and after each match. Raise it to read more around a match without opening the file."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "node esbuild.mjs",
