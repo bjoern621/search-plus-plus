@@ -60,6 +60,20 @@ describe("findInLine without fuzzy", () => {
     })
 })
 
+describe("findInLine with fuzzy thresholds", () => {
+    it("allows no edit below oneEditMinLetters", () => {
+        expect(found("socket", "sockxt", {})).toEqual(["socket"])
+        expect(found("socket", "sockxt", { oneEditMinLetters: 7, twoEditsMinLetters: 8 })).toEqual(
+            []
+        )
+    })
+
+    it("allows one edit below twoEditsMinLetters", () => {
+        expect(found("secret", "secrxx", {})).toEqual(["secret"])
+        expect(found("secret", "secrxx", { twoEditsMinLetters: 7 })).toEqual([])
+    })
+})
+
 describe("compareKeyUnder", () => {
     const whole = { exact: false, fuzzy: true }
 

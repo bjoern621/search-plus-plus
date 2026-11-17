@@ -5,7 +5,8 @@ import {
     fieldGlobs,
     globToRegExp,
     PathFilter,
-    splitEntries
+    splitEntries,
+    turnedOnGlobs
 } from "../../src/search/globs"
 
 describe("splitEntries", () => {
@@ -99,5 +100,17 @@ describe("expandBraces", () => {
     it("leaves a glob without braces and a group that never closes as written", () => {
         expect(expandBraces("**/node_modules")).toEqual(["**/node_modules"])
         expect(expandBraces("**/{a,b")).toEqual(["**/{a,b"])
+    })
+})
+
+describe("turnedOnGlobs", () => {
+    it("keeps the globs that hold true", () => {
+        expect(
+            turnedOnGlobs({
+                "**/.DS_Store": true,
+                "**/dist": false,
+                "**/*.js": { when: "$(basename).ts" }
+            })
+        ).toEqual(["**/.DS_Store"])
     })
 })

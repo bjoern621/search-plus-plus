@@ -1,4 +1,4 @@
-/** The search stops once this many lines matched, to keep the view and the message channel responsive. */
+/** The default of `searchPlusPlus.maxResults`: the search stops once this many lines matched, to keep the view and the message channel responsive. */
 export const RESULT_LINE_LIMIT = 10_000
 
 export const BATCH_INTERVAL_DURATION_MS = 100

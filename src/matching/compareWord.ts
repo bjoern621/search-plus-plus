@@ -36,7 +36,7 @@ export function compareWord(
         return undefined
     }
 
-    const maxEdits = matching.fuzzy ? allowedEdits(codePointLength(queryWord)) : 0
+    const maxEdits = matching.fuzzy ? allowedEdits(codePointLength(queryWord), matching) : 0
     if (maxEdits === 0) {
         return undefined
     }

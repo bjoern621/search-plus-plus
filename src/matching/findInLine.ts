@@ -125,12 +125,7 @@ function compiledQuery(pieces: TextPiece[], matching: MatchingOptions): Compiled
 }
 
 function sameMatching(a: MatchingOptions, b: MatchingOptions): boolean {
-    return (
-        a.matchCase === b.matchCase &&
-        a.matchWholeWord === b.matchWholeWord &&
-        a.umlautVariants === b.umlautVariants &&
-        a.fuzzy === b.fuzzy
-    )
+    return (Object.keys(a) as (keyof MatchingOptions)[]).every((key) => a[key] === b[key])
 }
 
 function compileQuery(pieces: TextPiece[], matching: MatchingOptions): CompiledQuery {
@@ -177,7 +172,7 @@ function compilePiece(piece: TextPiece, matching: MatchingOptions): CompiledPiec
                 foldedCodePoints: codePoints(folded),
                 normalized: normalizeWord(piece.value, matching),
                 strict: matching.matchCase || !matching.umlautVariants,
-                maxEdits: matching.fuzzy ? allowedEdits(codePointLength(piece.value)) : 0,
+                maxEdits: matching.fuzzy ? allowedEdits(codePointLength(piece.value), matching) : 0,
                 closeSpellingsByWord: new Map()
             }
         }

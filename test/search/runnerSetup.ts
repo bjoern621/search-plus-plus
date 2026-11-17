@@ -57,7 +57,7 @@ export interface RunResult {
 export async function runSearch(
     raw: string,
     roots: SearchRoot[],
-    options: { rgPath?: string } = {}
+    options: { rgPath?: string; resultLineLimit?: number } = {}
 ): Promise<RunResult> {
     const rgPath = "rgPath" in options ? options.rgPath : ripgrepOnPath()
     const log: string[] = []
@@ -75,6 +75,7 @@ export async function runSearch(
         query: parseQuery(raw),
         roots,
         contextLines: 0,
+        resultLineLimit: options.resultLineLimit,
         fields: NO_FILE_FIELDS,
         signal: new AbortController().signal,
         onBatch: (batch) => files.push(...batch)

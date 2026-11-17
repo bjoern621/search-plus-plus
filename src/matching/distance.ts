@@ -1,15 +1,15 @@
+import { DEFAULT_MATCHING, type MatchingOptions } from "../search/types"
 import { assert } from "./assert"
 
-// The AUTO fuzziness of Elasticsearch (https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#fuzziness).
-const ONE_EDIT_MIN_LENGTH = 3
-const TWO_EDITS_MIN_LENGTH = 6
-
-/** Edits that a query word allows, by its length in code points. */
-export function allowedEdits(queryWordLength: number): number {
-    if (queryWordLength >= TWO_EDITS_MIN_LENGTH) {
+/** Edits that a query word allows, by its length in code points and the thresholds of `matching`. */
+export function allowedEdits(
+    queryWordLength: number,
+    matching: Pick<MatchingOptions, "oneEditMinLetters" | "twoEditsMinLetters"> = DEFAULT_MATCHING
+): number {
+    if (queryWordLength >= matching.twoEditsMinLetters) {
         return 2
     }
-    if (queryWordLength >= ONE_EDIT_MIN_LENGTH) {
+    if (queryWordLength >= matching.oneEditMinLetters) {
         return 1
     }
     return 0

@@ -65,7 +65,9 @@ describe("compareWord", () => {
 
 describe("allowedEdits", () => {
     it("follows the AUTO fuzziness of Elasticsearch", () => {
-        expect([0, 1, 2, 3, 4, 5, 6, 7, 20].map(allowedEdits)).toEqual([0, 0, 0, 1, 1, 1, 2, 2, 2])
+        expect([0, 1, 2, 3, 4, 5, 6, 7, 20].map((length) => allowedEdits(length))).toEqual([
+            0, 0, 0, 1, 1, 1, 2, 2, 2
+        ])
     })
 })
 

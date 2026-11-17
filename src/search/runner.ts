@@ -33,6 +33,8 @@ export interface SearchRequest {
     query: Query
     roots: readonly SearchRoot[]
     contextLines: number
+    /** The search stops once this many lines matched. Missing means `RESULT_LINE_LIMIT`. */
+    resultLineLimit?: number
     /** The files to include and exclude fields of the view. */
     fields: FileFields
     signal: AbortSignal
@@ -52,7 +54,7 @@ export class SearchRunner {
 
     /**
      * Runs the query in every engine that accepts it and streams the merged results.
-     * Stops after `RESULT_LINE_LIMIT` matched lines.
+     * Stops after `request.resultLineLimit` matched lines.
      * Aborting the signal ends the search without a final batch.
      */
     async run(request: SearchRequest): Promise<SearchOutcome> {
@@ -72,7 +74,7 @@ export class SearchRunner {
         await search.run()
         if (request.signal.aborted) return { status: "aborted" }
         return search.capped
-            ? { status: "capped", limit: RESULT_LINE_LIMIT }
+            ? { status: "capped", limit: request.resultLineLimit ?? RESULT_LINE_LIMIT }
             : { status: "complete" }
     }
 
@@ -234,11 +236,12 @@ class RunningSearch {
     }
 
     private emit(root: SearchRoot, file: FileInfo, lines: string[], merged: LineMatch[]): void {
-        const room = RESULT_LINE_LIMIT - this.matchedLines
+        const limit = this.request.resultLineLimit ?? RESULT_LINE_LIMIT
+        const room = limit - this.matchedLines
         if (merged.length === 0 || room <= 0 || this.signal.aborted) return
         const kept = merged.slice(0, room)
         this.matchedLines += kept.length
-        if (this.matchedLines >= RESULT_LINE_LIMIT) {
+        if (this.matchedLines >= limit) {
             this.capped = true
             this.stop.abort()
         }

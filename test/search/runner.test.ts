@@ -35,6 +35,13 @@ describe("SearchRunner", () => {
         }
     })
 
+    it("stops at the result limit of the request", async () => {
+        const dir = await folderWith({ "a.txt": "needle\n".repeat(50) })
+        const result = await runSearch("needle", [rootAt(0, dir)], { resultLineLimit: 7 })
+        expect(result.outcome).toEqual({ status: "capped", limit: 7 })
+        expect(result.files.reduce((sum, file) => sum + file.matchCount, 0)).toBe(7)
+    })
+
     it("stops ripgrep once the matched lines reach the limit", { timeout: 10_000 }, async () => {
         const dir = await folderWith(
             Object.fromEntries(

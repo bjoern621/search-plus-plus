@@ -56,6 +56,46 @@
                 "title": "View as List",
                 "category": "Search++",
                 "enablement": "searchPlusPlus.resultsLayout != list"
+            },
+            {
+                "command": "searchPlusPlus.turnOff.matchCase",
+                "title": "✓ Match Case",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOn.matchCase",
+                "title": "  Match Case",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOff.matchWholeWord",
+                "title": "✓ Match Whole Word",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOn.matchWholeWord",
+                "title": "  Match Whole Word",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOff.umlautVariants",
+                "title": "✓ Umlaut Variants",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOn.umlautVariants",
+                "title": "  Umlaut Variants",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOff.fuzzy",
+                "title": "✓ Fuzzy Matches",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOn.fuzzy",
+                "title": "  Fuzzy Matches",
+                "category": "Search++"
             }
         ],
         "submenus": [
@@ -76,6 +116,46 @@
                     "command": "searchPlusPlus.openSettings",
                     "when": "view == searchPlusPlus.view",
                     "group": "navigation@2"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.matchCase",
+                    "when": "view == searchPlusPlus.view && config.searchPlusPlus.matchCase",
+                    "group": "1_matching@1"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.matchCase",
+                    "when": "view == searchPlusPlus.view && !config.searchPlusPlus.matchCase",
+                    "group": "1_matching@1"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.matchWholeWord",
+                    "when": "view == searchPlusPlus.view && config.searchPlusPlus.matchWholeWord",
+                    "group": "1_matching@2"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.matchWholeWord",
+                    "when": "view == searchPlusPlus.view && !config.searchPlusPlus.matchWholeWord",
+                    "group": "1_matching@2"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.umlautVariants",
+                    "when": "view == searchPlusPlus.view && config.searchPlusPlus.umlautVariants",
+                    "group": "1_matching@3"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.umlautVariants",
+                    "when": "view == searchPlusPlus.view && !config.searchPlusPlus.umlautVariants",
+                    "group": "1_matching@3"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.fuzzy",
+                    "when": "view == searchPlusPlus.view && config.searchPlusPlus.fuzzy",
+                    "group": "1_matching@4"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.fuzzy",
+                    "when": "view == searchPlusPlus.view && !config.searchPlusPlus.fuzzy",
+                    "group": "1_matching@4"
                 }
             ],
             "searchPlusPlus.viewAs": [
@@ -86,6 +166,40 @@
                 {
                     "command": "searchPlusPlus.viewAsList",
                     "group": "navigation@2"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "searchPlusPlus.turnOff.matchCase",
+                    "when": "config.searchPlusPlus.matchCase"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.matchCase",
+                    "when": "!config.searchPlusPlus.matchCase"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.matchWholeWord",
+                    "when": "config.searchPlusPlus.matchWholeWord"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.matchWholeWord",
+                    "when": "!config.searchPlusPlus.matchWholeWord"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.umlautVariants",
+                    "when": "config.searchPlusPlus.umlautVariants"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.umlautVariants",
+                    "when": "!config.searchPlusPlus.umlautVariants"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.fuzzy",
+                    "when": "config.searchPlusPlus.fuzzy"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.fuzzy",
+                    "when": "!config.searchPlusPlus.fuzzy"
                 }
             ]
         },
@@ -123,8 +237,38 @@
                     "order": 4,
                     "markdownDescription": "A query word also finds words a letter or two off: `secret` finds `socket`. Words under three letters match exactly either way. Turn it off when these matches crowd the results."
                 },
+                "searchPlusPlus.fuzzyOneEditMinLetters": {
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 1,
+                    "markdownDescription": "A query word of this many letters or more also finds words one letter off. Raise it when short words pull in unrelated matches. Needs `#searchPlusPlus.fuzzy#`.",
+                    "order": 5
+                },
+                "searchPlusPlus.fuzzyTwoEditsMinLetters": {
+                    "type": "integer",
+                    "default": 6,
+                    "minimum": 1,
+                    "markdownDescription": "A query word of this many letters or more also finds words two letters off. Raise it when long words pull in unrelated matches. Needs `#searchPlusPlus.fuzzy#`.",
+                    "order": 6
+                },
+                "searchPlusPlus.exclude": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "markdownDescription": "Globs of files and folders that every search leaves out, such as `**/node_modules`. Every search also leaves out what `#files.exclude#` hides. The ignore files and `#search.exclude#` hide nothing from Search++.",
+                    "order": 7
+                },
+                "searchPlusPlus.maxResults": {
+                    "type": "integer",
+                    "default": 10000,
+                    "minimum": 1,
+                    "markdownDescription": "Matched lines that a search shows at most. A search that reaches the limit stops and says so. A higher limit makes a broad search slower to finish.",
+                    "order": 8
+                },
                 "searchPlusPlus.contextLines": {
-                    "order": 5,
+                    "order": 9,
                     "type": "integer",
                     "default": 1,
                     "minimum": 0,

@@ -27,13 +27,20 @@ export interface MatchingOptions {
     umlautVariants: boolean
     /** A word also matches a word a few edits away. */
     fuzzy: boolean
+    /** A query word of this many letters or more allows one edit. */
+    oneEditMinLetters: number
+    /** A query word of this many letters or more allows two edits. */
+    twoEditsMinLetters: number
 }
 
 export const DEFAULT_MATCHING: MatchingOptions = {
     matchCase: false,
     matchWholeWord: false,
     umlautVariants: true,
-    fuzzy: true
+    fuzzy: true,
+    // The AUTO fuzziness of Elasticsearch (https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#fuzziness).
+    oneEditMinLetters: 3,
+    twoEditsMinLetters: 6
 }
 
 export type TextPiece =

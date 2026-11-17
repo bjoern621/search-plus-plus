@@ -8,6 +8,22 @@ import { SearchRunner } from "./search/runner"
 import { SearchViewProvider } from "./searchViewProvider"
 import { structuralEngines } from "./structural"
 
+/** The matching settings that the view's menu turns on and off. */
+const MATCHING_TOGGLES = ["matchCase", "matchWholeWord", "umlautVariants", "fuzzy"] as const
+
+/** Writes the setting where it holds its value: in the workspace when set there, otherwise in the user settings. */
+async function setMatchingSetting(
+    setting: (typeof MATCHING_TOGGLES)[number],
+    value: boolean
+): Promise<void> {
+    const settings = vscode.workspace.getConfiguration("searchPlusPlus")
+    const target =
+        settings.inspect(setting)?.workspaceValue === undefined
+            ? vscode.ConfigurationTarget.Global
+            : vscode.ConfigurationTarget.Workspace
+    await settings.update(setting, value, target)
+}
+
 export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
     const log = vscode.window.createOutputChannel("Search++", { log: true })
     const rgPath = findRipgrep(vscode.env.appRoot)
@@ -45,7 +61,11 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
         }),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration("workbench.iconTheme")) void provider.reloadIconTheme()
-            if (event.affectsConfiguration("searchPlusPlus")) provider.searchAgain()
+            if (
+                event.affectsConfiguration("searchPlusPlus") ||
+                event.affectsConfiguration("files.exclude")
+            )
+                provider.searchAgain()
             if (
                 event.affectsConfiguration("workbench.tree") ||
                 event.affectsConfiguration("search.searchOnType") ||
@@ -69,7 +89,15 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
         ),
         vscode.commands.registerCommand("searchPlusPlus.viewAsList", () =>
             provider.setResultsLayout("list")
-        )
+        ),
+        ...MATCHING_TOGGLES.flatMap((setting) => [
+            vscode.commands.registerCommand(`searchPlusPlus.turnOn.${setting}`, () =>
+                setMatchingSetting(setting, true)
+            ),
+            vscode.commands.registerCommand(`searchPlusPlus.turnOff.${setting}`, () =>
+                setMatchingSetting(setting, false)
+            )
+        ])
     )
 
     return { registerEngine: (engine) => registry.register(engine) }

@@ -36,6 +36,7 @@ The level decides how far the view keeps the feature from the query input.
 | Context menu on a match              | Frequent | on right-click on a match                                                      |
 | Results as a list or a folder tree   | Frequent | View As menu in the view title                                                 |
 | Files to include and exclude         | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
+| Matching defaults on and off         | Rare     | in the `...` menu of the view title, a check marking each one that holds       |
 | Settings for the matching defaults   | Rare     | behind the gear in the view title                                              |
 
 The empty query input shows the placeholder `Search`, as the built-in Search view does.
@@ -49,7 +50,9 @@ Switching to the view selects the query, so typing replaces it, as Ctrl+Shift+F 
 A keystroke cancels the search that runs.
 An empty query clears the results.
 A query enters the search history on Enter or once no other search replaced it for two seconds, as in the built-in Search view.
-Every search covers the files that the ignore files and the exclude settings of VS Code hide.
+Every search covers the files that the ignore files and `search.exclude` hide.
+It leaves out the `.git` folders, the globs that `files.exclude` turns on and the globs of `searchPlusPlus.exclude`.
+A `files.exclude` glob with a `when` condition stays searched.
 
 ## Results
 
@@ -57,6 +60,7 @@ Every search covers the files that the ignore files and the exclude settings of 
 - One line before and one after the match frame it, dimmed.
   The settings change the number of context lines.
 - Context of two close matches merges into one block.
+- A search stops once `searchPlusPlus.maxResults` lines matched and says so under the results.
 - A thin divider above a code line marks the lines skipped since the code line above it in the same file, so lines 16 and 33 never read as neighbors.
   It adds no height and takes the color of the indent guides in the editor (`editorIndentGuide.background1`), which VS Code defines for every kind of theme.
   A hover or selection outline ending at the divider covers it, so the two draw as one line.
@@ -184,8 +188,10 @@ Each default has a setting:
   Key paths compare whole keys either way.
 - `searchPlusPlus.umlautVariants` turns the umlaut variants off.
 - `searchPlusPlus.fuzzy` turns the fuzzy matches off.
+  `searchPlusPlus.fuzzyOneEditMinLetters` and `searchPlusPlus.fuzzyTwoEditsMinLetters` set the word lengths that allow one and two edits.
 
 A regex query follows none of these settings.
+The `...` menu of the view title turns the four on and off as well.
 A changed setting runs the last search again.
 
 ### Wildcard

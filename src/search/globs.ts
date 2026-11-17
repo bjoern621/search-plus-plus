@@ -178,3 +178,13 @@ function topLevelAlternatives(body: string): string[] {
     alternatives.push(current)
     return alternatives
 }
+
+/**
+ * The globs of a `files.exclude` value that hold `true`.
+ * A glob with a `when` condition stays out, since the walk cannot test the sibling file that it names.
+ */
+export function turnedOnGlobs(exclude: Record<string, unknown>): string[] {
+    return Object.entries(exclude)
+        .filter(([, on]) => on === true)
+        .map(([glob]) => glob)
+}

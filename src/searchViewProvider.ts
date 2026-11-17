@@ -111,6 +111,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
                     contextLines: vscode.workspace
                         .getConfiguration("searchPlusPlus")
                         .get<number>("contextLines", 1),
+                    resultLineLimit: vscode.workspace
+                        .getConfiguration("searchPlusPlus")
+                        .get<number>("maxResults", RESULT_LINE_LIMIT),
                     fields,
                     signal: controller.signal,
                     onBatch: (files) =>
@@ -331,7 +334,15 @@ function matchingSettings(): MatchingOptions {
         matchCase: settings.get<boolean>("matchCase", DEFAULT_MATCHING.matchCase),
         matchWholeWord: settings.get<boolean>("matchWholeWord", DEFAULT_MATCHING.matchWholeWord),
         umlautVariants: settings.get<boolean>("umlautVariants", DEFAULT_MATCHING.umlautVariants),
-        fuzzy: settings.get<boolean>("fuzzy", DEFAULT_MATCHING.fuzzy)
+        fuzzy: settings.get<boolean>("fuzzy", DEFAULT_MATCHING.fuzzy),
+        oneEditMinLetters: settings.get<number>(
+            "fuzzyOneEditMinLetters",
+            DEFAULT_MATCHING.oneEditMinLetters
+        ),
+        twoEditsMinLetters: settings.get<number>(
+            "fuzzyTwoEditsMinLetters",
+            DEFAULT_MATCHING.twoEditsMinLetters
+        )
     }
 }
 
