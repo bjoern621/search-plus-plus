@@ -25,7 +25,7 @@ The level decides how far the view keeps the feature from the query input.
 | Feature | Level | Place |
 |---|---|---|
 | Query input | Core | top of the view |
-| Results in a folder tree | Core | under the query input |
+| Results as a list of files | Core | under the query input |
 | Key path search | Core | works without a control |
 | Matching defaults | Core | work without a control |
 | Context lines around each match | Core | one line before and after, dimmed, a line of whitespace left out |
@@ -34,6 +34,7 @@ The level decides how far the view keeps the feature from the query input.
 | Query highlighting | Core | colors in the query input |
 | Exclude buttons on folders and files | Frequent | on hover over a result |
 | Context menu on a match | Frequent | on right-click on a match |
+| Results as paths or a folder tree | Frequent | View As menu in the view title |
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Scope | Rare | menu at the end of the results summary line |
 | Settings for the matching defaults | Rare | behind the gear in the view title |
@@ -60,7 +61,16 @@ A query enters the search history on Enter or once no other search replaced it f
 - Up and Down move between folders, files and matched lines and pass over the context lines, since the built-in Search view shows none.
   As in the built-in Search view, Up and Down in the query input walk the search history.
   Ctrl+Down moves into the results, through files to include and files to exclude while they show.
-- Folders nest as in the explorer, subfolders before files.
+- The View As menu in the view title lays the results out as a list, as paths or as a folder tree, as View as List and View as Tree do in the built-in Search view.
+  The menu grays out the current layout.
+  Each workspace keeps its layout across reloads, starting with the list.
+- The list and the paths show every file at the top, sorted by its path folder by folder, the files of a folder before its subfolders.
+  The list shows the folders of a file after its name, dimmed: `values.yaml` followed by `charts/apim`.
+  The paths show the path of a file relative to its workspace folder, the file name in bold: `charts/apim/values.yaml`.
+  A narrow side bar drops whole folders from the front of the path and keeps the file name whole: `…/apim/values.yaml`.
+  In a multi-root workspace, the folders start with the name of the workspace folder.
+  In the Git history scope, the files of a commit sit under its row.
+- In the tree, folders nest as in the explorer, subfolders before files.
   A chain of folders without matched files of their own shares one row, such as `charts/apim`.
   A chain that leads to one file and nothing else folds into the row of that file: `docs.md` followed by `atticd-speed/argocd/applications/gitlab`, dimmed.
   A folder keeps its row where the tree branches, meaning where it holds two or more folders or files, so `.claude/worktrees` stays a row above two worktrees.
@@ -90,7 +100,7 @@ A query enters the search history on Enter or once no other search replaced it f
   Once the first and the last key leave too little room, the path drops the first key and its dot as well: `…memory`.
   Without room for the last key, the path hides.
   A member chain in code shows no path, since its line spells the chain.
-- Results carry no ranking: files follow the folder tree, matches follow their line numbers.
+- Results carry no ranking: files follow their paths, matches follow their line numbers.
 - A fuzzy match looks like an exact match.
 - Folders and files carry no result count.
   The summary line holds the total.
@@ -132,7 +142,7 @@ Below them come the quick actions:
   A change of color theme or editor font redraws the view without a new search.
 - To make it the default, hide the built-in Search view and bind Ctrl+Shift+F to Structural Search.
 - The view gets written from scratch, since the built-in Search view lives in VS Code core and exposes none of its widgets to extensions.
-- The view keeps the core of the built-in Search view: query input, files to include and exclude, results in a folder tree.
+- The view keeps the core of the built-in Search view: query input, files to include and exclude, results as a list or a folder tree.
 - Replace stays with the built-in Search view.
 - Further features of the built-in view come back on demand.
 - The input keeps the text that you typed, for example `global.values.gravitee.enabled`, whatever query runs underneath.

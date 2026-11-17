@@ -373,14 +373,29 @@ button {
 }
 
 /*
- * The folded folders follow the file name, dimmed as the descriptions of the workbench trees.
+ * The folders of a file follow its name, dimmed as the descriptions of the workbench trees.
  * A narrow view cuts them at the end and keeps the file name whole, since the first folders tell two files of one name apart.
  */
-.row .label:has(+ .folded-path) {
+.row .label:has(+ .description) {
   flex: none;
 }
 
-.folded-path {
+/*
+ * In the path layout, the folders before the file name take the room that the name leaves.
+ * A narrow view drops whole folders from their front and keeps the file name whole.
+ */
+.folder-path {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.label.file-name {
+  flex: none;
+  font-weight: bold;
+}
+
+.description {
   flex: 0 1 auto;
   min-width: 0;
   margin-left: 0.5em;

@@ -26,7 +26,7 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     log: (message) => log.warn(message),
   });
   const documents = new RevisionDocuments(gitPath);
-  const provider = new SearchViewProvider(context.extensionUri, runner, { gitPath, documents, log: (message) => log.warn(message) }, (message) => log.error(message));
+  const provider = new SearchViewProvider(context.extensionUri, runner, { gitPath, documents, log: (message) => log.warn(message) }, (message) => log.error(message), context.workspaceState);
 
   context.subscriptions.push(
     log,
@@ -41,6 +41,9 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     vscode.window.onDidChangeActiveColorTheme(() => provider.applyColorTheme()),
     vscode.window.registerWebviewViewProvider(SearchViewProvider.viewId, provider, { webviewOptions: { retainContextWhenHidden: true } }),
     vscode.commands.registerCommand("structuralSearch.focus", () => provider.focus()),
+    vscode.commands.registerCommand("structuralSearch.viewAsTree", () => provider.setResultsLayout("tree")),
+    vscode.commands.registerCommand("structuralSearch.viewAsList", () => provider.setResultsLayout("list")),
+    vscode.commands.registerCommand("structuralSearch.viewAsPaths", () => provider.setResultsLayout("path")),
     vscode.workspace.registerTextDocumentContentProvider(REVISION_SCHEME, documents),
     vscode.workspace.onDidChangeWorkspaceFolders(() => void provider.sendGitInfo()),
   );

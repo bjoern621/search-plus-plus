@@ -4,7 +4,7 @@ import { listBranches } from "./git/repository";
 import { describeGit, prepareScope, rootRepositories } from "./git/scopes";
 import { fileIcons, IconResolver, iconTable } from "./icons/iconTheme";
 import { activeIconThemeId, colorKind, iconThemeExtensionFolders, type LoadedIconTheme, loadIconTheme } from "./icons/loadIconTheme";
-import type { FileIcons, FileResult, HostMessage, IconTable, SearchStatus, ViewMessage } from "./messages";
+import type { FileIcons, FileResult, HostMessage, IconTable, ResultsLayout, SearchStatus, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
 import { RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config";
@@ -23,6 +23,12 @@ export interface GitAccess {
   documents: RevisionDocuments;
   log: (message: string) => void;
 }
+
+/** The workspace state key of the results layout. */
+const RESULTS_LAYOUT_KEY = "resultsLayout";
+/** The context key that the View As menu of the view title reads, holding the results layout. */
+const RESULTS_LAYOUT_CONTEXT_KEY = "structuralSearch.resultsLayout";
+const DEFAULT_RESULTS_LAYOUT: ResultsLayout = "list";
 
 export class SearchViewProvider implements vscode.WebviewViewProvider {
   static readonly viewId = "structuralSearch.view";
@@ -46,9 +52,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     private readonly runner: SearchRunner,
     private readonly git: GitAccess,
     private readonly log: (message: string) => void,
+    /** Keeps the results layout per workspace across reloads. */
+    private readonly workspaceState: vscode.Memento,
   ) {
     this.resetViewReady();
     void this.reloadIconTheme();
+    void vscode.commands.executeCommand("setContext", RESULTS_LAYOUT_CONTEXT_KEY, this.resultsLayout());
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -149,6 +158,17 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.applyColorTheme();
   }
 
+  /** Shows the results as `layout` and keeps the choice for the workspace. */
+  setResultsLayout(layout: ResultsLayout): void {
+    void this.workspaceState.update(RESULTS_LAYOUT_KEY, layout);
+    void vscode.commands.executeCommand("setContext", RESULTS_LAYOUT_CONTEXT_KEY, layout);
+    this.post({ type: "resultsLayout", layout });
+  }
+
+  private resultsLayout(): ResultsLayout {
+    return this.workspaceState.get<ResultsLayout>(RESULTS_LAYOUT_KEY, DEFAULT_RESULTS_LAYOUT);
+  }
+
   /** Sends the workbench and search settings that the view follows. */
   sendSettings(): void {
     const tree = vscode.workspace.getConfiguration("workbench.tree");
@@ -181,6 +201,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         this.markViewReady();
         this.sendIcons();
         this.sendSettings();
+        this.post({ type: "resultsLayout", layout: this.resultsLayout() });
         void this.sendGitInfo();
         return;
       case "search":

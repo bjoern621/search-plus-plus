@@ -1,4 +1,4 @@
-import type { CommitInfo, FileIcons, FileResult, ResultLine } from "../messages";
+import type { CommitInfo, FileIcons, FileResult, ResultLine, ResultsLayout } from "../messages";
 import type { PathFilter } from "../search/globs";
 
 /** `depth` counts the tree rows that a row hangs from: 0 at the top, 1 below a row at the top, and so on. */
@@ -10,10 +10,12 @@ export type Row =
    */
   | { kind: "folder"; key: string; depth: number; label: string; folder: string; collapsed: boolean; icon: string | undefined }
   /**
-   * `folded` holds the chain of folders that leads to this file alone and folds into its row, such as `argocd/applications/gitlab`.
-   * It stays empty for a file that shares its folder row with other results.
+   * `folders` holds the folders that the row shows beside the file name.
+   * In the tree, it holds the chain of folders that leads to this file alone and folds into its row, such as `argocd/applications/gitlab`.
+   * It stays empty there for a file that shares its folder row with other results.
+   * In the flat layouts, it holds the folder of the file, after the name of its workspace folder in a multi-root workspace.
    */
-  | { kind: "file"; key: string; depth: number; file: FileResult; folded: string; collapsed: boolean }
+  | { kind: "file"; key: string; depth: number; file: FileResult; folders: string; collapsed: boolean }
   | { kind: "line"; depth: number; file: FileResult; line: ResultLine };
 
 /** A folder of the results with the matched files right in it and the folders below it that hold some. */
@@ -118,8 +120,12 @@ export class ResultTree {
     this.files = 0;
   }
 
-  /** Lays out the rows. `collapsed` holds the keys of collapsed commit, folder and file rows. */
-  rows(collapsed: ReadonlySet<string>): Row[] {
+  /**
+   * Lays out the rows. `collapsed` holds the keys of collapsed commit, folder and file rows.
+   * The `list` and `path` layouts show no folder rows: every file sits at the top, or under its commit, sorted by its path.
+   */
+  rows(collapsed: ReadonlySet<string>, layout: ResultsLayout): Row[] {
+    if (layout !== "tree") return this.flatRows(collapsed);
     const rows: Row[] = [];
     let commitSha: string | undefined;
     let commitCollapsed = false;
@@ -143,6 +149,24 @@ export class ResultTree {
       const icons = firstFile(root)?.icons?.root;
       rows.push({ kind: "folder", key, depth, label: rootName, folder: "", collapsed: rootCollapsed, icon: rootCollapsed ? icons?.collapsed : icons?.expanded });
       if (!rootCollapsed) pushChildren(rows, root, rootKey, depth + 1, collapsed);
+    }
+    return rows;
+  }
+
+  private flatRows(collapsed: ReadonlySet<string>): Row[] {
+    const rows: Row[] = [];
+    let commitSha: string | undefined;
+    let commitCollapsed = false;
+    for (const file of this.shownFiles().sort(compareFilePaths)) {
+      const commit = file.commit;
+      if (commit && commit.sha !== commitSha) {
+        commitSha = commit.sha;
+        const key = `commit:${commitSha}`;
+        commitCollapsed = collapsed.has(key);
+        rows.push({ kind: "commit", key, depth: 0, commit, collapsed: commitCollapsed });
+      }
+      if (commit && commitCollapsed) continue;
+      pushFile(rows, file, [file.root, file.folder].filter((part) => part !== "").join("/"), commit ? 1 : 0, collapsed);
     }
     return rows;
   }
@@ -216,9 +240,9 @@ function pushChildren(rows: Row[], node: FolderNode, rootKey: string, depth: num
   for (const file of sortedFiles(node)) pushFile(rows, file, "", depth, collapsed);
 }
 
-function pushFile(rows: Row[], file: FileResult, folded: string, depth: number, collapsed: ReadonlySet<string>): void {
+function pushFile(rows: Row[], file: FileResult, folders: string, depth: number, collapsed: ReadonlySet<string>): void {
   const fileCollapsed = collapsed.has(file.uri);
-  rows.push({ kind: "file", key: file.uri, depth, file, folded, collapsed: fileCollapsed });
+  rows.push({ kind: "file", key: file.uri, depth, file, folders, collapsed: fileCollapsed });
   if (fileCollapsed) return;
   for (const block of file.blocks) {
     for (const line of block) if (!isBlankContext(line)) rows.push({ kind: "line", depth: depth + 1, file, line });
@@ -260,9 +284,8 @@ function soleSubfolder(node: FolderNode): FolderNode | undefined {
 
 /** Commits keep the order of the log. Inside one, a parent folder sorts before its subfolders, so the rows follow the folder tree. */
 function compareGroups(a: FolderGroup, b: FolderGroup): number {
-  const commitOrder = (a.commit?.index ?? 0) - (b.commit?.index ?? 0);
+  const commitOrder = compareCommits(a.commit, b.commit);
   if (commitOrder !== 0) return commitOrder;
-  if (a.commit?.sha !== b.commit?.sha) return (a.commit?.sha ?? "") < (b.commit?.sha ?? "") ? -1 : 1;
   if (a.rootIndex !== b.rootIndex) return a.rootIndex - b.rootIndex;
   const shared = Math.min(a.segments.length, b.segments.length);
   for (let i = 0; i < shared; i++) {
@@ -270,6 +293,32 @@ function compareGroups(a: FolderGroup, b: FolderGroup): number {
     if (order !== 0) return order;
   }
   return a.segments.length - b.segments.length;
+}
+
+/**
+ * Commits keep the order of the log, workspace folders the order of the workspace.
+ * Inside one, paths compare folder by folder, and a file sorts before the subfolders beside it, as the built-in Search view sorts its list.
+ */
+function compareFilePaths(a: FileResult, b: FileResult): number {
+  const commitOrder = compareCommits(a.commit, b.commit);
+  if (commitOrder !== 0) return commitOrder;
+  if (a.rootIndex !== b.rootIndex) return a.rootIndex - b.rootIndex;
+  const aParts = relativePath(a).split("/");
+  const bParts = relativePath(b).split("/");
+  for (let i = 0; ; i++) {
+    const aLast = i === aParts.length - 1;
+    const bLast = i === bParts.length - 1;
+    if (aLast !== bLast) return aLast ? -1 : 1;
+    const order = collator.compare(aParts[i] ?? "", bParts[i] ?? "");
+    if (order !== 0 || aLast) return order;
+  }
+}
+
+function compareCommits(a: CommitInfo | undefined, b: CommitInfo | undefined): number {
+  const order = (a?.index ?? 0) - (b?.index ?? 0);
+  if (order !== 0) return order;
+  if (a?.sha === b?.sha) return 0;
+  return (a?.sha ?? "") < (b?.sha ?? "") ? -1 : 1;
 }
 
 /** Returns the top offset of each row in pixels, plus the total height as the last entry. */

@@ -108,6 +108,14 @@ export type ViewMessage =
   /** Copies the whole line, since the view holds an excerpt of a long line. */
   | { type: "copyLine"; uri: string; line: number };
 
+/**
+ * How the results show.
+ * `tree`: files in their folder tree.
+ * `list`: every file at the top, its folders dimmed after its name.
+ * `path`: every file at the top, its name after its folders.
+ */
+export type ResultsLayout = "tree" | "list" | "path";
+
 /** Workbench settings that the view follows. */
 export interface ViewSettings {
   /** `workbench.tree.indent`: how far a tree row steps right of its parent. */
@@ -121,6 +129,7 @@ export interface ViewSettings {
 export type HostMessage =
   | { type: "focus" }
   | { type: "settings"; settings: ViewSettings }
+  | { type: "resultsLayout"; layout: ResultsLayout }
   | { type: "git"; git: GitInfo }
   | { type: "branchPicked"; branch: string }
   | { type: "searchStarted"; searchId: number }

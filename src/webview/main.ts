@@ -1,4 +1,4 @@
-import type { HostMessage, ResultLine, SearchStatus, ViewMessage, ViewSettings } from "../messages";
+import type { HostMessage, ResultLine, ResultsLayout, SearchStatus, ViewMessage, ViewSettings } from "../messages";
 import { hintFor, parseQuery, type Hint } from "../query";
 import { type FileFields, PathFilter } from "../search/globs";
 import { type GitInfo, type SearchScope, WORKING_TREE } from "../search/scope";
@@ -10,7 +10,8 @@ import { FileIconTheme } from "./fileIcons";
 import { QueryHighlight, renderHint } from "./queryInput";
 import { scopeLabel, scopeMenu } from "./scopeMenu";
 import { commitDay, highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree";
-import { fitKeyPaths, keyPathElement, shownKeys } from "./keyPath";
+import { keyPathElement, shownKeys } from "./keyPath";
+import { fitPaths, folderCuts, pathElement } from "./fitPaths";
 import { blockAround, blockDedents, cutToMatch, dedent } from "./codeLines";
 
 interface ViewState extends FileFields {
@@ -70,6 +71,8 @@ let searched: ({ query: string; scope: SearchScope } & FileFields) | undefined;
 let git: GitInfo | undefined;
 /** The settings of the workbench that the view follows, with their defaults until the host sends them. */
 let settings: ViewSettings = { treeIndentPx: 8, searchOnType: true, searchOnTypeDebounceMs: 300 };
+/** The layout that the host keeps for the workspace, with the default until the host sends it. */
+let resultsLayout: ResultsLayout = "list";
 let typingTimer = 0;
 let historyTimer = 0;
 /** Index of the row that holds the keyboard focus inside the results, -1 without one. */
@@ -183,6 +186,9 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     case "settings":
       settings = message.settings;
       rowsElement.style.setProperty("--tree-indent", `${message.settings.treeIndentPx}px`);
+      return;
+    case "resultsLayout":
+      setResultsLayout(message.layout);
       return;
     case "git":
       git = message.git;
@@ -397,7 +403,7 @@ function scheduleRender(): void {
 function layout(): void {
   if (!layoutStale) return;
   layoutStale = false;
-  rows = tree.rows(collapsed);
+  rows = tree.rows(collapsed, resultsLayout);
   offsets = rowOffsets(rows);
   dedents = blockDedents(rows);
   if (focusedIndex >= rows.length) focusedIndex = rows.length - 1;
@@ -405,6 +411,31 @@ function layout(): void {
   const widest = rows.reduce((max, row) => (row.kind === "line" ? Math.max(max, row.line.line + 1) : max), 0);
   rowsElement.style.setProperty("--line-number-width", `${Math.max(2, String(widest).length)}ch`);
   renderSummary();
+}
+
+/** Lays the rows out in `next`. The focus stays on its row, unless `next` shows no such row, as for a folder row in the list. */
+function setResultsLayout(next: ResultsLayout): void {
+  if (next === resultsLayout) return;
+  const focused = rows[focusedIndex];
+  resultsLayout = next;
+  layoutStale = true;
+  layout();
+  hoveredIndex = -1;
+  focusedIndex = focused ? rows.findIndex((row) => sameRow(row, focused)) : -1;
+  if (focusedIndex < 0) {
+    results.removeAttribute("aria-activedescendant");
+  } else {
+    results.setAttribute("aria-activedescendant", `row-${focusedIndex}`);
+    scrollRowIntoView(focusedIndex);
+  }
+  scheduleRender();
+}
+
+/** Says whether two rows of different layouts show the same commit, folder, file or code line. */
+function sameRow(a: Row, b: Row): boolean {
+  if (a.kind === "line" && b.kind === "line") return a.file.uri === b.file.uri && a.line.line === b.line.line;
+  if (a.kind === "line" || b.kind === "line") return false;
+  return a.key === b.key;
 }
 
 /**
@@ -461,7 +492,7 @@ function render(): void {
   placeOutline(hoveredOutline, hoveredIndex);
   placeOutline(focusedOutline, focusedIndex);
   cutMatchLines();
-  fitKeyPaths(rowsElement.querySelectorAll<HTMLElement>(".key-path"));
+  fitPaths(rowsElement.querySelectorAll<HTMLElement>(".key-path, .folder-path"));
 }
 
 function rowElement(row: Row, index: number): HTMLElement {
@@ -492,8 +523,14 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.setAttribute("aria-expanded", String(!row.collapsed));
       element.style.setProperty("--depth", String(row.depth));
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
-      element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file), span("label", row.file.name));
-      if (row.folded !== "") element.append(span("folded-path", row.folded));
+      element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file));
+      if (resultsLayout === "path") {
+        if (row.folders !== "") element.append(pathElement("folder-path", folderCuts(row.folders)));
+        element.append(span("label file-name", row.file.name));
+      } else {
+        element.append(span("label", row.file.name));
+        if (row.folders !== "") element.append(span("description", row.folders));
+      }
       element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
     }

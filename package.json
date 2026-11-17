@@ -37,8 +37,56 @@
       {
         "command": "structuralSearch.focus",
         "title": "Structural Search: Focus Search"
+      },
+      {
+        "command": "structuralSearch.viewAsTree",
+        "title": "View as Tree",
+        "category": "Structural Search",
+        "enablement": "structuralSearch.resultsLayout != tree"
+      },
+      {
+        "command": "structuralSearch.viewAsList",
+        "title": "View as List",
+        "category": "Structural Search",
+        "enablement": "structuralSearch.resultsLayout != list"
+      },
+      {
+        "command": "structuralSearch.viewAsPaths",
+        "title": "View as Paths",
+        "category": "Structural Search",
+        "enablement": "structuralSearch.resultsLayout != path"
       }
     ],
+    "submenus": [
+      {
+        "id": "structuralSearch.viewAs",
+        "label": "View As",
+        "icon": "$(list-flat)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "submenu": "structuralSearch.viewAs",
+          "when": "view == structuralSearch.view",
+          "group": "navigation"
+        }
+      ],
+      "structuralSearch.viewAs": [
+        {
+          "command": "structuralSearch.viewAsTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "structuralSearch.viewAsList",
+          "group": "navigation@2"
+        },
+        {
+          "command": "structuralSearch.viewAsPaths",
+          "group": "navigation@3"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "structuralSearch.focus",
