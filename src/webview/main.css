@@ -26,6 +26,11 @@ body {
   font-weight: var(--vscode-font-weight);
 }
 
+/* Buttons take the pointer, as the buttons of the workbench action bars do. Text inputs keep the text cursor. */
+button {
+  cursor: pointer;
+}
+
 /*
  * The editor appends the default fonts of its platform to editor.fontFamily (EDITOR_FONT_DEFAULTS in VS Code).
  * The webview variable carries the setting alone, so a font missing on the system would fall back to the browser's serif font.
