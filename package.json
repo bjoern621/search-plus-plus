@@ -1,7 +1,7 @@
 {
     "name": "search-plus-plus",
     "displayName": "Search++",
-    "description": "Search by key paths in YAML, JSON and TOML, with typo and umlaut matching by default.",
+    "description": "Search text and the key paths of YAML, JSON and TOML files. Typos and umlaut spellings match by default.",
     "version": "0.0.1",
     "publisher": "bjoern621",
     "license": "MIT",
@@ -36,7 +36,8 @@
         "commands": [
             {
                 "command": "searchPlusPlus.focus",
-                "title": "Search++: Focus Search"
+                "title": "Focus Search",
+                "category": "Search++"
             },
             {
                 "command": "searchPlusPlus.openSettings",

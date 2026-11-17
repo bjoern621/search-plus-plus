@@ -24,8 +24,8 @@ export interface MenuContent {
 export function matchMenu(file: FileResult, line: ResultLine, query: string): MenuContent {
     const reasons = line.reasons ?? []
     const groups: MenuItem[][] = []
-    const asWritten = findAsWritten(reasons, query)
-    if (asWritten) groups.push([asWritten])
+    const exactMatch = exactMatchItem(reasons, query)
+    if (exactMatch) groups.push([exactMatch])
 
     const exclusions: MenuItem[] = [
         { label: `Exclude ${file.name}`, action: { kind: "exclude", entry: fileEntry(file) } }
@@ -48,15 +48,15 @@ export function matchMenu(file: FileResult, line: ResultLine, query: string): Me
     return { reasons: reasonLines(reasons, line.keyPath ?? []), groups }
 }
 
-/** The first word that a matching default stretched, in quotes in the query, so the search takes it as written. */
-function findAsWritten(reasons: readonly MatchReason[], query: string): MenuItem | undefined {
+/** Searches again with the first word that a matching default stretched in quotes, so it matches exactly. */
+function exactMatchItem(reasons: readonly MatchReason[], query: string): MenuItem | undefined {
     const reason = ["fuzzy", "umlaut", "case"]
         .map((kind) => reasons.find((candidate) => candidate.kind === kind))
         .find((candidate) => candidate !== undefined)
     if (!reason) return undefined
     const quoted = quoteWord(query, reason.query)
     if (quoted === undefined) return undefined
-    return { label: `Find "${reason.query}" as written`, action: { kind: "search", query: quoted } }
+    return { label: `Match "${reason.query}" exactly`, action: { kind: "search", query: quoted } }
 }
 
 /**
@@ -88,7 +88,7 @@ function isWordChar(char: string | undefined): boolean {
 }
 
 /**
- * Says in one line per reason why the line matched, such as `Key gravitee: close spelling of Gravite, 1 edit away.`
+ * Says in one line per reason why the line matched, such as `Key gravitee: 1 letter off from Gravite.`
  * Case differences share one line, such as `Keys global, values and enabled: case differs.`
  */
 export function reasonLines(reasons: readonly MatchReason[], keyPath: readonly string[]): string[] {
@@ -101,12 +101,12 @@ export function reasonLines(reasons: readonly MatchReason[], keyPath: readonly s
         switch (reason.kind) {
             case "fuzzy":
                 lines.push(
-                    `${isKey ? "Key " : ""}${reason.found}: close spelling of ${reason.query}, ${reason.edits} ${reason.edits === 1 ? "edit" : "edits"} away.`
+                    `${isKey ? "Key " : ""}${reason.found}: ${reason.edits} ${reason.edits === 1 ? "letter" : "letters"} off from ${reason.query}.`
                 )
                 break
             case "umlaut":
                 lines.push(
-                    `${isKey ? "Key " : ""}${reason.found}: ${umlautCount(reason.found) < umlautCount(reason.query) ? "spelled-out umlaut" : "umlaut spelling"} of ${reason.query}.`
+                    `${isKey ? "Key " : ""}${reason.found}: ${reason.query} written ${umlautCount(reason.found) < umlautCount(reason.query) ? "without" : "with"} umlauts.`
                 )
                 break
             case "case":

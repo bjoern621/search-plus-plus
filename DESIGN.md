@@ -116,19 +116,19 @@ Right-clicking a match opens a context menu.
 Right-clicking a context line opens the menu of the match in its block, so every line of a block offers the same items.
 Its top lines say why the line matched whenever a matching default stretched the query:
 
-- `Gröse: close spelling of Größe, 1 edit away.`
-- `Groesse: spelled-out umlaut of Größe.`
-- `Key gravitee: close spelling of Gravite, 1 edit away.`
+- `Gröse: 1 letter off from Größe.`
+- `Groesse: Größe written without umlauts.`
+- `Key gravitee: 1 letter off from Gravite.`
 
 Below them come the quick actions:
 
-| Action                   | Shown for                                 | Effect                                                                            |
-| ------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------- |
-| Find "(word)" as written | a match that a matching default stretched | puts the query word in quotes and searches again                                  |
-| Exclude (file)           | every match                               | adds the file to files to exclude                                                 |
-| Exclude folder (folder)  | every match                               | adds the folder to files to exclude                                               |
-| Copy line                | every match                               | copies the line of the match                                                      |
-| Copy key path            | a key path match                          | copies the key path of the matched node, such as `global.values.gravitee.enabled` |
+| Action                  | Shown for                                 | Effect                                                                            |
+| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------- |
+| Match "(word)" exactly  | a match that a matching default stretched | puts the query word in quotes and searches again                                  |
+| Exclude (file)          | every match                               | adds the file to files to exclude                                                 |
+| Exclude folder (folder) | every match                               | adds the folder to files to exclude                                               |
+| Copy line               | every match                               | copies the line of the match                                                      |
+| Copy key path           | a key path match                          | copies the key path of the matched node, such as `global.values.gravitee.enabled` |
 
 ## Place in VS Code
 
@@ -173,7 +173,7 @@ A query matches with these defaults:
 
 - Fuzzy: each word of the query also matches a word a few edits away.
 
-A word in double quotes matches as written: case-sensitive, without umlaut variants and without fuzzy matches.
+A word in double quotes matches exactly: case-sensitive, without umlaut variants and without fuzzy matches.
 `"Größe"` finds `Größe` alone.
 The context menu on a close match offers the quotes.
 The extension settings change each default.
@@ -220,12 +220,12 @@ The query input colors each character by its role, so you see which characters t
 
 A hint takes one line under the query input and names what the query does or how to change it.
 
-| Query                                 | Hint                                                                             |
-| ------------------------------------- | -------------------------------------------------------------------------------- |
-| between two slashes                   | Searching as a regex. (highlighted)                                              |
-| starts with a slash, ends without one | End with a slash to search as a regex.                                           |
-| breaks the key path grammar           | The key path skips this query because a bracket ([) stays open. Close it with ]. |
-| regex that does not compile           | The regex cannot compile: (parser's message). Fix it or drop the slashes.        |
+| Query                                 | Hint                                                                        |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| between two slashes                   | Searching as a regex. (highlighted)                                         |
+| starts with a slash, ends without one | End with a slash to search as a regex.                                      |
+| breaks the key path grammar           | Key path search is off because a bracket ([) stays open. Close it with ].   |
+| regex that does not compile           | The regex cannot compile: (parser's message). Fix it or remove the slashes. |
 
 A hint that suggests a query runs it on click.
 

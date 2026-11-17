@@ -43,7 +43,7 @@ export interface ClassItem {
 }
 
 export interface QueryError {
-    /** One sentence for the hint line, such as "The key path skips this query because a bracket ([) stays open. Close it with ]." */
+    /** One sentence for the hint line, such as "Key path search is off because a bracket ([) stays open. Close it with ]." */
     message: string
     range: Range
 }

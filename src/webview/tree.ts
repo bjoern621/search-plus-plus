@@ -397,10 +397,10 @@ export function highlightParts(line: ResultLine): { text: string; marked: boolea
 
 /** Builds the summary line, such as "4 results in 4 files". */
 export function resultSummary(matchCount: number, fileCount: number, cappedAt?: number): string {
-    if (matchCount === 0) return "No results."
+    if (matchCount === 0) return "No results"
     const files = count(fileCount, "file", "files")
     if (cappedAt !== undefined)
-        return `Showing the first ${cappedAt.toLocaleString("en-US")} results in ${files}`
+        return `First ${cappedAt.toLocaleString("en-US")} results in ${files}. Narrow the search to see the rest.`
     return `${matchCount.toLocaleString("en-US")} ${matchCount === 1 ? "result" : "results"} in ${files}`
 }
 

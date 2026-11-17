@@ -138,7 +138,7 @@ class RunningSearch {
             takenUris.add(uri)
             queue.add(() =>
                 this.searchFile(item).catch((error: unknown) =>
-                    this.deps.log(`Search failed on ${item.relativePath}: ${String(error)}`)
+                    this.deps.log(`Could not search ${item.relativePath}: ${String(error)}`)
                 )
             )
         }
@@ -182,7 +182,9 @@ class RunningSearch {
                     .searchTexts(texts, this.request.query, this.signal)
                     .catch((error: unknown) => {
                         if (!this.signal.aborted)
-                            this.deps.log(`Search engine ${engine.id} failed: ${String(error)}`)
+                            this.deps.log(
+                                `Search engine ${engine.id} could not finish: ${String(error)}`
+                            )
                         return []
                     })
             )
@@ -198,7 +200,9 @@ class RunningSearch {
                     await engine.search(this.request.roots, this.request.query, this.signal, onFile)
                 } catch (error) {
                     if (!this.signal.aborted)
-                        this.deps.log(`Search engine ${engine.id} failed: ${String(error)}`)
+                        this.deps.log(
+                            `Search engine ${engine.id} could not finish: ${String(error)}`
+                        )
                 }
             })
         )
@@ -253,7 +257,7 @@ class RunningSearch {
             return engine.accepts(file, this.request.query)
         } catch (error) {
             this.deps.log(
-                `Search engine ${engine.id} failed to decide on ${file.relativePath}: ${String(error)}`
+                `Search engine ${engine.id} could not decide on ${file.relativePath}: ${String(error)}`
             )
             return false
         }
@@ -268,7 +272,7 @@ class RunningSearch {
         } catch (error) {
             if (!this.signal.aborted)
                 this.deps.log(
-                    `Search engine ${engine.id} failed on ${file.relativePath}: ${String(error)}`
+                    `Search engine ${engine.id} could not search ${file.relativePath}: ${String(error)}`
                 )
             return undefined
         }

@@ -154,7 +154,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
                 ? undefined
                 : await loadIconTheme(id).catch((error: unknown) => {
                       this.log(
-                          `The file icon theme ${id} failed to load, showing no icons: ${String(error)}`
+                          `The file icon theme ${id} could not load, showing no icons: ${String(error)}`
                       )
                       return undefined
                   })

@@ -10,7 +10,7 @@ import type {
     QueryError
 } from "./types"
 
-const SKIPS = "The key path skips this query because"
+const SKIPS = "Key path search is off because"
 
 class KeyPathGrammarError extends Error {
     constructor(
@@ -43,7 +43,7 @@ class KeyPathParser {
 
     parsePath(): KeyPathPattern {
         if (this.src.length === 0) {
-            throw new KeyPathGrammarError(`${SKIPS} it is empty.`, { start: 0, end: 0 })
+            throw new KeyPathGrammarError(`${SKIPS} the query is empty.`, { start: 0, end: 0 })
         }
         const segments: KeyPathSegment[] = [this.parseSegment(undefined)]
         while (!this.atEnd()) {
@@ -97,11 +97,14 @@ class KeyPathParser {
             )
         }
         if (this.pos === 0) {
-            throw new KeyPathGrammarError(`${SKIPS} it starts with a dot. Remove the dot.`, here)
+            throw new KeyPathGrammarError(
+                `${SKIPS} the query starts with a dot. Remove the dot.`,
+                here
+            )
         }
         if (this.atEnd()) {
             throw new KeyPathGrammarError(
-                `${SKIPS} it ends with a dot. Add a key after the dot or remove it.`,
+                `${SKIPS} the query ends with a dot. Add a key after the dot or remove it.`,
                 { start: this.pos - 1, end: this.pos }
             )
         }
@@ -158,7 +161,7 @@ class KeyPathParser {
         this.pos++
         if (this.atEnd()) {
             throw new KeyPathGrammarError(
-                `${SKIPS} it ends with a backslash (\\). Write \\\\ to search for a backslash.`,
+                `${SKIPS} the query ends with a backslash (\\). Write \\\\ to search for a backslash.`,
                 { start, end: start + 1 }
             )
         }

@@ -10,7 +10,7 @@ export function hintFor(query: Query, regexError?: string): Hint | undefined {
     if (query.kind === "regex") {
         if (regexError !== undefined) {
             return {
-                text: `The regex cannot compile: ${regexError.trim().replace(/\.$/, "")}. Fix it or drop the slashes.`,
+                text: `The regex cannot compile: ${regexError.trim().replace(/\.$/, "")}. Fix it or remove the slashes.`,
                 tone: "info",
                 suggestedQuery: query.source
             }

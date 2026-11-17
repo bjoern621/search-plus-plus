@@ -28,7 +28,7 @@ export class RegexEngine implements WorkspaceSearchEngine {
         if (query.kind !== "regex") return undefined
         if (!this.rgPath) {
             return {
-                text: "This VS Code build ships no ripgrep, so regex search cannot run. Drop the slashes to search as text.",
+                text: "This VS Code build has no ripgrep, so regex search cannot run. Remove the slashes to search as text.",
                 tone: "info",
                 suggestedQuery: query.source
             }

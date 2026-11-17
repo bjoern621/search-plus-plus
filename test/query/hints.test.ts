@@ -27,7 +27,7 @@ describe("hintFor", () => {
 
     it("passes on the message of a broken key path", () => {
         expect(hintFor(parseQuery("a[b"))).toEqual({
-            text: "The key path skips this query because a bracket ([) stays open. Close it with ].",
+            text: "Key path search is off because a bracket ([) stays open. Close it with ].",
             tone: "info"
         })
     })
@@ -43,7 +43,7 @@ describe("hintFor", () => {
 
     it("wraps the message of a regex that cannot compile and suggests the query without slashes", () => {
         expect(hintFor(parseQuery("/a(/"), "unclosed group.")).toEqual({
-            text: "The regex cannot compile: unclosed group. Fix it or drop the slashes.",
+            text: "The regex cannot compile: unclosed group. Fix it or remove the slashes.",
             tone: "info",
             suggestedQuery: "a("
         })

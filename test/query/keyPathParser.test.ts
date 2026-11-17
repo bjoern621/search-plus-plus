@@ -249,8 +249,7 @@ describe("parseKeyPath: groups", () => {
 describe("parseKeyPath: errors", () => {
     it("names a bracket left open", () => {
         expect(error("a[bc")).toEqual({
-            message:
-                "The key path skips this query because a bracket ([) stays open. Close it with ].",
+            message: "Key path search is off because a bracket ([) stays open. Close it with ].",
             range: { start: 1, end: 2 }
         })
     })
@@ -272,7 +271,7 @@ describe("parseKeyPath: errors", () => {
     it("names a range that runs backwards", () => {
         expect(error("[z-a]")).toEqual({
             message:
-                "The key path skips this query because the range z-a runs backwards. Write it as a-z.",
+                "Key path search is off because the range z-a runs backwards. Write it as a-z.",
             range: { start: 1, end: 4 }
         })
     })
@@ -286,8 +285,7 @@ describe("parseKeyPath: errors", () => {
 
     it("names a brace left open", () => {
         expect(error("a.{b,c")).toEqual({
-            message:
-                "The key path skips this query because a brace ({) stays open. Close it with }.",
+            message: "Key path search is off because a brace ({) stays open. Close it with }.",
             range: { start: 2, end: 3 }
         })
         expect(error("{")).toMatchObject({ range: { start: 0, end: 1 } })
@@ -322,15 +320,14 @@ describe("parseKeyPath: errors", () => {
 
     it("names a quote left open", () => {
         expect(error('a."b.c')).toEqual({
-            message:
-                'The key path skips this query because a quote (") stays open. Close it with ".',
+            message: 'Key path search is off because a quote (") stays open. Close it with ".',
             range: { start: 2, end: 3 }
         })
     })
 
     it("names a trailing backslash", () => {
         expect(error("a\\")).toMatchObject({
-            message: expect.stringContaining("it ends with a backslash"),
+            message: expect.stringContaining("the query ends with a backslash"),
             range: { start: 1, end: 2 }
         })
         expect(error('"a\\')).toMatchObject({ range: { start: 2, end: 3 } })
@@ -339,11 +336,11 @@ describe("parseKeyPath: errors", () => {
 
     it("names a leading dot, a trailing dot and two dots in a row", () => {
         expect(error(".Values.global")).toMatchObject({
-            message: expect.stringContaining("it starts with a dot"),
+            message: expect.stringContaining("the query starts with a dot"),
             range: { start: 0, end: 1 }
         })
         expect(error("global.")).toMatchObject({
-            message: expect.stringContaining("it ends with a dot"),
+            message: expect.stringContaining("the query ends with a dot"),
             range: { start: 6, end: 7 }
         })
         expect(error("a..b")).toMatchObject({
