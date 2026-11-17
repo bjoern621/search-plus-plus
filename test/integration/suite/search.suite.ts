@@ -245,14 +245,18 @@ describe("Structural Search view", () => {
     await editor().update("fontSize", 60, vscode.ConfigurationTarget.Global);
     try {
       await changedLineHeight(81);
-      const snapshot = await search("4.1.0");
-      // Hovering scrolls the row to the top of the results, so the card has less room above the row than its lines before the match take.
-      await vscode.commands.executeCommand("structuralSearch.test.hover", snapshot.rows.indexOf("match 4:     tag: [4.1.0]"));
+      // Every line matches, so the results outgrow any view.
+      // Hovering then scrolls the row to the top of the results, where the four lines before the match take more room than the inputs above the results leave.
+      const snapshot = await search("/\\S/");
+      const values = snapshot.rows.indexOf("file values.yaml");
+      const replicas = snapshot.rows.findIndex((row, index) => index > values && row.startsWith("match 5:"));
+      assert.notEqual(replicas, -1, snapshot.rows.join("\n"));
+      await vscode.commands.executeCommand("structuralSearch.test.hover", replicas);
       const hover = await shownHover();
       const box = (await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot")).hoverGeometry;
       assert.ok(box, "no hover card");
-      assert.ok(hover.includes("match 4:     tag: [4.1.0]"), hover.join("\n"));
-      assert.notEqual(hover[1], "context 1: gateway:", `${hover.join("\n")}\n${JSON.stringify(box)}`);
+      assert.equal(hover.at(-1), snapshot.rows[replicas]);
+      assert.ok(!hover.some((line) => line.startsWith("match 1:")), `${hover.join("\n")}\n${JSON.stringify(box)}`);
       assert.ok(Math.abs(box.lineTop - box.rowTop) <= 1, JSON.stringify(box));
       assert.ok(box.cardTop >= 0 && box.cardBottom <= box.viewHeight, JSON.stringify(box));
     } finally {
