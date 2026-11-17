@@ -1,4 +1,0 @@
-platform:
-  ingressController:
-    resourceLimits:
-      memory: 1Gi
