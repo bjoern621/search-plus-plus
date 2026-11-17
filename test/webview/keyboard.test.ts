@@ -10,7 +10,7 @@ const lines = { last: true, through: [] };
 function rows(collapsed = false): Row[] {
   return [
     { kind: "folder", key: "0:docs", depth: 1, lines, label: "docs", folder: "docs", collapsed: false, icon: undefined },
-    { kind: "file", key: file.uri, depth: 2, lines, file, collapsed },
+    { kind: "file", key: file.uri, depth: 2, lines, file, folded: "", collapsed },
     { kind: "line", depth: 3, file, line },
     { kind: "line", depth: 3, file, line: { ...line, line: 1 } },
   ];
@@ -30,7 +30,7 @@ describe("rowCommand", () => {
   it("passes over context lines with Up, Down, Home, End and Right", () => {
     const context = { ...line, match: false };
     const withContext: Row[] = [
-      { kind: "file", key: file.uri, depth: 0, lines, file, collapsed: false },
+      { kind: "file", key: file.uri, depth: 0, lines, file, folded: "", collapsed: false },
       { kind: "line", depth: 1, file, line: { ...context, line: 0 } },
       { kind: "line", depth: 1, file, line: { ...line, line: 1 } },
       { kind: "line", depth: 1, file, line: { ...context, line: 2 } },
@@ -78,7 +78,7 @@ describe("rowCommand", () => {
 
   it("moves from a file and from a folder to the commit row above in the Git history scope", () => {
     const commit = { sha: "a".repeat(40), shortSha: "aaaaaaa", author: "Ada", date: "2026-11-02T14:03:00+01:00", subject: "Raise the gateway", index: 0 };
-    const history: Row[] = [{ kind: "commit", key: `commit:${commit.sha}`, depth: 0, lines, commit, collapsed: false }, { kind: "file", key: "root", depth: 1, lines, file, collapsed: false }, ...rows()];
+    const history: Row[] = [{ kind: "commit", key: `commit:${commit.sha}`, depth: 0, lines, commit, collapsed: false }, { kind: "file", key: "root", depth: 1, lines, file, folded: "", collapsed: false }, ...rows()];
     expect(rowCommand(history, 1, press("ArrowLeft"))).toEqual({ kind: "toggle" });
     expect(rowCommand(history.map((row) => (row.kind === "file" ? { ...row, collapsed: true } : row)), 1, press("ArrowLeft"))).toEqual({ kind: "focus", index: 0 });
     expect(rowCommand(history, 2, press("ArrowLeft"))).toEqual({ kind: "toggle" });

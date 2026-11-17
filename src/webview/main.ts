@@ -598,7 +598,9 @@ function rowElement(row: Row, index: number): HTMLElement {
       element.setAttribute("aria-expanded", String(!row.collapsed));
       hangInTree(element, row, index);
       element.title = [row.file.root, row.file.folder, row.file.name].filter((part) => part !== "").join("/");
-      element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file), span("label", row.file.name), excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
+      element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file), span("label", row.file.name));
+      if (row.folded !== "") element.append(span("folded-path", row.folded));
+      element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)));
       return element;
     }
     case "line": {
@@ -949,7 +951,7 @@ function describeRow(row: Row): string {
     case "folder":
       return `folder ${row.label}`;
     case "file":
-      return `file ${row.file.name}`;
+      return row.folded === "" ? `file ${row.file.name}` : `file ${row.file.name} (${row.folded})`;
     case "line":
       return describeLine(row.line);
   }

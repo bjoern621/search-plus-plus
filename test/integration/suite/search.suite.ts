@@ -75,8 +75,7 @@ describe("Structural Search view", () => {
       "context 3:     repository: graviteeio/apim-gateway",
       "match 4:     tag: [4.1.0]",
       "context 5:   replicas: 2",
-      "folder docs",
-      "file upgrade.md",
+      "file upgrade.md (docs)",
       "context 2: ",
       "match 3: Move the gateway to [4.1.0] before the portal.",
     ]);
@@ -101,8 +100,7 @@ describe("Structural Search view", () => {
     assert.equal(snapshot.hint, "Searching as a regex.");
     assert.equal(snapshot.summary, "1 result in 1 file | Working tree");
     assert.deepEqual(snapshot.rows, [
-      "folder charts/apim",
-      "file values.yaml",
+      "file values.yaml (charts/apim)",
       "context 3:     repository: graviteeio/apim-gateway",
       "match 4:     [tag: 4.1].0",
       "context 5:   replicas: 2",
@@ -133,7 +131,7 @@ describe("Structural Search view", () => {
 
   it("finds a YAML key by its key path", async () => {
     const snapshot = await search("gateway.image.tag");
-    assert.deepEqual(snapshot.rows.slice(0, 2), ["folder charts/apim", "file values.yaml"]);
+    assert.equal(snapshot.rows[0], "file values.yaml (charts/apim)");
     assert.ok(snapshot.rows.includes("match 4:     [tag]: 4.1.0"), snapshot.rows.join("\n"));
   });
 
@@ -201,15 +199,24 @@ describe("Structural Search view", () => {
 
   it("drops the results of an excluded folder at once and leaves the folder out of later searches", async () => {
     const before = await search("4.1.0");
-    const snapshot = await excludeRow(before.rows, "folder docs");
-    assert.equal(snapshot.exclude, "./docs/");
-    assert.equal(snapshot.summary, "2 results in 2 files | Working tree");
-    assert.ok(!snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
+    const snapshot = await excludeRow(before.rows, "folder charts/apim");
+    assert.equal(snapshot.exclude, "./charts/apim/");
+    assert.equal(snapshot.summary, "1 result in 1 file | Working tree");
+    assert.ok(!snapshot.rows.includes("folder charts/apim"), snapshot.rows.join("\n"));
 
     const later = await searchKeepingFields("gateway");
-    assert.equal(later.exclude, "./docs/");
-    assert.ok(later.rows.includes("file values.yaml"), later.rows.join("\n"));
-    assert.ok(!later.rows.includes("folder docs"), later.rows.join("\n"));
+    assert.equal(later.exclude, "./charts/apim/");
+    assert.deepEqual(
+      later.rows.filter((row) => row.startsWith("folder ") || row.startsWith("file ")),
+      ["file upgrade.md (docs)"],
+    );
+  });
+
+  it("excludes the file of a row that folds its folders in from the exclude button of the row", async () => {
+    const before = await search("4.1.0");
+    const snapshot = await excludeRow(before.rows, "file upgrade.md (docs)");
+    assert.equal(snapshot.exclude, "./docs/upgrade.md");
+    assert.equal(snapshot.summary, "2 results in 2 files | Working tree");
   });
 
   it("drops the results of an excluded file at once", async () => {
@@ -222,7 +229,7 @@ describe("Structural Search view", () => {
 
   it("brings the results of an exclusion back at once when its entry leaves files to exclude", async () => {
     const before = await search("4.1.0");
-    await excludeRow(before.rows, "folder docs");
+    await excludeRow(before.rows, "folder charts/apim");
     const snapshot = await typeFileFields(NO_FILE_FIELDS, false);
     assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
   });
@@ -231,18 +238,18 @@ describe("Structural Search view", () => {
     await search("4.1.0", { include: "", exclude: "./docs/" });
     const snapshot = await typeFileFields(NO_FILE_FIELDS, true);
     assert.equal(snapshot.summary, "3 results in 3 files | Working tree");
-    assert.ok(snapshot.rows.includes("folder docs"), snapshot.rows.join("\n"));
+    assert.ok(snapshot.rows.includes("file upgrade.md (docs)"), snapshot.rows.join("\n"));
   });
 
   it("searches the ignored and the excluded folders while the exclude settings and ignore files are off, minus files to exclude", async () => {
     const off = await search("4.1.0", { include: "*.yaml", exclude: "", useExcludeSettingsAndIgnoreFiles: false });
     assert.equal(off.summary, "5 results in 5 files | Working tree");
     assert.equal(off.summaryNote, "Exclude settings and ignore files are off. Turn on");
-    for (const folder of ["folder build", "folder excluded", "folder vendor"]) assert.ok(off.rows.includes(folder), off.rows.join("\n"));
+    for (const file of ["file values.yaml (build)", "file values.yaml (excluded)", "file values.yaml (vendor)"]) assert.ok(off.rows.includes(file), off.rows.join("\n"));
 
     const typed = await search("4.1.0", { include: "*.yaml", exclude: "vendor", useExcludeSettingsAndIgnoreFiles: false });
     assert.equal(typed.summary, "4 results in 4 files | Working tree");
-    assert.ok(!typed.rows.includes("folder vendor"), typed.rows.join("\n"));
+    assert.ok(!typed.rows.includes("file values.yaml (vendor)"), typed.rows.join("\n"));
   });
 
   it("turns the exclude settings and ignore files back on from the toggle and from the note", async () => {
@@ -266,7 +273,7 @@ describe("Structural Search view", () => {
     const yaml = await search("4.1.0", { include: "*.yaml", exclude: "Chart.yaml" });
     assert.deepEqual(
       yaml.rows.filter((row) => row.startsWith("file ")),
-      ["file values.yaml"],
+      ["file values.yaml (charts/apim)"],
     );
     const regex = await search("/tag: \\d/", { include: "", exclude: "./charts/" });
     assert.equal(regex.summary, "No results. | Working tree");
@@ -444,9 +451,8 @@ describe("Structural Search view", () => {
     });
     try {
       const snapshot = await search("gateway");
-      assert.deepEqual(snapshot.rows.slice(snapshot.rows.indexOf("folder docs")), [
-        "folder docs",
-        "file upgrade.md",
+      assert.deepEqual(snapshot.rows.slice(snapshot.rows.indexOf("file upgrade.md (docs)")), [
+        "file upgrade.md (docs)",
         "context 2: ",
         "match 3: [Move] the [gateway] to 4.1.0 before the portal.",
       ]);
@@ -469,8 +475,8 @@ describe("Structural Search view", () => {
     const index = snapshot.rows.indexOf("match 5:   [replicas]: 2");
     assert.notEqual(index, -1, snapshot.rows.join("\n"));
 
-    const file = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown", "ArrowDown"]);
-    assert.equal(snapshot.rows[file.focused], "file values.yaml");
+    const file = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown"]);
+    assert.equal(snapshot.rows[file.focused], "file values.yaml (charts/apim)");
     const focused = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["ArrowDown", "ArrowDown", "ArrowUp", "ArrowDown"]);
     assert.equal(focused.focused, index);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
@@ -499,17 +505,17 @@ describe("Structural Search scopes", () => {
     assert.equal(snapshot.summary, "2 results in 2 files | Changed against main");
     assert.deepEqual(
       snapshot.rows.filter((row) => row.startsWith("file ")),
-      ["file values.yaml", "file upgrade.md"],
+      ["file values.yaml (charts/apim)", "file upgrade.md (docs)"],
     );
   });
 
   it("searches another branch without a checkout and leaves out the excluded folders", async () => {
     const raised = await search("5.0.0", NO_FILE_FIELDS, feature);
     assert.equal(raised.summary, "1 result in 1 file | Branch feature");
-    assert.deepEqual(raised.rows, ["folder charts/apim", "file values.yaml", "context 3:     repository: graviteeio/apim-gateway", "match 4:     tag: [5.0.0]", "context 5:   replicas: 2"]);
+    assert.deepEqual(raised.rows, ["file values.yaml (charts/apim)", "context 3:     repository: graviteeio/apim-gateway", "match 4:     tag: [5.0.0]", "context 5:   replicas: 2"]);
 
     const chart = await search("4.1.0", NO_FILE_FIELDS, feature);
-    assert.deepEqual(chart.rows, ["folder charts/apim", "file Chart.yaml", "context 1: name: apim", "match 2: version: [4.1.0]"]);
+    assert.deepEqual(chart.rows, ["file Chart.yaml (charts/apim)", "context 1: name: apim", "match 2: version: [4.1.0]"]);
   });
 
   it("picks the branch to search from a quick pick", async () => {
@@ -530,14 +536,12 @@ describe("Structural Search scopes", () => {
     assert.equal(snapshot.summary, "2 results in 2 commits | Git history");
     assert.deepEqual(withoutShas(snapshot.rows), [
       "commit <sha> Raise the gateway to 4.1.0 (Ada Lovelace, 2026-11-03)",
-      "folder charts/apim",
-      "file values.yaml",
+      "file values.yaml (charts/apim)",
       "context 3:     repository: graviteeio/apim-gateway",
       "match 4:     tag: [4.1.0]",
       "context 5:   replicas: 2",
       "commit <sha> Add the gateway chart (Ada Lovelace, 2026-11-01)",
-      "folder charts/apim",
-      "file Chart.yaml",
+      "file Chart.yaml (charts/apim)",
       "context 1: name: apim",
       "match 2: version: [4.1.0]",
     ]);
@@ -587,7 +591,7 @@ describe("Structural Search tree", () => {
   it("steps folders and files right by their depth and keeps every code line at the left edge", async () => {
     const snapshot = await search("/sticky|memory/");
     const treeRows = snapshot.rows.filter((row) => row.startsWith("folder ") || row.startsWith("file "));
-    assert.deepEqual(treeRows, ["folder deploy", NESTED_FOLDER, "file values.yaml", "file limits.yaml"]);
+    assert.deepEqual(treeRows, ["folder deploy", NESTED_FOLDER, "file resources.yaml", "file values.yaml", "file limits.yaml"]);
     const left = (row: string) => snapshot.rowStartLefts[snapshot.rows.indexOf(row)] ?? Number.NaN;
     assert.equal(left(NESTED_FOLDER) - left("folder deploy"), DEFAULT_TREE_INDENT_PX);
     assert.equal(left("file values.yaml") - left(NESTED_FOLDER), DEFAULT_TREE_INDENT_PX);
@@ -601,7 +605,7 @@ describe("Structural Search tree", () => {
   it("joins each folder and file to its parent with a line and draws no line over code", async () => {
     const snapshot = await search("/sticky|memory/");
     const guides = (row: string) => snapshot.guides[snapshot.rows.indexOf(row)];
-    assert.deepEqual(["folder deploy", NESTED_FOLDER, "file values.yaml", "file limits.yaml"].map(guides), ["", "├", "│└", "└"]);
+    assert.deepEqual(["folder deploy", NESTED_FOLDER, "file resources.yaml", "file values.yaml", "file limits.yaml"].map(guides), ["", "├", "│├", "│└", "└"]);
     const codeGuides = snapshot.rows.flatMap((row, index) => (isCodeRow(row) ? [snapshot.guides[index]] : []));
     assert.deepEqual(new Set(codeGuides), new Set([""]));
   });
@@ -627,7 +631,7 @@ describe("Structural Search icons", () => {
 
   it("gives rows the icons of the built-in Seti theme, without folder icons, as Seti has none", async () => {
     const snapshot = await search("4.1.0");
-    assert.deepEqual(rowIcons(snapshot), { "folder charts/apim": "", "file Chart.yaml": "_yml", "file values.yaml": "_yml", "folder docs": "", "file upgrade.md": "_markdown" });
+    assert.deepEqual(rowIcons(snapshot), { "folder charts/apim": "", "file Chart.yaml": "_yml", "file values.yaml": "_yml", "file upgrade.md (docs)": "_markdown" });
   });
 
   it("starts the folder names where the file icons of the same depth start with Seti, as the built-in Search view does", async () => {
@@ -643,14 +647,14 @@ describe("Structural Search icons", () => {
     await workbench().update("colorTheme", "Default Light Modern", vscode.ConfigurationTarget.Global);
     const icons = await changedIcons((current) => current["file values.yaml"] !== "_yml");
     assert.equal(icons["file values.yaml"], "_yml_light");
-    assert.equal(icons["file upgrade.md"], "_markdown_light");
+    assert.equal(icons["file upgrade.md (docs)"], "_markdown_light");
   });
 
   it("gives rows the SVG icons of the built-in Modern theme, expanded folders open", async () => {
     await search("4.1.0");
     await workbench().update("iconTheme", "vscode-modern-icons", vscode.ConfigurationTarget.Global);
-    const icons = await changedIcons((current) => current["folder docs"] !== "");
-    assert.deepEqual(icons, { "folder charts/apim": "_folderOpen", "file Chart.yaml": "_file", "file values.yaml": "_file", "folder docs": "_folderOpen", "file upgrade.md": "_markdown" });
+    const icons = await changedIcons((current) => current["folder charts/apim"] !== "");
+    assert.deepEqual(icons, { "folder charts/apim": "_folderOpen", "file Chart.yaml": "_file", "file values.yaml": "_file", "file upgrade.md (docs)": "_markdown" });
 
     const collapsed = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.pressKeys", ["Home", "Enter"]);
     assert.equal(rowIcons(collapsed)["folder charts/apim"], "_folder");

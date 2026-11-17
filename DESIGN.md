@@ -63,6 +63,9 @@ A query enters the search history on Enter or once no other search replaced it f
   Ctrl+Down moves into the results, through files to include and files to exclude while they show.
 - Folders nest as in the explorer, subfolders before files.
   A chain of folders without matched files of their own shares one row, such as `charts/apim`.
+  A chain that leads to one file and nothing else folds into the row of that file: `docs.md` followed by `atticd-speed/argocd/applications/gitlab`, dimmed.
+  A folder keeps its row where the tree branches, meaning where it holds two or more folders or files, so `.claude/worktrees` stays a row above two worktrees.
+  A narrow side bar cuts the dimmed folders at their end and keeps the file name whole, since the first folders tell two files of one name apart.
 - Folder and file rows step right of their parent by `workbench.tree.indent`.
   A line runs down from each parent to its last child, with a short stub into each child, as `├` and `└` draw.
   The line takes the indent guide colors of the workbench trees and lights the column of the focused row.
@@ -311,6 +314,8 @@ Groups don't nest, since VS Code closes a group at the first `}`.
 ## Excluding results
 
 - Every folder and file in the results carries an exclude button.
+  A row that folds its folders in carries the button of its file.
+  The context menu of its matches excludes the folder.
 - Excluding adds the folder or file to files to exclude and drops its results without a new search.
 - Removing the entry from files to exclude brings its results back.
 - The toggle at the end of files to exclude turns the exclude settings and the ignore files off, as in the built-in Search view.

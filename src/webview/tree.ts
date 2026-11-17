@@ -18,7 +18,11 @@ export type Row =
    * `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. `icon` follows the collapsed state.
    */
   | { kind: "folder"; key: string; depth: number; lines: TreeLines; label: string; folder: string; collapsed: boolean; icon: string | undefined }
-  | { kind: "file"; key: string; depth: number; lines: TreeLines; file: FileResult; collapsed: boolean }
+  /**
+   * `folded` holds the chain of folders that leads to this file alone and folds into its row, such as `argocd/applications/gitlab`.
+   * It stays empty for a file that shares its folder row with other results.
+   */
+  | { kind: "file"; key: string; depth: number; lines: TreeLines; file: FileResult; folded: string; collapsed: boolean }
   | { kind: "line"; depth: number; file: FileResult; line: ResultLine };
 
 /** A folder of the results with the matched files right in it and the folders below it that hold some. */
@@ -51,6 +55,7 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "bas
  * Holds the results of one search and lays them out as flat rows.
  * Folders nest as in the explorer.
  * A chain of folders without matched files of their own shares one row, such as `charts/apim`.
+ * A chain that leads to one file and nothing else folds into the row of that file, so a lone file costs one row.
  * Inside a folder, its subfolders come first, then its files, each sorted by name. Lines follow their numbers.
  * In the Git history scope, a row per commit heads the folders of that commit, the newest commit first.
  */
@@ -223,21 +228,31 @@ function unjoined(): TreeLines {
 /** Lays out the subfolders of `node`, then its files, at `depth`. `rootKey` names the workspace folder and, in the Git history scope, the commit. */
 function pushChildren(rows: Row[], node: FolderNode, rootKey: string, depth: number, collapsed: ReadonlySet<string>): void {
   for (const folder of sortedFolders(node)) pushFolder(rows, folder, rootKey, depth, collapsed);
-  for (const file of sortedFiles(node)) {
-    const fileCollapsed = collapsed.has(file.uri);
-    rows.push({ kind: "file", key: file.uri, depth, lines: unjoined(), file, collapsed: fileCollapsed });
-    if (fileCollapsed) continue;
-    for (const block of file.blocks) for (const line of block) rows.push({ kind: "line", depth: depth + 1, file, line });
-  }
+  for (const file of sortedFiles(node)) pushFile(rows, file, "", depth, collapsed);
 }
 
-/** A folder without files of its own and with one subfolder shares its row with that subfolder, as the built-in Search view compacts them. */
+function pushFile(rows: Row[], file: FileResult, folded: string, depth: number, collapsed: ReadonlySet<string>): void {
+  const fileCollapsed = collapsed.has(file.uri);
+  rows.push({ kind: "file", key: file.uri, depth, lines: unjoined(), file, folded, collapsed: fileCollapsed });
+  if (fileCollapsed) return;
+  for (const block of file.blocks) for (const line of block) rows.push({ kind: "line", depth: depth + 1, file, line });
+}
+
+/**
+ * A folder without files of its own and with one subfolder shares its row with that subfolder, as the built-in Search view compacts them.
+ * A chain that ends in a folder holding one file and no subfolder takes no row: it folds into the row of that file.
+ */
 function pushFolder(rows: Row[], folder: FolderNode, rootKey: string, depth: number, collapsed: ReadonlySet<string>): void {
   const names = [folder.name];
   let last = folder;
   for (let only = soleSubfolder(last); only; only = soleSubfolder(last)) {
     names.push(only.name);
     last = only;
+  }
+  const [loneFile] = last.files;
+  if (loneFile && last.files.length === 1 && last.folders.size === 0) {
+    pushFile(rows, loneFile, names.join("/"), depth, collapsed);
+    return;
   }
   const key = `${rootKey}:${last.path}`;
   const folderCollapsed = collapsed.has(key);
