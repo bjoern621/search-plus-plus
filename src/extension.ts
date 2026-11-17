@@ -57,6 +57,12 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
             webviewOptions: { retainContextWhenHidden: true }
         }),
         vscode.commands.registerCommand("structuralSearch.focus", () => provider.focus()),
+        vscode.commands.registerCommand("structuralSearch.openSettings", () =>
+            vscode.commands.executeCommand(
+                "workbench.action.openSettings",
+                `@ext:${context.extension.id}`
+            )
+        ),
         vscode.commands.registerCommand("structuralSearch.viewAsTree", () =>
             provider.setResultsLayout("tree")
         ),

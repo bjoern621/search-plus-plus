@@ -39,6 +39,12 @@
                 "title": "Structural Search: Focus Search"
             },
             {
+                "command": "structuralSearch.openSettings",
+                "title": "Open Settings",
+                "category": "Structural Search",
+                "icon": "$(gear)"
+            },
+            {
                 "command": "structuralSearch.viewAsTree",
                 "title": "View as Tree",
                 "category": "Structural Search",
@@ -63,7 +69,12 @@
                 {
                     "submenu": "structuralSearch.viewAs",
                     "when": "view == structuralSearch.view",
-                    "group": "navigation"
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "structuralSearch.openSettings",
+                    "when": "view == structuralSearch.view",
+                    "group": "navigation@2"
                 }
             ],
             "structuralSearch.viewAs": [
