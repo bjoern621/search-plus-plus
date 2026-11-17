@@ -9,6 +9,8 @@ const EXTENSION_ID = "bjoern621.structural-search";
 const EDITOR_WAIT_DURATION_MS = 5_000;
 /** Longer than the delay before the hover card asks for its excerpt, with time left for the answer. */
 const HOVER_WAIT_DURATION_MS = 1_000;
+/** The default of `workbench.tree.indent`. */
+const DEFAULT_TREE_INDENT_PX = 8;
 
 /** Searches `scope` with `fields` in files to include and exclude. */
 function search(query: string, fields: FileFields = NO_FILE_FIELDS, scope: SearchScope = WORKING_TREE): Thenable<TestSnapshot> {
@@ -526,6 +528,48 @@ describe("Structural Search scopes", () => {
   });
 });
 
+describe("Structural Search tree", () => {
+  const tree = () => vscode.workspace.getConfiguration("workbench.tree");
+  const NESTED_FOLDER = "folder regions/europe-central/clusters/production-blue/tenants/payments/overrides";
+
+  afterEach(async () => {
+    await tree().update("indent", undefined, vscode.ConfigurationTarget.Global);
+    await tree().update("renderIndentGuides", undefined, vscode.ConfigurationTarget.Global);
+  });
+
+  it("steps folders and files right by their depth and keeps every code line at the left edge", async () => {
+    const snapshot = await search("/sticky|memory/");
+    const treeRows = snapshot.rows.filter((row) => row.startsWith("folder ") || row.startsWith("file "));
+    assert.deepEqual(treeRows, ["folder deploy", NESTED_FOLDER, "file values.yaml", "file limits.yaml"]);
+    const left = (row: string) => snapshot.rowStartLefts[snapshot.rows.indexOf(row)] ?? Number.NaN;
+    assert.equal(left(NESTED_FOLDER) - left("folder deploy"), DEFAULT_TREE_INDENT_PX);
+    assert.equal(left("file values.yaml") - left(NESTED_FOLDER), DEFAULT_TREE_INDENT_PX);
+    assert.ok(left("file limits.yaml") > left("folder deploy"), snapshot.rowStartLefts.join(", "));
+
+    const shallow = await search("4.1.0");
+    const codeLefts = [snapshot, shallow].flatMap((each) => each.rows.flatMap((row, index) => (isCodeRow(row) ? [each.rowStartLefts[index]] : [])));
+    assert.equal(new Set(codeLefts).size, 1, codeLefts.join(", "));
+  });
+
+  it("joins each folder and file to its parent with a line and draws no line over code", async () => {
+    const snapshot = await search("/sticky|memory/");
+    const guides = (row: string) => snapshot.guides[snapshot.rows.indexOf(row)];
+    assert.deepEqual(["folder deploy", NESTED_FOLDER, "file values.yaml", "file limits.yaml"].map(guides), ["", "├", "│└", "└"]);
+    const codeGuides = snapshot.rows.flatMap((row, index) => (isCodeRow(row) ? [snapshot.guides[index]] : []));
+    assert.deepEqual(new Set(codeGuides), new Set([""]));
+  });
+
+  it("follows the indent of the workbench trees and hides the lines once the settings turn them off", async () => {
+    await search("/sticky|memory/");
+    await tree().update("indent", 16, vscode.ConfigurationTarget.Global);
+    await tree().update("renderIndentGuides", "none", vscode.ConfigurationTarget.Global);
+    const snapshot = await settledSnapshot((current) => current.guides.every((guide) => guide === "" || guide === null));
+    const left = (row: string) => snapshot.rowStartLefts[snapshot.rows.indexOf(row)] ?? Number.NaN;
+    assert.equal(left(NESTED_FOLDER) - left("folder deploy"), 16);
+    assert.deepEqual(new Set(snapshot.guides), new Set([""]));
+  });
+});
+
 describe("Structural Search icons", () => {
   const workbench = () => vscode.workspace.getConfiguration("workbench");
 
@@ -539,12 +583,12 @@ describe("Structural Search icons", () => {
     assert.deepEqual(rowIcons(snapshot), { "folder charts/apim": "", "file Chart.yaml": "_yml", "file values.yaml": "_yml", "folder docs": "", "file upgrade.md": "_markdown" });
   });
 
-  it("starts the folder names where the file icons start with Seti, as the built-in Search view does", async () => {
+  it("starts the folder names where the file icons of the same depth start with Seti, as the built-in Search view does", async () => {
     const snapshot = await search("4.1.0");
     const folder = snapshot.rows.indexOf("folder charts/apim");
     const file = snapshot.rows.indexOf("file values.yaml");
     assert.equal(snapshot.iconLefts[folder], null);
-    assert.equal(snapshot.labelLefts[folder], snapshot.iconLefts[file]);
+    assert.equal((snapshot.labelLefts[folder] ?? 0) + DEFAULT_TREE_INDENT_PX, snapshot.iconLefts[file]);
   });
 
   it("switches to the light icons of Seti with a light color theme, without a new search", async () => {
@@ -573,9 +617,25 @@ describe("Structural Search icons", () => {
 
     const snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot");
     const folder = snapshot.rows.indexOf("folder charts/apim");
-    assert.equal(snapshot.labelLefts[folder], snapshot.labelLefts[snapshot.rows.indexOf("file values.yaml")], "the folder name leaves the alignment of the file names");
+    const file = snapshot.rows.indexOf("file values.yaml");
+    assert.equal((snapshot.labelLefts[folder] ?? 0) + DEFAULT_TREE_INDENT_PX, snapshot.labelLefts[file], "the folder name leaves the alignment of the file names");
   });
 });
+
+function isCodeRow(row: string): boolean {
+  return row.startsWith("match ") || row.startsWith("context ");
+}
+
+/** Waits until the view passes `settled`, since a settings change reaches the view after the update resolves. Returns the last snapshot. */
+async function settledSnapshot(settled: (snapshot: TestSnapshot) => boolean): Promise<TestSnapshot> {
+  const deadline = Date.now() + EDITOR_WAIT_DURATION_MS;
+  let snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot");
+  while (Date.now() < deadline && !settled(snapshot)) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    snapshot = await vscode.commands.executeCommand<TestSnapshot>("structuralSearch.test.snapshot");
+  }
+  return snapshot;
+}
 
 /** Maps each folder and file row to its icon definition id. */
 function rowIcons(snapshot: TestSnapshot): Record<string, string> {

@@ -17,6 +17,10 @@ export const LINE_EXCERPT_LENGTH_CHARS = 300;
 /** Characters of the excerpt before the first match, so the match keeps some of its line. */
 export const LINE_EXCERPT_LEAD_CHARS = 40;
 
+/** The bounds that VS Code sets on `workbench.tree.indent`. */
+export const TREE_INDENT_MIN_PX = 4;
+export const TREE_INDENT_MAX_PX = 40;
+
 /** Lines that the hover card on a match shows before and after it. */
 export const HOVER_EXCERPT_RADIUS_LINES = 5;
 

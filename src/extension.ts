@@ -38,6 +38,7 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("workbench.iconTheme")) void provider.reloadIconTheme();
+      if (event.affectsConfiguration("workbench.tree")) provider.sendSettings();
     }),
     vscode.window.onDidChangeActiveColorTheme(() => provider.applyColorTheme()),
     vscode.window.registerWebviewViewProvider(SearchViewProvider.viewId, provider, { webviewOptions: { retainContextWhenHidden: true } }),

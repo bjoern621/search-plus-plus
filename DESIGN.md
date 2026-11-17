@@ -53,12 +53,19 @@ It shows a scope other than the working tree in color, so a history search never
 - Up and Down move between folders, files and matched lines and pass over the context lines, since the built-in Search view shows none.
   As in the built-in Search view, Up and Down in the query input walk the search history.
   Ctrl+Down moves into the results, through files to include and files to exclude while they show.
-- Rows carry no indentation: folders, files and lines start at the same left edge, so the lines take the full width of the side bar.
+- Folders nest as in the explorer, subfolders before files.
+  A chain of folders without matched files of their own shares one row, such as `charts/apim`.
+- Folder and file rows step right of their parent by `workbench.tree.indent`.
+  A line runs down from each parent to its last child, with a short stub into each child, as `├` and `└` draw.
+  The line takes the indent guide colors of the workbench trees and lights the column of the focused row.
+  `workbench.tree.renderIndentGuides` set to `none` hides the lines and keeps the indentation.
+- Code lines start at the left edge at any depth, so they take the full width of the side bar.
+  The tree lines pause at code lines, since running them through the line numbers would cross the digits.
 - Folder and file rows take their icons from the active file icon theme, as the explorer shows them.
   The theme picks the icon by file name, extension, language and the open or closed state of a folder.
   A compacted folder row such as `charts/apim` shows the icon of its last folder.
-  A theme that gives a folder no icon, such as Seti, leaves its row without an icon slot, so the folder name starts where the file icons start, as in the built-in Search view.
-  With the icon theme set to None, rows keep an empty icon slot, so the labels stay aligned.
+  A theme that gives a folder no icon, such as Seti, leaves its row without an icon slot, so the folder name starts where the file icons of the same depth start, as in the built-in Search view.
+  With the icon theme set to None, rows keep an empty icon slot, so the labels of one depth stay aligned.
 - A match of a key in a YAML, JSON or TOML file shows its key path after the line, such as `gateway.image.tag`, once the query uses the key path language.
   Such a query holds two or more keys (an index counts as a key), `**`, `*`, `?`, a class, a group, quotes or an escaped operator.
   A single plain word such as `gateway` shows no path on the keys that it matches, since such a query reads as a text search.

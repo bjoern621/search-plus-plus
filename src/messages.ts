@@ -57,9 +57,15 @@ export interface FileResult {
 /** Icon definition ids of the active file icon theme. A missing id shows an empty icon slot. */
 export interface FileIcons {
   file?: string;
-  /** The folder row above the file, collapsed. */
-  folder?: string;
-  folderExpanded?: string;
+  /** The row of the workspace folder in a multi-root workspace. */
+  root?: FolderIcons;
+  /** The rows of the folders above the file, one per folder of its path, the top folder first. */
+  folders?: FolderIcons[];
+}
+
+export interface FolderIcons {
+  collapsed?: string;
+  expanded?: string;
 }
 
 /** How the view draws an icon definition of the file icon theme. */
@@ -103,6 +109,10 @@ export interface TestSnapshot {
   icons: string[];
   /** The left edge of the icon slot of each row, null for a row not drawn or without a slot. */
   iconLefts: (number | null)[];
+  /** The left edge of the twisty of each drawn tree row and of the line number of each drawn code line. Null for a row not drawn. */
+  rowStartLefts: (number | null)[];
+  /** The tree lines of each drawn row, a character per column: `│` passes the row, `├` and `└` join it to its parent. Empty for a row without lines, null for a row not drawn. */
+  guides: (string | null)[];
   /** The left edge of the label of each folder or file row, null for any other row and a row not drawn. */
   labelLefts: (number | null)[];
   /** The key path that each row shows after its line text, empty for a row without one. */
@@ -178,8 +188,17 @@ export type ViewMessage =
   | { type: "excerpt"; requestId: number; uri: string; line: number }
   | { type: "testSnapshot"; snapshot: TestSnapshot };
 
+/** Workbench settings that the view follows. */
+export interface ViewSettings {
+  /** `workbench.tree.indent`: how far a tree row steps right of its parent. */
+  treeIndentPx: number;
+  /** False while `workbench.tree.renderIndentGuides` reads `none`. */
+  indentGuides: boolean;
+}
+
 export type HostMessage =
   | { type: "focus" }
+  | { type: "settings"; settings: ViewSettings }
   | { type: "git"; git: GitInfo }
   | { type: "branchPicked"; branch: string }
   | { type: "searchStarted"; searchId: number }

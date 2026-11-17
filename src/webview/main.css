@@ -310,11 +310,53 @@ body {
   cursor: pointer;
 }
 
-/* `--row-foreground` holds the color of a row, so a list color that the theme leaves unset keeps it. */
+/*
+ * `--row-foreground` holds the color of a row, so a list color that the theme leaves unset keeps it.
+ * A tree row steps right of its parent by the indent of the workbench trees.
+ * Code lines keep the left edge at any depth, so the code takes the full width of the side bar.
+ */
 .row {
   --row-foreground: var(--vscode-foreground);
   height: 22px;
+  padding-left: calc(8px + var(--depth, 0) * var(--tree-indent, 8px));
   color: var(--row-foreground);
+}
+
+/*
+ * A line runs down from the chevron of a parent row to its last child, where the indent guides of the workbench trees run.
+ * A stub joins each child to it, as ├ and └ draw.
+ * The line pauses at code lines, so no line crosses the code.
+ */
+.guide {
+  --guide-color: var(--vscode-tree-inactiveIndentGuidesStroke);
+  position: absolute;
+  top: 0;
+  left: calc(16px + var(--column) * var(--tree-indent, 8px));
+  height: 100%;
+  border-left: 1px solid var(--guide-color);
+  pointer-events: none;
+}
+
+.guide.active {
+  --guide-color: var(--vscode-tree-indentGuidesStroke);
+}
+
+.guide.last {
+  height: 50%;
+}
+
+.guide.branch::after,
+.guide.last::after {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: 0;
+  width: calc(var(--tree-indent, 8px) - 3px);
+  border-top: 1px solid var(--guide-color);
+}
+
+.no-indent-guides .guide {
+  display: none;
 }
 
 .row:hover,

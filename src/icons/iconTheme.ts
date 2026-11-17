@@ -1,4 +1,4 @@
-import type { FileIcons, FileResult, IconLook, IconTable } from "../messages";
+import type { FileIcons, FileResult, FolderIcons, IconLook, IconTable } from "../messages";
 
 /** The associations of a file icon theme, or of its `light` or `highContrast` section. Each value names an icon definition. */
 export interface IconAssociations {
@@ -166,19 +166,16 @@ class MostSpecific {
 }
 
 /**
- * Resolves the icons of a result file and of the folder row above it.
+ * Resolves the icons of a result file and of the folder rows above it.
  * `rootFolderName` names the workspace folder of the file, as its path on disk spells it.
- * A file at the root of a single folder workspace has no folder row, so its folder icons stay missing.
+ * A single folder workspace shows no row for its workspace folder, so the root icons stay missing there.
  */
 export function fileIcons(resolver: IconResolver, file: Pick<FileResult, "name" | "languageId" | "folder" | "root">, rootFolderName: string): FileIcons {
   const segments = file.folder === "" ? [] : file.folder.split("/");
   const icons: FileIcons = { file: resolver.fileIcon({ name: file.name, languageId: file.languageId, parentFolder: segments.at(-1) ?? rootFolderName }) };
-  const folderName = segments.at(-1);
-  if (folderName === undefined && file.root === "") return icons;
-  // A compacted row such as charts/apim takes the icon of its last folder, as the explorer does.
-  const folder = folderName === undefined ? { name: rootFolderName, parentFolder: "", root: true } : { name: folderName, parentFolder: segments.at(-2) ?? rootFolderName, root: false };
-  icons.folder = resolver.folderIcon({ ...folder, expanded: false });
-  icons.folderExpanded = resolver.folderIcon({ ...folder, expanded: true });
+  const folderIcons = (folder: Omit<FolderIconQuery, "expanded">): FolderIcons => ({ collapsed: resolver.folderIcon({ ...folder, expanded: false }), expanded: resolver.folderIcon({ ...folder, expanded: true }) });
+  if (file.root !== "") icons.root = folderIcons({ name: rootFolderName, parentFolder: "", root: true });
+  if (segments.length > 0) icons.folders = segments.map((name, index) => folderIcons({ name, parentFolder: segments[index - 1] ?? rootFolderName, root: false }));
   return icons;
 }
 

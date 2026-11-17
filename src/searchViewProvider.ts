@@ -7,7 +7,7 @@ import { activeIconThemeId, colorKind, iconThemeExtensionFolders, type LoadedIco
 import type { FileIcons, FileResult, HostMessage, IconTable, SearchStatus, TestSnapshot, ViewMessage } from "./messages";
 import { assertNever } from "./search/assert";
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs";
-import { HOVER_EXCERPT_RADIUS_LINES, RESULT_LINE_LIMIT } from "./search/config";
+import { HOVER_EXCERPT_RADIUS_LINES, RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config";
 import { parseQuery } from "./query";
 import { readSearchText, unsavedTexts } from "./search/reader";
 import { excerptLines, splitLines } from "./search/results";
@@ -151,6 +151,13 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     this.applyColorTheme();
   }
 
+  /** Sends the workbench settings that shape the rows. */
+  sendSettings(): void {
+    const tree = vscode.workspace.getConfiguration("workbench.tree");
+    const indent = Math.min(Math.max(tree.get<number>("indent", 8), TREE_INDENT_MIN_PX), TREE_INDENT_MAX_PX);
+    this.post({ type: "settings", settings: { treeIndentPx: indent, indentGuides: tree.get<string>("renderIndentGuides") !== "none" } });
+  }
+
   /** Picks the icons of the `light` or `highContrast` section of the theme for the active color theme and redraws them. */
   applyColorTheme(): void {
     this.iconResolver = this.iconTheme ? new IconResolver(this.iconTheme.document, colorKind(vscode.window.activeColorTheme.kind)) : undefined;
@@ -272,6 +279,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         this.isViewReady = true;
         this.markViewReady();
         this.sendIcons();
+        this.sendSettings();
         void this.sendGitInfo();
         return;
       case "search":

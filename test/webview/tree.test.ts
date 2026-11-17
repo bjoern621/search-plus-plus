@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CommitInfo, FileResult } from "../../src/messages";
 import { PathFilter } from "../../src/search/globs";
-import { highlightParts, resultSummary, ResultTree, rowAt, rowOffsets } from "../../src/webview/tree";
+import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "../../src/webview/tree";
 
 function file(folder: string, name: string, rootIndex = 0, root = ""): FileResult {
   return {
@@ -31,6 +31,12 @@ function labels(tree: ResultTree, collapsed: Set<string> = new Set()): string[] 
   });
 }
 
+/** Draws the lines of a row as the view does: `│` where a line passes, `├` or `└` where it joins the row. */
+function drawLines(row: Exclude<Row, { kind: "line" }>): string {
+  if (row.depth === 0) return "";
+  return row.lines.through.map((passes) => (passes ? "│" : " ")).join("") + (row.lines.last ? "└" : "├");
+}
+
 function commit(index: number): CommitInfo {
   const sha = String(index).repeat(40);
   return { sha, shortSha: sha.slice(0, 7), author: "Ada", date: "2026-11-02T14:03:00+01:00", subject: `Commit ${index}`, index };
@@ -42,24 +48,25 @@ function committed(at: CommitInfo, folder: string, name: string): FileResult {
 }
 
 describe("ResultTree", () => {
-  it("lists root files first, then folders in tree order, parents before children", () => {
+  it("nests folders as the explorer does, subfolders before files", () => {
     const tree = new ResultTree();
     tree.add([file("charts/apim/templates", "a.yaml"), file("charts/apim", "values.yaml"), file("", "README.md"), file("charts/apim", "Chart.yaml"), file("docs", "upgrade.md")]);
     expect(labels(tree)).toEqual([
-      "file README.md",
-      "line 0",
       "folder charts/apim",
+      "folder templates",
+      "file a.yaml",
+      "line 0",
       "file Chart.yaml",
       "line 0",
       "file values.yaml",
       "line 0",
-      "folder charts/apim/templates",
-      "file a.yaml",
-      "line 0",
       "folder docs",
       "file upgrade.md",
       "line 0",
+      "file README.md",
+      "line 0",
     ]);
+    expect(tree.rows(new Set()).map((row) => row.depth)).toEqual([0, 1, 2, 3, 1, 2, 1, 2, 0, 1, 2, 0, 1]);
     expect(tree.fileCount).toBe(5);
     expect(tree.matchCount).toBe(5);
   });
@@ -70,10 +77,18 @@ describe("ResultTree", () => {
     expect(labels(tree).filter((label) => label.startsWith("file"))).toEqual(["file file9.yaml", "file file10.yaml"]);
   });
 
-  it("names the workspace folder in a multi-root workspace", () => {
+  it("heads each workspace folder of a multi-root workspace with its own row", () => {
     const tree = new ResultTree();
     tree.add([file("", "b.yaml", 1, "infra"), file("src", "a.yaml", 0, "app")]);
-    expect(labels(tree).filter((label) => label.startsWith("folder"))).toEqual(["folder app/src", "folder infra"]);
+    expect(labels(tree)).toEqual(["folder app", "folder src", "file a.yaml", "line 0", "folder infra", "file b.yaml", "line 0"]);
+    expect(tree.rows(new Set()).map((row) => row.depth)).toEqual([0, 1, 2, 3, 0, 1, 2]);
+  });
+
+  it("joins each row to its parent, with a line passing the rows between a child and a later sibling", () => {
+    const tree = new ResultTree();
+    tree.add([file("charts/apim", "values.yaml"), file("charts/platform/templates", "ingress.yaml"), file("charts/platform", "values.yaml")]);
+    const lines = tree.rows(new Set()).flatMap((row) => (row.kind === "line" ? [] : [`${row.kind === "folder" ? row.label : row.kind === "file" ? row.file.name : ""} ${drawLines(row)}`]));
+    expect(lines).toEqual(["charts ", "apim ├", "values.yaml │└", "platform └", "templates  ├", "ingress.yaml  │└", "values.yaml  └"]);
   });
 
   it("hides the rows under a collapsed folder or file", () => {
@@ -104,7 +119,7 @@ describe("ResultTree", () => {
 
   it("gives a folder row the icon of its state and replaces icons without a new search", () => {
     const tree = new ResultTree();
-    const values = { ...file("charts", "values.yaml"), icons: { file: "yaml", folder: "folder", folderExpanded: "folder-open" } };
+    const values = { ...file("charts", "values.yaml"), icons: { file: "yaml", folders: [{ collapsed: "folder", expanded: "folder-open" }] } };
     tree.add([values]);
     const icons = (collapsed: Set<string>) => tree.rows(collapsed).map((row) => (row.kind === "folder" ? row.icon : row.kind === "file" ? row.file.icons?.file : ""));
     expect(icons(new Set())).toEqual(["folder-open", "yaml", ""]);
@@ -180,10 +195,10 @@ describe("ResultTree in the Git history scope", () => {
       "file upgrade.md",
       "line 0",
       "commit 1111111",
-      "file README.md",
-      "line 0",
       "folder charts/apim",
       "file Chart.yaml",
+      "line 0",
+      "file README.md",
       "line 0",
     ]);
     expect(tree.commitCount).toBe(2);

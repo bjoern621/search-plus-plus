@@ -1,12 +1,35 @@
 import type { CommitInfo, FileIcons, FileResult, ResultLine } from "../messages";
 import type { PathFilter } from "../search/globs";
 
+/**
+ * How a tree row hangs from its parent: └ for the last child, ├ for any other, in the column of the parent.
+ * `through` holds one entry per column left of that, true where an ancestor has a child further down, so its line passes the row.
+ */
+export interface TreeLines {
+  last: boolean;
+  through: boolean[];
+}
+
+/** `depth` counts the tree rows that a row hangs from: 0 at the top, 1 below a row at the top, and so on. */
 export type Row =
-  | { kind: "commit"; key: string; commit: CommitInfo; collapsed: boolean }
-  /** `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. `icon` follows the collapsed state. */
-  | { kind: "folder"; key: string; label: string; folder: string; collapsed: boolean; icon: string | undefined }
-  | { kind: "file"; key: string; file: FileResult; collapsed: boolean }
-  | { kind: "line"; file: FileResult; line: ResultLine };
+  | { kind: "commit"; key: string; depth: number; lines: TreeLines; commit: CommitInfo; collapsed: boolean }
+  /**
+   * `label` joins the names of a compacted chain of folders, such as `charts/apim`.
+   * `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. `icon` follows the collapsed state.
+   */
+  | { kind: "folder"; key: string; depth: number; lines: TreeLines; label: string; folder: string; collapsed: boolean; icon: string | undefined }
+  | { kind: "file"; key: string; depth: number; lines: TreeLines; file: FileResult; collapsed: boolean }
+  | { kind: "line"; depth: number; file: FileResult; line: ResultLine };
+
+/** A folder of the results with the matched files right in it and the folders below it that hold some. */
+interface FolderNode {
+  /** The path relative to the workspace folder, empty for the workspace folder. */
+  path: string;
+  name: string;
+  /** Maps a folder name to its node. */
+  folders: Map<string, FolderNode>;
+  files: FileResult[];
+}
 
 /** The height of every row, code lines included, as in the explorer and the Search view. */
 const ROW_HEIGHT_PX = 22;
@@ -18,8 +41,6 @@ interface FolderGroup {
   rootIndex: number;
   /** The folder path relative to the workspace folder, split at `/`. */
   segments: string[];
-  /** The workspace folder name in a multi-root workspace, then the folder path. Empty for files at the root of a single folder. */
-  label: string;
   /** Maps a file URI to its result. */
   files: Map<string, FileResult>;
 }
@@ -28,8 +49,9 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "bas
 
 /**
  * Holds the results of one search and lays them out as flat rows.
- * Each folder that holds matched files gets one row with its whole path, so rows need no indentation.
- * Folders follow the folder tree, files their names, lines their numbers.
+ * Folders nest as in the explorer.
+ * A chain of folders without matched files of their own shares one row, such as `charts/apim`.
+ * Inside a folder, its subfolders come first, then its files, each sorted by name. Lines follow their numbers.
  * In the Git history scope, a row per commit heads the folders of that commit, the newest commit first.
  */
 export class ResultTree {
@@ -68,7 +90,7 @@ export class ResultTree {
       const key = file.commit ? `${file.commit.sha}:${folderKey}` : folderKey;
       let group = this.groups.get(key);
       if (!group) {
-        group = { key, commit: file.commit, rootIndex: file.rootIndex, segments: file.folder === "" ? [] : file.folder.split("/"), label: [file.root, file.folder].filter((part) => part !== "").join("/"), files: new Map() };
+        group = { key, commit: file.commit, rootIndex: file.rootIndex, segments: file.folder === "" ? [] : file.folder.split("/"), files: new Map() };
         this.groups.set(key, group);
       }
       const replaced = group.files.get(file.uri);
@@ -105,30 +127,57 @@ export class ResultTree {
     const rows: Row[] = [];
     let commitSha: string | undefined;
     let commitCollapsed = false;
+    for (const [rootKey, root] of this.workspaceFolders()) {
+      const commit = firstFile(root)?.commit;
+      if (commit && commit.sha !== commitSha) {
+        commitSha = commit.sha;
+        const key = `commit:${commitSha}`;
+        commitCollapsed = collapsed.has(key);
+        rows.push({ kind: "commit", key, depth: 0, lines: unjoined(), commit, collapsed: commitCollapsed });
+      }
+      if (commit && commitCollapsed) continue;
+      const depth = commit ? 1 : 0;
+      const rootName = firstFile(root)?.root ?? "";
+      if (rootName === "") {
+        pushChildren(rows, root, rootKey, depth, collapsed);
+        continue;
+      }
+      const key = `${rootKey}:`;
+      const rootCollapsed = collapsed.has(key);
+      const icons = firstFile(root)?.icons?.root;
+      rows.push({ kind: "folder", key, depth, lines: unjoined(), label: rootName, folder: "", collapsed: rootCollapsed, icon: rootCollapsed ? icons?.collapsed : icons?.expanded });
+      if (!rootCollapsed) pushChildren(rows, root, rootKey, depth + 1, collapsed);
+    }
+    joinTreeLines(rows);
+    return rows;
+  }
+
+  /**
+   * Builds the folder tree of the shown files, one per workspace folder, keyed as folder rows key their paths.
+   * In the Git history scope each commit gets a tree of its own per workspace folder, in the order of the log.
+   */
+  private workspaceFolders(): Map<string, FolderNode> {
+    const roots = new Map<string, FolderNode>();
     for (const group of [...this.groups.values()].sort(compareGroups)) {
       const files = [...group.files.values()].filter((file) => this.shows(file));
       if (files.length === 0) continue;
-      if (group.commit && group.commit.sha !== commitSha) {
-        commitSha = group.commit.sha;
-        const key = `commit:${commitSha}`;
-        commitCollapsed = collapsed.has(key);
-        rows.push({ kind: "commit", key, commit: group.commit, collapsed: commitCollapsed });
+      const rootKey = group.commit ? `${group.commit.sha}:${group.rootIndex}` : String(group.rootIndex);
+      let node: FolderNode | undefined = roots.get(rootKey);
+      if (!node) {
+        node = folderNode("", "");
+        roots.set(rootKey, node);
       }
-      if (group.commit && commitCollapsed) continue;
-      const folderCollapsed = collapsed.has(group.key);
-      if (group.label !== "") {
-        const icons = files[0]?.icons;
-        rows.push({ kind: "folder", key: group.key, label: group.label, folder: group.segments.join("/"), collapsed: folderCollapsed, icon: folderCollapsed ? icons?.folder : icons?.folderExpanded });
+      for (const [index, name] of group.segments.entries()) {
+        let child: FolderNode | undefined = node.folders.get(name);
+        if (!child) {
+          child = folderNode(group.segments.slice(0, index + 1).join("/"), name);
+          node.folders.set(name, child);
+        }
+        node = child;
       }
-      if (folderCollapsed) continue;
-      for (const file of files.sort((a, b) => collator.compare(a.name, b.name))) {
-        const fileCollapsed = collapsed.has(file.uri);
-        rows.push({ kind: "file", key: file.uri, file, collapsed: fileCollapsed });
-        if (fileCollapsed) continue;
-        for (const block of file.blocks) for (const line of block) rows.push({ kind: "line", file, line });
-      }
+      node.files.push(...files);
     }
-    return rows;
+    return roots;
   }
 
   private shows(file: FileResult): boolean {
@@ -143,6 +192,86 @@ export class ResultTree {
 /** The path of a file relative to its workspace folder. */
 export function relativePath(file: Pick<FileResult, "folder" | "name">): string {
   return file.folder === "" ? file.name : `${file.folder}/${file.name}`;
+}
+
+function folderNode(path: string, name: string): FolderNode {
+  return { path, name, folders: new Map(), files: [] };
+}
+
+/** The first file in or below `node`, in the order of the rows. */
+function firstFile(node: FolderNode): FileResult | undefined {
+  for (const folder of sortedFolders(node)) {
+    const file = firstFile(folder);
+    if (file) return file;
+  }
+  return sortedFiles(node)[0];
+}
+
+function sortedFolders(node: FolderNode): FolderNode[] {
+  return [...node.folders.values()].sort((a, b) => collator.compare(a.name, b.name));
+}
+
+function sortedFiles(node: FolderNode): FileResult[] {
+  return [...node.files].sort((a, b) => collator.compare(a.name, b.name));
+}
+
+/** Lines for a row before `joinTreeLines` places it. */
+function unjoined(): TreeLines {
+  return { last: true, through: [] };
+}
+
+/** Lays out the subfolders of `node`, then its files, at `depth`. `rootKey` names the workspace folder and, in the Git history scope, the commit. */
+function pushChildren(rows: Row[], node: FolderNode, rootKey: string, depth: number, collapsed: ReadonlySet<string>): void {
+  for (const folder of sortedFolders(node)) pushFolder(rows, folder, rootKey, depth, collapsed);
+  for (const file of sortedFiles(node)) {
+    const fileCollapsed = collapsed.has(file.uri);
+    rows.push({ kind: "file", key: file.uri, depth, lines: unjoined(), file, collapsed: fileCollapsed });
+    if (fileCollapsed) continue;
+    for (const block of file.blocks) for (const line of block) rows.push({ kind: "line", depth: depth + 1, file, line });
+  }
+}
+
+/** A folder without files of its own and with one subfolder shares its row with that subfolder, as the built-in Search view compacts them. */
+function pushFolder(rows: Row[], folder: FolderNode, rootKey: string, depth: number, collapsed: ReadonlySet<string>): void {
+  const names = [folder.name];
+  let last = folder;
+  for (let only = soleSubfolder(last); only; only = soleSubfolder(last)) {
+    names.push(only.name);
+    last = only;
+  }
+  const key = `${rootKey}:${last.path}`;
+  const folderCollapsed = collapsed.has(key);
+  const icons = firstFile(last)?.icons?.folders?.[last.path.split("/").length - 1];
+  rows.push({ kind: "folder", key, depth, lines: unjoined(), label: names.join("/"), folder: last.path, collapsed: folderCollapsed, icon: folderCollapsed ? icons?.collapsed : icons?.expanded });
+  if (!folderCollapsed) pushChildren(rows, last, rootKey, depth + 1, collapsed);
+}
+
+function soleSubfolder(node: FolderNode): FolderNode | undefined {
+  if (node.files.length > 0 || node.folders.size !== 1) return undefined;
+  return node.folders.values().next().value;
+}
+
+/**
+ * Sets the lines of each commit, folder and file row from the depths of the rows.
+ * A row comes last among its siblings once no row at its depth follows before a row above that depth.
+ * Code lines draw no lines, so a line of the tree pauses where they sit.
+ */
+function joinTreeLines(rows: readonly Row[]): void {
+  const laterSibling: boolean[] = [];
+  for (let index = rows.length - 1; index >= 0; index--) {
+    const row = rows[index];
+    if (!row || row.kind === "line") continue;
+    row.lines.last = laterSibling[row.depth] !== true;
+    laterSibling[row.depth] = true;
+    laterSibling.length = row.depth + 1;
+  }
+  const open: boolean[] = [];
+  for (const row of rows) {
+    if (row.kind === "line") continue;
+    row.lines.through = open.slice(1, row.depth);
+    open[row.depth] = !row.lines.last;
+    open.length = row.depth + 1;
+  }
 }
 
 /** Commits keep the order of the log. Inside one, a parent folder sorts before its subfolders, so the rows follow the folder tree. */

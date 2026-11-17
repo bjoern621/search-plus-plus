@@ -104,12 +104,19 @@ describe("IconResolver folders", () => {
 describe("fileIcons", () => {
   const resolver = new IconResolver(svgTheme, "dark");
 
-  it("gives a compacted folder row the icons of its last folder", () => {
-    expect(fileIcons(resolver, { name: "a.yaml", languageId: "yaml", folder: "charts/apim/templates", root: "" }, "workspace")).toEqual({ file: "yaml", folder: "folder-templates", folderExpanded: "folder-open" });
+  it("gives each folder of the path its own icons", () => {
+    expect(fileIcons(resolver, { name: "a.yaml", languageId: "yaml", folder: "charts/apim/templates", root: "" }, "workspace")).toEqual({
+      file: "yaml",
+      folders: [
+        { collapsed: "folder-charts", expanded: "folder-charts-open" },
+        { collapsed: "folder", expanded: "folder-open" },
+        { collapsed: "folder-templates", expanded: "folder-open" },
+      ],
+    });
   });
 
   it("gives the row of a workspace folder its root folder icons", () => {
-    expect(fileIcons(resolver, { name: "Chart.yaml", languageId: "yaml", folder: "", root: "Infra" }, "infra")).toEqual({ file: "helm", folder: "root-infra", folderExpanded: "root-open" });
+    expect(fileIcons(resolver, { name: "Chart.yaml", languageId: "yaml", folder: "", root: "Infra" }, "infra")).toEqual({ file: "helm", root: { collapsed: "root-infra", expanded: "root-open" } });
   });
 
   it("leaves out the folder icons of a file at the root of a single folder workspace", () => {
