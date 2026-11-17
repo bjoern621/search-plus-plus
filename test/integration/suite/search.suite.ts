@@ -74,6 +74,12 @@ describe("Structural Search view", () => {
     assert.equal(snapshot.summary, "1 result in 1 file | Working tree ▾");
   });
 
+  it("finds a YAML key by its key path", async () => {
+    const snapshot = await search("gateway.image.tag");
+    assert.deepEqual(snapshot.rows.slice(0, 2), ["folder charts/apim", "file values.yaml"]);
+    assert.ok(snapshot.rows.includes("match 4:     [tag]: 4.1.0"), snapshot.rows.join("\n"));
+  });
+
   it("merges the matches of a registered engine into the lines of the others", async () => {
     const registration = api.registerEngine({
       id: "test.firstWord",

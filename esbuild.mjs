@@ -10,6 +10,8 @@ const extensionBuilds = [
     platform: "node",
     format: "cjs",
     external: ["vscode"],
+    // The UMD build of jsonc-parser loads its parts through a require that esbuild cannot follow.
+    mainFields: ["module", "main"],
   },
   {
     entryPoints: { webview: "src/webview/main.ts" },

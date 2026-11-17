@@ -6,6 +6,7 @@ import { EngineRegistry, type StructuralSearchApi } from "./search/registry";
 import { findRipgrep } from "./search/ripgrep";
 import { SearchRunner } from "./search/runner";
 import { SearchViewProvider } from "./searchViewProvider";
+import { structuralEngines } from "./structural";
 
 export function activate(context: vscode.ExtensionContext): StructuralSearchApi {
   const log = vscode.window.createOutputChannel("Structural Search", { log: true });
@@ -14,6 +15,7 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
 
   const registry = new EngineRegistry();
   registry.register(textEngine);
+  for (const engine of structuralEngines()) registry.register(engine);
   let languages: LanguageIndex | undefined;
   const runner = new SearchRunner({
     registry,
