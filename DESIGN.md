@@ -64,8 +64,9 @@ It shows a scope other than the working tree in color, so a history search never
   A single plain word such as `gateway` shows no path on the keys that it matches, since such a query reads as a text search.
   The path takes the dimmed small font of the workbench and sits at the right edge of the row.
   A key holding a dot appears in quotes, as a query writes it.
-  The line keeps its room: on a narrow side bar the path drops whole keys after its first key, behind an ellipsis, so its first and last keys stay in view: `gateway.….limits.memory`.
-  Once the first and the last key leave too little room, the path drops the first key as well: `….memory`.
+  The line keeps its room: on a narrow side bar the path drops whole keys after its first key, so its first and last keys stay in view.
+  An ellipsis between thin spaces takes the place of the dropped keys and the dots around them: `gateway … limits.memory`.
+  Once the first and the last key leave too little room, the path drops the first key and its dot as well: `…memory`.
   Without room for the last key, the path hides.
   A member chain in code shows no path, since its line spells the chain.
 - Results carry no ranking: files follow the folder tree, matches follow their line numbers.

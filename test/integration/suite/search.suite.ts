@@ -604,10 +604,10 @@ function shownKeyPaths(snapshot: TestSnapshot): Record<string, string> {
   return Object.fromEntries(snapshot.rows.flatMap((row, index) => (row.startsWith("match ") ? [[row, snapshot.keyPaths[index] ?? ""]] : [])));
 }
 
-/** Lists the ways to write `keys` cut at key boundaries: the first key, an ellipsis and the last keys, or an ellipsis and the last key. */
+/** Lists the ways to write `keys` cut at key boundaries: the first key, an ellipsis between thin spaces and the last keys, or an ellipsis and the last key. */
 function keyBoundaryCuts(keys: readonly string[]): string[] {
-  const cuts = keys.slice(2).map((_, index) => [keys[0], "…", ...keys.slice(index + 2)].join("."));
-  return [...cuts, `….${keys.at(-1)}`];
+  const cuts = keys.slice(2).map((_, index) => `${keys[0]}\u2009…\u2009${keys.slice(index + 2).join(".")}`);
+  return [...cuts, `…${keys.at(-1)}`];
 }
 
 /** Waits for the hover card to show and returns what it holds. */

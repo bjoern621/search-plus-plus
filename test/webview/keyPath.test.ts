@@ -11,37 +11,38 @@ describe("keyPathText", () => {
 
 describe("cutKeyPath", () => {
   const keys = ["gateway", "deployment", "resources", "limits", "memory"];
-  // One pixel per character, so each width counts characters.
+  // One pixel per character, so each width counts characters. A thin space counts as one.
   const measure = (text: string) => text.length;
 
   it("keeps a key path that fits whole", () => {
     expect(cutKeyPath(keys, 42, measure)).toBe("gateway.deployment.resources.limits.memory");
   });
 
-  it("drops whole keys after the first one until the path fits, keeping the first and the last key", () => {
-    expect(cutKeyPath(keys, 41, measure)).toBe("gateway.….resources.limits.memory");
-    expect(cutKeyPath(keys, 31, measure)).toBe("gateway.….limits.memory");
-    expect(cutKeyPath(keys, 22, measure)).toBe("gateway.….memory");
+  it("drops whole keys after the first one until the path fits, an ellipsis between thin spaces in place of the keys and their dots", () => {
+    expect(cutKeyPath(keys, 41, measure)).toBe("gateway\u2009…\u2009resources.limits.memory");
+    expect(cutKeyPath(keys, 32, measure)).toBe("gateway\u2009…\u2009limits.memory");
+    expect(cutKeyPath(keys, 22, measure)).toBe("gateway\u2009…\u2009memory");
   });
 
-  it("drops the first key once the first and the last key leave too little room", () => {
-    expect(cutKeyPath(keys, 15, measure)).toBe("….memory");
-    expect(cutKeyPath(keys, 8, measure)).toBe("….memory");
+  it("drops the first key and its dot once the first and the last key leave too little room", () => {
+    expect(cutKeyPath(keys, 15, measure)).toBe("…memory");
+    expect(cutKeyPath(keys, 7, measure)).toBe("…memory");
   });
 
   it("gives up on a width too narrow for the last key", () => {
-    expect(cutKeyPath(keys, 7, measure)).toBeUndefined();
+    expect(cutKeyPath(keys, 6, measure)).toBeUndefined();
     expect(cutKeyPath(["memory"], 5, measure)).toBeUndefined();
   });
 
   it("cuts a quoted key as a whole", () => {
-    expect(cutKeyPath(["metadata", "labels", "app.kubernetes.io/name"], 35, measure)).toBe('metadata.…."app.kubernetes.io/name"');
+    expect(cutKeyPath(["metadata", "labels", "app.kubernetes.io/name"], 35, measure)).toBe('metadata\u2009…\u2009"app.kubernetes.io/name"');
   });
 
   it("measures each candidate with the measure that it gets", () => {
     const wide = (text: string) => [...text].reduce((width, char) => width + (char === "…" ? 3 : 1), 0);
     expect(cutKeyPath(["a", "b", "c"], 5, wide)).toBe("a.b.c");
-    expect(cutKeyPath(["a", "b", "c"], 4, wide)).toBeUndefined();
+    expect(cutKeyPath(["a", "b", "c"], 4, wide)).toBe("…c");
+    expect(cutKeyPath(["a", "b", "c"], 3, wide)).toBeUndefined();
   });
 });
 

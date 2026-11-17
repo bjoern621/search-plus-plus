@@ -16,8 +16,9 @@ function keyText(key: string): string {
 
 /**
  * Writes `keys` as a key path no wider than `width`, as `measure` measures a text.
- * A path too wide drops whole keys from its second key on, behind an ellipsis: `gateway.….limits.memory`.
- * The first and the last key stay, until even the first key leaves too little room: `….memory`.
+ * A path too wide drops whole keys from its second key on.
+ * An ellipsis between thin spaces takes the place of the dropped keys and the dots around them: `gateway … limits.memory`.
+ * The first and the last key stay, until even the first key leaves too little room: `…memory`.
  * Returns undefined once the last key alone fails to fit.
  */
 export function cutKeyPath(keys: readonly string[], width: number, measure: (text: string) => number): string | undefined {
@@ -28,8 +29,8 @@ export function cutKeyPath(keys: readonly string[], width: number, measure: (tex
 export function keyPathCuts(keys: readonly string[]): string[] {
   const texts = keys.map(keyText);
   const cuts = [texts.join(".")];
-  for (let kept = 2; kept < texts.length; kept++) cuts.push([texts[0], "…", ...texts.slice(kept)].join("."));
-  if (texts.length > 1) cuts.push(`….${texts.at(-1)}`);
+  for (let kept = 2; kept < texts.length; kept++) cuts.push(`${texts[0]}\u2009…\u2009${texts.slice(kept).join(".")}`);
+  if (texts.length > 1) cuts.push(`…${texts.at(-1)}`);
   return cuts;
 }
 
