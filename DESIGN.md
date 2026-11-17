@@ -41,6 +41,7 @@ The level decides how far the view keeps the feature from the query input.
 The empty query input shows the placeholder `Search`, as the built-in Search view does.
 The file fields show examples in their placeholders, such as `Examples: *.yaml, ./charts`.
 The file fields take the font size of the query input. Their labels take the small size of a description.
+An input holding text shows a trash button at its right edge, which empties it and searches again.
 
 As in the built-in Search view, typing in the query input or the file fields searches once typing pauses for `search.searchOnTypeDebouncePeriod`, while `search.searchOnType` stays on.
 Enter searches at once.

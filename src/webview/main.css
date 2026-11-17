@@ -109,7 +109,7 @@ button {
 .query-highlight,
 .query-input {
     box-sizing: border-box;
-    padding: 0 6px;
+    padding: 0 26px 0 6px;
     font: inherit;
     letter-spacing: normal;
 }
@@ -137,6 +137,23 @@ button {
 
 .query-input:focus {
     outline: none;
+}
+
+/* A clear button sits at the right edge of its input while the input holds text. */
+.clear {
+    position: absolute;
+    top: 50%;
+    right: 1px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+}
+
+.query-box:has(.query-input:placeholder-shown) .clear,
+.input-box:has(.input:placeholder-shown) .clear {
+    display: none;
 }
 
 .query-input::placeholder {
@@ -199,8 +216,13 @@ button {
     font-size: var(--x-small-font-size);
 }
 
+.input-box {
+    position: relative;
+    display: flex;
+}
+
 .file-field .input {
-    flex: none;
+    padding-right: 26px;
     font-size: var(--vscode-font-size);
 }
 

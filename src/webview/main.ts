@@ -133,6 +133,12 @@ input.addEventListener("input", () => {
 
 detailsButton.addEventListener("click", () => setFileFieldsOpen(fileFieldsElement.hidden))
 
+for (const button of document.querySelectorAll<HTMLButtonElement>(".clear")) {
+    button.addEventListener("click", () =>
+        clearInput(document.getElementById(button.dataset.clears ?? "") as HTMLInputElement)
+    )
+}
+
 for (const field of [includeInput, excludeInput]) {
     field.addEventListener("keydown", (event) => {
         if (moveBetweenFields(event)) event.preventDefault()
@@ -378,6 +384,13 @@ function runSuggestedQuery(query: string): void {
     setQuery(query)
     input.focus()
     submit()
+}
+
+/** Empties the input and handles it as typing would, so the query or the file fields search again. */
+function clearInput(field: HTMLInputElement): void {
+    field.value = ""
+    field.focus()
+    field.dispatchEvent(new Event("input"))
 }
 
 function saveState(): void {
