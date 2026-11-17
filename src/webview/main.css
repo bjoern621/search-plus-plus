@@ -201,6 +201,7 @@ button {
 
 .file-field .input {
   flex: none;
+  font-size: var(--vscode-font-size);
 }
 
 .hint {

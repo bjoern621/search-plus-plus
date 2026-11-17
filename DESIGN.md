@@ -38,8 +38,9 @@ The level decides how far the view keeps the feature from the query input.
 | Files to include and exclude | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Settings for the matching defaults | Rare | behind the gear in the view title |
 
-The empty query input names both kinds of query in its placeholder: `Text or key path: gateway.image.tag`.
-It stays short enough to show whole in a side bar of the default width.
+The empty query input shows the placeholder `Search`, as the built-in Search view does.
+The file fields show examples in their placeholders, such as `Examples: *.yaml, ./charts`.
+The file fields take the font size of the query input. Their labels take the small size of a description.
 
 As in the built-in Search view, typing in the query input or the file fields searches once typing pauses for `search.searchOnTypeDebouncePeriod`, while `search.searchOnType` stays on.
 Enter searches at once.

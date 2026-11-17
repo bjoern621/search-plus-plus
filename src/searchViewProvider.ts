@@ -289,13 +289,13 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   <div class="query-row">
     <div class="query-box">
       <div id="query-highlight" class="query-highlight" aria-hidden="true"></div>
-      <input id="query" class="query-input" aria-label="Search" placeholder="Text or key path: gateway.image.tag" spellcheck="false" autocomplete="off">
+      <input id="query" class="query-input" aria-label="Search" placeholder="Search" spellcheck="false" autocomplete="off">
     </div>
     <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields"><span class="codicon codicon-ellipsis" aria-hidden="true"></span></button>
   </div>
   <div id="file-fields" class="file-fields" hidden>
-    <label class="file-field">Files to include<input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="For example *.yaml, ./charts"></label>
-    <label class="file-field">Files to exclude<input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="For example ./vendor/, *.lock"></label>
+    <label class="file-field">Files to include<input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="Examples: *.yaml, ./charts"></label>
+    <label class="file-field">Files to exclude<input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="Examples: ./vendor/, *.lock"></label>
   </div>
   <div id="hint" class="hint" role="status" hidden></div>
 </div>
