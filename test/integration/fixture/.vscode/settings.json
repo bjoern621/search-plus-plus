@@ -1,0 +1,4 @@
+{
+  "files.exclude": { "**/excluded": true },
+  "search.exclude": { "**/vendor": true }
+}

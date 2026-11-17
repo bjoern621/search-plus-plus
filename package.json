@@ -64,14 +64,18 @@
     "watch": "node esbuild.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "test:integration": "node esbuild.mjs && node esbuild.mjs --integration && node test/integration/run.mjs",
     "sbom": "cyclonedx-npm --omit dev --output-reproducible --output-format JSON --output-file sbom.cdx.json",
     "sbom:check": "node scripts/check-sbom.mjs"
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "7.0.1",
+    "@types/mocha": "10.0.10",
     "@types/node": "22.20.5",
     "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
     "esbuild": "0.28.2",
+    "mocha": "11.7.5",
     "typescript": "5.9.3",
     "vitest": "4.1.0"
   }
