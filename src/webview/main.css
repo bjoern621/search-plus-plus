@@ -139,11 +139,16 @@ button {
     outline: none;
 }
 
-/* A clear button sits at the right edge of its input while the input holds text. */
+/*
+ * A clear button sits at the right edge of its input while the input holds text.
+ * It takes the size and the inset of the option toggles in the inputs of the built-in Search view.
+ */
 .clear {
     position: absolute;
     top: 50%;
-    right: 1px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
     z-index: 1;
     display: flex;
     align-items: center;
