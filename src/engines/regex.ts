@@ -10,6 +10,7 @@ import { TextBatch } from "./textBatch";
  * Runs a regex query through ripgrep, which compiles it with the syntax of the Rust regex crate.
  * Without `rgPath`, every regex query stops at a hint.
  * Folders on a file system other than the disk stay unsearched.
+ * A folder that ripgrep cannot start in, such as a deleted one, adds a log line. The search goes on in the next folder.
  */
 export class RegexEngine implements WorkspaceSearchEngine {
   readonly id = "regex";
@@ -39,7 +40,11 @@ export class RegexEngine implements WorkspaceSearchEngine {
     for (const root of roots) {
       if (signal.aborted) return;
       if (root.fsPath === undefined) continue;
-      await this.searchRoot(this.rgPath, root, root.fsPath, query.source, signal, onFile);
+      try {
+        await this.searchRoot(this.rgPath, root, root.fsPath, query.source, signal, onFile);
+      } catch (error) {
+        if (!signal.aborted) this.log(`ripgrep could not search ${root.fsPath}: ${String(error)}`);
+      }
     }
   }
 

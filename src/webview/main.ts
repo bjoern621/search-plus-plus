@@ -414,6 +414,8 @@ function summaryFor(): string | undefined {
       return "Open a folder to search it.";
     case "noRepository":
       return "No Git repository holds this workspace. Pick Working tree to search its files.";
+    case "failed":
+      return "The search could not finish. The Structural Search output says why.";
     case "running":
       return tree.matchCount === 0 ? undefined : resultSummary(tree.matchCount, tree.fileCount, undefined, shownCommitCount());
     case "complete":

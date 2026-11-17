@@ -52,8 +52,9 @@ export interface FileResult {
  * `capped`: the search stopped at `limit` matched lines.
  * `blocked`: the query ran no search, and a hint says why.
  * `noRepository`: the scope reads Git, and no workspace folder lies in a Git repository.
+ * `failed`: the search stopped on an error that the output channel names. The results sent before it stay.
  */
-export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFolder" | "noRepository";
+export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFolder" | "noRepository" | "failed";
 
 export interface TestSnapshot {
   summary: string;

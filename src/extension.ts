@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext): StructuralSearchApi 
     log: (message) => log.warn(message),
   });
   const documents = new RevisionDocuments(gitPath);
-  const provider = new SearchViewProvider(context.extensionUri, runner, { gitPath, documents, log: (message) => log.warn(message) });
+  const provider = new SearchViewProvider(context.extensionUri, runner, { gitPath, documents, log: (message) => log.warn(message) }, (message) => log.error(message));
 
   context.subscriptions.push(
     log,

@@ -46,7 +46,7 @@ export class BranchSource implements RevisionSource {
     for (const place of this.roots) {
       if (signal.aborted) return;
       const listed = await this.list(place, accepts, signal);
-      yield* readInBatches(this.gitPath, place, listed, signal);
+      yield* readInBatches(this.gitPath, place, listed, signal, this.log);
     }
   }
 
@@ -89,7 +89,7 @@ export class HistorySource implements RevisionSource {
             commit: commit.commit,
           })),
       );
-      yield* readInBatches(this.gitPath, place, listed, signal);
+      yield* readInBatches(this.gitPath, place, listed, signal, this.log);
     }
   }
 
@@ -113,14 +113,23 @@ export class HistorySource implements RevisionSource {
   }
 }
 
-/** Reads the listed files through one `git cat-file` process and yields them in batches. Leaves out binary files and files over the size limit. */
-async function* readInBatches(gitPath: string, place: RootRepository, listed: readonly ListedFile[], signal: AbortSignal): AsyncIterable<RevisionFile[]> {
+/**
+ * Reads the listed files through one `git cat-file` process and yields them in batches. Leaves out binary files and files over the size limit.
+ * A failing read, such as git unable to start in a deleted folder, ends the files of this folder with a log line.
+ */
+async function* readInBatches(gitPath: string, place: RootRepository, listed: readonly ListedFile[], signal: AbortSignal, log: (message: string) => void): AsyncIterable<RevisionFile[]> {
   if (listed.length === 0 || signal.aborted) return;
   const reader = new GitBlobReader(gitPath, place.repository.top);
   try {
     for (const batch of batchesOf(listed)) {
       if (signal.aborted) return;
-      const objects = await reader.read(batch.map((file) => file.object));
+      let objects: CatFileObject[];
+      try {
+        objects = await reader.read(batch.map((file) => file.object));
+      } catch (error) {
+        if (!signal.aborted) log(`Could not read files from Git in ${place.repository.top}: ${String(error)}`);
+        return;
+      }
       const files = batch.flatMap((file, index) => revisionFile(place, file, objects[index]));
       if (files.length > 0) yield files;
     }

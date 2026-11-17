@@ -13,6 +13,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      # The runner tests spawn ripgrep, which VS Code ships to the extension.
+      - run: sudo apt-get update && sudo apt-get install --yes ripgrep
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build

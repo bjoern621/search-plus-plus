@@ -27,13 +27,16 @@ export interface DefaultBranch {
   name: string;
 }
 
-/** Finds the default branch: the one that `origin/HEAD` points at, else the first of `DEFAULT_BRANCH_CANDIDATES` that exists. */
+/**
+ * Finds the default branch: the one that `origin/HEAD` points at, else the first of `DEFAULT_BRANCH_CANDIDATES` that exists.
+ * Returns undefined when git cannot run in `cwd`.
+ */
 export async function defaultBranch(gitPath: string, cwd: string): Promise<DefaultBranch | undefined> {
   const remoteHead = await gitText(gitPath, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"], { cwd }).catch(() => undefined);
   const candidates = remoteHead === undefined ? DEFAULT_BRANCH_CANDIDATES : [remoteHead.trim(), ...DEFAULT_BRANCH_CANDIDATES];
   for (const ref of candidates) {
-    const exit = await runGit(gitPath, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], { cwd });
-    if (exit.code === 0) return { ref, name: ref.replace(/^origin\//, "") };
+    const exit = await runGit(gitPath, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], { cwd }).catch(() => undefined);
+    if (exit?.code === 0) return { ref, name: ref.replace(/^origin\//, "") };
   }
   return undefined;
 }

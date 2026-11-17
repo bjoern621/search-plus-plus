@@ -39,6 +39,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly runner: SearchRunner,
     private readonly git: GitAccess,
+    private readonly log: (message: string) => void,
   ) {
     this.resetViewReady();
   }
@@ -73,6 +74,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
   /**
    * Cancels the running search and starts one for `raw` in the files that `fields` and `scope` pick.
    * Resolves once the new search ends or a newer one replaces it.
+   * A search that throws ends as `failed` with a log line, so the view never waits for a search that has stopped.
    */
   async search(raw: string, fields: FileFields = NO_FILE_FIELDS, scope: SearchScope = WORKING_TREE): Promise<void> {
     this.running?.abort();
@@ -84,23 +86,31 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     const roots = withExcludeField(searchRoots(), fields.exclude);
     if (raw === "") return this.finish(searchId, "empty");
     if (roots.length === 0) return this.finish(searchId, "noFolder");
-    const outcome = await vscode.window.withProgress({ location: { viewId: SearchViewProvider.viewId } }, async (): Promise<SearchOutcome | { status: "noRepository" }> => {
-      const prepared = await prepareScope(this.git.gitPath(), scope, roots, controller.signal, this.git.log);
-      if (controller.signal.aborted) return { status: "aborted" };
-      if (prepared.kind === "noRepository") return { status: "noRepository" };
-      return this.runner.run({
-        query: parseQuery(raw),
-        files: prepared.files,
-        roots,
-        contextLines: vscode.workspace.getConfiguration("structuralSearch").get<number>("contextLines", 1),
-        fields,
-        signal: controller.signal,
-        onBatch: (files) => this.post({ type: "results", searchId, files }),
+    const outcome = await vscode.window
+      .withProgress({ location: { viewId: SearchViewProvider.viewId } }, async (): Promise<SearchOutcome | { status: "noRepository" }> => {
+        const prepared = await prepareScope(this.git.gitPath(), scope, roots, controller.signal, this.git.log);
+        if (controller.signal.aborted) return { status: "aborted" };
+        if (prepared.kind === "noRepository") return { status: "noRepository" };
+        return this.runner.run({
+          query: parseQuery(raw),
+          files: prepared.files,
+          roots,
+          contextLines: vscode.workspace.getConfiguration("structuralSearch").get<number>("contextLines", 1),
+          fields,
+          signal: controller.signal,
+          onBatch: (files) => this.post({ type: "results", searchId, files }),
+        });
+      })
+      .then(undefined, (error: unknown): { status: "aborted" | "failed" } => {
+        if (controller.signal.aborted) return { status: "aborted" };
+        this.log(`The search for ${raw} stopped: ${String(error)}`);
+        return { status: "failed" };
       });
-    });
     switch (outcome.status) {
       case "aborted":
         return;
+      case "failed":
+        return this.finish(searchId, "failed");
       case "noRepository":
         return this.finish(searchId, "noRepository");
       case "blocked":
