@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { CommitInfo, FileResult } from "../messages";
 import type { Hint } from "../query/types";
+import { assert } from "./assert";
 import { BatchSender } from "./batch";
 import { BATCH_INTERVAL_DURATION_MS, FILE_READ_CONCURRENCY, RESULT_LINE_LIMIT } from "./config";
 import { collectFiles } from "./files";
@@ -44,7 +45,7 @@ export interface SearchRequest {
   onBatch: (files: FileResult[]) => void;
 }
 
-/** Matches that workspace engines found in one file, waiting for the per-file engines. */
+/** A file to search and the matches that a workspace engine found in it. */
 interface PendingFile {
   root: SearchRoot;
   relativePath: string;
@@ -89,8 +90,6 @@ class RunningSearch {
   private readonly sender: BatchSender<FileResult>;
   private readonly unsaved = unsavedTexts();
   private readonly languages: LanguageIndex;
-  /** Maps a file URI to what the workspace engines found in it. */
-  private readonly pending = new Map<string, PendingFile>();
 
   constructor(
     private readonly deps: SearchRunnerDeps,
@@ -103,6 +102,7 @@ class RunningSearch {
       if (!request.signal.aborted) request.onBatch(files);
     }, BATCH_INTERVAL_DURATION_MS);
     this.languages = deps.languages();
+    assert(workspaceEngines.length <= 1, "at most one workspace engine may accept a query, since the search takes up each file once");
   }
 
   async run(): Promise<void> {
@@ -112,24 +112,30 @@ class RunningSearch {
     this.sender.flush();
   }
 
+  /**
+   * Searches a file once the workspace engine reports it, so its results show while the engine walks on.
+   * A file that the workspace engine found but the file list left out still shows.
+   * The other listed files follow once the workspace engine ends.
+   */
   private async searchDisk(onlyPaths: ReadonlyMap<number, ReadonlySet<string>> | undefined): Promise<void> {
-    const [files] = await Promise.all([collectFiles(this.request.roots, this.deps.rgPath, this.signal, this.deps.log), this.runWorkspaceEngines()]);
     const fieldFilter = new PathFilter(this.request.fields);
-    const filter = { accepts: (root: SearchRoot, relativePath: string) => fieldFilter.accepts(relativePath) && (onlyPaths?.get(root.index)?.has(relativePath) ?? onlyPaths === undefined) };
-    const work = files.filter((file) => filter.accepts(file.root, file.relativePath)).map((file) => ({ root: file.root, relativePath: file.relativePath, lists: [] as LineMatch[][] }));
-    for (const item of work) {
+    const accepts = (root: SearchRoot, relativePath: string) => fieldFilter.accepts(relativePath) && (onlyPaths?.get(root.index)?.has(relativePath) ?? onlyPaths === undefined);
+    const queue = new WorkQueue(FILE_READ_CONCURRENCY, this.signal);
+    // Nested workspace folders list a file twice.
+    const takenUris = new Set<string>();
+    const take = (item: PendingFile) => {
+      if (!accepts(item.root, item.relativePath)) return;
       const uri = this.fileUri(item.root, item.relativePath);
-      const pending = this.pending.get(uri);
-      if (!pending) continue;
-      item.lists = pending.lists;
-      this.pending.delete(uri);
-    }
-    // Files that a workspace engine found but the file list left out still show.
-    work.push(...[...this.pending.values()].filter((item) => filter.accepts(item.root, item.relativePath)));
-    this.pending.clear();
-    await forEachConcurrent(work, FILE_READ_CONCURRENCY, this.signal, (item) =>
-      this.searchFile(item).catch((error: unknown) => this.deps.log(`Search failed on ${item.relativePath}: ${String(error)}`)),
-    );
+      if (takenUris.has(uri)) return;
+      takenUris.add(uri);
+      queue.add(() => this.searchFile(item).catch((error: unknown) => this.deps.log(`Search failed on ${item.relativePath}: ${String(error)}`)));
+    };
+    const [files] = await Promise.all([
+      collectFiles(this.request.roots, this.deps.rgPath, this.signal, this.deps.log),
+      this.runWorkspaceEngines((root, relativePath, matches) => take({ root, relativePath, lists: [matches] })),
+    ]);
+    for (const file of files) take({ root: file.root, relativePath: file.relativePath, lists: [] });
+    await queue.drained();
   }
 
   /**
@@ -184,16 +190,11 @@ class RunningSearch {
     this.emit(revision.root, file, lines, matchable ? merged.filter((match) => matchable.has(match.line)) : merged, revision.commit);
   }
 
-  private async runWorkspaceEngines(): Promise<void> {
+  private async runWorkspaceEngines(onFile: (root: SearchRoot, relativePath: string, matches: LineMatch[]) => void): Promise<void> {
     await Promise.all(
       this.workspaceEngines.map(async (engine) => {
         try {
-          await engine.search(this.request.roots, this.request.query, this.signal, (root, relativePath, matches) => {
-            const uri = this.fileUri(root, relativePath);
-            const known = this.pending.get(uri);
-            if (known) known.lists.push(matches);
-            else this.pending.set(uri, { root, relativePath, lists: [matches] });
-          });
+          await engine.search(this.request.roots, this.request.query, this.signal, onFile);
         } catch (error) {
           if (!this.signal.aborted) this.deps.log(`Search engine ${engine.id} failed: ${String(error)}`);
         }
@@ -275,6 +276,46 @@ function validMatches(matches: readonly LineMatch[], lines: readonly string[]): 
     const ranges = match.ranges.filter((range) => range.start >= 0 && range.start <= range.end && range.end <= text.length);
     return [{ ...match, ranges }];
   });
+}
+
+/** Runs added work at most `limit` at a time. Drops the waiting work once `signal` aborts. */
+class WorkQueue {
+  private readonly waiting: (() => Promise<void>)[] = [];
+  /** The index in `waiting` of the work that starts next. */
+  private next = 0;
+  private readonly running = new Set<Promise<void>>();
+
+  constructor(
+    private readonly limit: number,
+    private readonly signal: AbortSignal,
+  ) {}
+
+  /** `work` must not reject. */
+  add(work: () => Promise<void>): void {
+    if (this.signal.aborted) return;
+    this.waiting.push(work);
+    this.startWaiting();
+  }
+
+  /** Resolves once every work that started has ended. */
+  async drained(): Promise<void> {
+    while (this.running.size > 0) await Promise.all(this.running);
+  }
+
+  private startWaiting(): void {
+    while (this.running.size < this.limit && this.next < this.waiting.length && !this.signal.aborted) {
+      const work = this.waiting[this.next++]!;
+      const running = work().finally(() => {
+        this.running.delete(running);
+        this.startWaiting();
+      });
+      this.running.add(running);
+    }
+    if (this.next === this.waiting.length || this.signal.aborted) {
+      this.waiting.length = 0;
+      this.next = 0;
+    }
+  }
 }
 
 /** Runs `work` on each item, at most `limit` at a time, and stops taking items once `signal` aborts. */

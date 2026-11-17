@@ -30,7 +30,7 @@ function ripgrepCandidates(appRoot: string): string[] {
 /**
  * Runs ripgrep and hands each line of its output to `onLine`.
  * `stdin` reaches ripgrep in full, then its input closes.
- * Aborting `signal` kills the process and resolves with a null code.
+ * Aborting `signal` kills the process and resolves with a null code. `onLine` gets no line after that, since the last one may break off.
  */
 export function runRipgrep(rgPath: string, args: string[], options: { cwd?: string; stdin?: string; signal: AbortSignal; onLine?: (line: string) => void }): Promise<RipgrepExit> {
   return new Promise((resolve, reject) => {
@@ -44,7 +44,11 @@ export function runRipgrep(rgPath: string, args: string[], options: { cwd?: stri
     options.signal.addEventListener("abort", onAbort, { once: true });
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
     const lines = readline.createInterface({ input: child.stdout, crlfDelay: Infinity });
-    if (options.onLine) lines.on("line", options.onLine);
+    const onLine = options.onLine;
+    if (onLine)
+      lines.on("line", (line) => {
+        if (!options.signal.aborted) onLine(line);
+      });
     child.stdin.on("error", () => {});
     child.stdin.end(options.stdin ?? "");
     child.on("error", (error) => {
