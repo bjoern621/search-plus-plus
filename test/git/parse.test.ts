@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { BRANCH_FORMAT, CatFileParser, HistoryParser, historyLogArgs, nulList, type ParsedCommit, parseBranches, parseLsTree, unquoteGitPath } from "../../src/git/parse";
+import { BATCH_CHECK_FORMAT, BRANCH_FORMAT, CatFileParser, HistoryParser, historyLogArgs, nulList, type ParsedCommit, parseBatchCheckSizes, parseBranches, parseLsTree, unquoteGitPath } from "../../src/git/parse";
 
 function parseHistory(output: string): ParsedCommit[] {
   const commits: ParsedCommit[] = [];
@@ -152,5 +152,10 @@ describe("the parsers against git", () => {
       ["café.md", 8],
       ["values.yaml", 41],
     ]);
+  });
+
+  it("reads the sizes that git cat-file --batch-check prints, and a missing name", () => {
+    const output = execFileSync("git", ["cat-file", `--batch-check=${BATCH_CHECK_FORMAT}`], { cwd: repo, env, input: "feature:café.md\nfeature:nope missing\nfeature~1:values.yaml\n" }).toString("utf8");
+    expect(parseBatchCheckSizes(output)).toEqual([8, undefined, 20]);
   });
 });

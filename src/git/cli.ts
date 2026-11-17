@@ -14,6 +14,8 @@ export interface GitOptions {
   signal?: AbortSignal;
   /** Takes the output line by line in place of `stdout`. */
   onLine?: (line: string) => void;
+  /** Written to the standard input. Without it, the standard input closes empty. */
+  stdin?: string;
 }
 
 /** Thrown for a git command that exits with a code other than 0. */
@@ -43,7 +45,7 @@ export function runGit(gitPath: string, args: readonly string[], options: GitOpt
       resolve({ code: null, stdout: Buffer.alloc(0), stderr: "" });
       return;
     }
-    const child = spawn(gitPath, args, { cwd: options.cwd, env: gitEnvironment(), stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(gitPath, args, { cwd: options.cwd, env: gitEnvironment(), stdio: ["pipe", "pipe", "pipe"] });
     const chunks: Buffer[] = [];
     let stderr = "";
     const onAbort = () => child.kill();
@@ -51,6 +53,8 @@ export function runGit(gitPath: string, args: readonly string[], options: GitOpt
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
     if (options.onLine) readline.createInterface({ input: child.stdout, crlfDelay: Infinity }).on("line", options.onLine);
     else child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    child.stdin.on("error", () => {});
+    child.stdin.end(options.stdin);
     child.on("error", (error) => {
       options.signal?.removeEventListener("abort", onAbort);
       reject(error);

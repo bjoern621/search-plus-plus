@@ -1,8 +1,10 @@
+import { readFile, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { BranchSource, HistorySource } from "../../src/git/sources";
 import type { RevisionSource } from "../../src/search/revisions";
-import { repositoryWith } from "./repositorySetup";
+import { FILE_SIZE_LIMIT_BYTES } from "../../src/search/config";
+import { git, repositoryWith } from "./repositorySetup";
 
 /** Reads every batch of `source` and returns the relative paths that it yields. */
 async function yieldedPaths(source: RevisionSource): Promise<string[]> {
@@ -20,6 +22,22 @@ describe("Git revision sources", () => {
       const log: string[] = [];
       expect(await yieldedPaths(make((message) => log.push(message)))).toEqual(["b.txt"]);
       expect(log.join("\n")).toContain("ENOENT");
+    }
+  });
+
+  it("skips a file over the size limit without reading it from Git", async () => {
+    const place = await repositoryWith(0, { "big.txt": "x".repeat(FILE_SIZE_LIMIT_BYTES + 1), "small.txt": "small\n" });
+    const bigBlob = git(place.cwd, "rev-parse", "HEAD:big.txt").trim();
+    const requests = path.join(place.cwd, "..", `${path.basename(place.cwd)}-requests.txt`);
+    const gitPath = path.join(place.cwd, "..", `${path.basename(place.cwd)}-git.sh`);
+    // Records the names that `git cat-file --batch` gets asked for, which name the files that a source reads.
+    await writeFile(gitPath, `#!/bin/sh\nif [ "$1" = "cat-file" ] && [ "$2" = "--batch" ]; then tee -a '${requests}' | git "$@"; else exec git "$@"; fi\n`, { mode: 0o755 });
+    for (const source of [new BranchSource(gitPath, [place], "main", () => {}), new HistorySource(gitPath, [place], () => {})]) {
+      await writeFile(requests, "");
+      expect(await yieldedPaths(source)).toEqual(["small.txt"]);
+      const requested = await readFile(requests, "utf8");
+      expect(requested).not.toContain("big.txt");
+      expect(requested).not.toContain(bigBlob);
     }
   });
 });

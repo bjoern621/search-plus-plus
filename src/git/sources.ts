@@ -4,7 +4,8 @@ import type { PathTest, RevisionFile, RevisionSource } from "../search/revisions
 import type { SearchRoot } from "../search/workspaceEngine";
 import { GitBlobReader } from "./blobReader";
 import { GitError, gitText, runGit } from "./cli";
-import { type CatFileObject, HistoryParser, historyLogArgs, type ParsedCommit, parseLsTree } from "./parse";
+import { assert } from "../search/assert";
+import { BATCH_CHECK_FORMAT, type CatFileObject, HistoryParser, historyLogArgs, type ParsedCommit, parseBatchCheckSizes, parseLsTree } from "./parse";
 import type { Repository } from "./repository";
 import { revisionUri } from "./revisionDocuments";
 
@@ -115,13 +116,22 @@ export class HistorySource implements RevisionSource {
 
 /**
  * Reads the listed files through one `git cat-file` process and yields them in batches. Leaves out binary files and files over the size limit.
+ * A file over the size limit stays unread.
  * A failing read, such as git unable to start in a deleted folder, ends the files of this folder with a log line.
  */
 async function* readInBatches(gitPath: string, place: RootRepository, listed: readonly ListedFile[], signal: AbortSignal, log: (message: string) => void): AsyncIterable<RevisionFile[]> {
   if (listed.length === 0 || signal.aborted) return;
+  let readable: ListedFile[];
+  try {
+    readable = await withinSizeLimit(gitPath, place.repository.top, listed, signal);
+  } catch (error) {
+    if (!signal.aborted) log(`Could not read files from Git in ${place.repository.top}: ${String(error)}`);
+    return;
+  }
+  if (readable.length === 0 || signal.aborted) return;
   const reader = new GitBlobReader(gitPath, place.repository.top);
   try {
-    for (const batch of batchesOf(listed)) {
+    for (const batch of batchesOf(readable)) {
       if (signal.aborted) return;
       let objects: CatFileObject[];
       try {
@@ -138,7 +148,28 @@ async function* readInBatches(gitPath: string, place: RootRepository, listed: re
   }
 }
 
-/** Splits files into batches of at most `REVISION_BATCH_FILE_COUNT` files and, where the sizes are known, `REVISION_BATCH_SIZE_BYTES`. */
+/** Fills in the sizes that the listing left out and drops the files over the size limit or missing from the repository. */
+async function withinSizeLimit(gitPath: string, top: string, listed: readonly ListedFile[], signal: AbortSignal): Promise<ListedFile[]> {
+  const unsized = listed.filter((file) => file.sizeBytes === undefined);
+  const sizes = unsized.length === 0 ? [] : await objectSizes(gitPath, top, unsized.map((file) => file.object), signal);
+  const looked = new Map(unsized.map((file, index) => [file, sizes[index]]));
+  return listed.flatMap((file) => {
+    const sizeBytes = file.sizeBytes ?? looked.get(file);
+    return sizeBytes !== undefined && sizeBytes <= FILE_SIZE_LIMIT_BYTES ? [{ ...file, sizeBytes }] : [];
+  });
+}
+
+/** Asks `git cat-file --batch-check` for the sizes of the objects that `names` name, in the same order, without reading them. */
+async function objectSizes(gitPath: string, top: string, names: readonly string[], signal: AbortSignal): Promise<(number | undefined)[]> {
+  assert(
+    names.every((name) => !name.includes("\n")),
+    "an object name must not hold a line feed",
+  );
+  const output = await gitText(gitPath, ["cat-file", `--batch-check=${BATCH_CHECK_FORMAT}`], { cwd: top, signal, stdin: names.map((name) => `${name}\n`).join("") });
+  return parseBatchCheckSizes(output);
+}
+
+/** Splits files into batches of at most `REVISION_BATCH_FILE_COUNT` files and `REVISION_BATCH_SIZE_BYTES`. */
 function* batchesOf(files: readonly ListedFile[]): Iterable<ListedFile[]> {
   let batch: ListedFile[] = [];
   let sizeBytes = 0;

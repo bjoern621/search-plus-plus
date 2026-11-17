@@ -208,6 +208,22 @@ function newPath(text: string): string {
   return path.startsWith("b/") ? path.slice(2) : path;
 }
 
+/** The format of `git cat-file --batch-check` that `parseBatchCheckSizes` reads. */
+export const BATCH_CHECK_FORMAT = "%(objecttype) %(objectsize)";
+
+/**
+ * Reads the output of `git cat-file --batch-check=BATCH_CHECK_FORMAT`: one size per line, in the order of the names.
+ * A name that git cannot find, printed as `<name> missing` or `<name> ambiguous`, gets undefined.
+ */
+export function parseBatchCheckSizes(output: string): (number | undefined)[] {
+  const lines = output.split("\n");
+  if (lines.at(-1) === "") lines.pop();
+  return lines.map((line) => {
+    const found = /^\S+ (\d+)$/.exec(line);
+    return found ? Number(found[1]) : undefined;
+  });
+}
+
 export type CatFileObject = { kind: "found"; type: string; bytes: Buffer } | { kind: "missing" };
 
 /**
