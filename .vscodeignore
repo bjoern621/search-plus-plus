@@ -3,3 +3,6 @@
 !media/**
 !package.json
 !sbom.cdx.json
+!README.md
+!LICENSE
+!CHANGELOG.md

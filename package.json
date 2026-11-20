@@ -6,6 +6,25 @@
     "publisher": "bjoern621",
     "license": "MIT",
     "private": true,
+    "icon": "media/icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/bjoern621/search-plus-plus.git"
+    },
+    "bugs": {
+        "url": "https://github.com/bjoern621/search-plus-plus/issues"
+    },
+    "homepage": "https://github.com/bjoern621/search-plus-plus#readme",
+    "keywords": [
+        "search",
+        "find in files",
+        "fuzzy",
+        "umlaut",
+        "yaml",
+        "json",
+        "toml",
+        "key path"
+    ],
     "engines": {
         "vscode": "^1.100.0"
     },
@@ -287,12 +306,15 @@
         "sbom": "cyclonedx-npm --omit dev --output-reproducible --output-format JSON --output-file sbom.cdx.json",
         "sbom:check": "node scripts/check-sbom.mjs",
         "format": "prettier --write .",
-        "format:check": "prettier --check ."
+        "format:check": "prettier --check .",
+        "vscode:prepublish": "npm run build",
+        "package": "vsce package"
     },
     "devDependencies": {
         "@cyclonedx/cyclonedx-npm": "7.0.1",
         "@types/node": "22.20.5",
         "@types/vscode": "1.100.0",
+        "@vscode/vsce": "4.1.0",
         "esbuild": "0.28.2",
         "prettier": "3.10.1",
         "typescript": "5.9.3",
