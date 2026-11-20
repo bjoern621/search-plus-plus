@@ -2,6 +2,9 @@ import { assert } from "./assert"
 import type { Range } from "../search/types"
 
 const COMBINING_MARK = /\p{M}/u
+const ASCII_ONLY = /^[\x00-\x7f]*$/
+/** A character that folds other than by ASCII lower-casing: one with combining marks, or a single non-ASCII code point. */
+const OTHER_THAN_ASCII_CHARACTER = /[\s\S]\p{M}+|[^\x00-\x7f]/gu
 const UMLAUT = /[äöüß]/g
 const UMLAUT_SPELLINGS: Record<string, string> = { ä: "ae", ö: "oe", ü: "ue", ß: "ss" }
 const UMLAUT_ANY_CASE = /[äöüßÄÖÜẞ]/g
@@ -46,6 +49,26 @@ export function foldText(text: string, spellOutUmlauts: boolean): FoldedText {
     }
     foldedOffsets[text.length] = folded.length
     return { text: folded, starts, ends, foldedOffsets }
+}
+
+/**
+ * Returns the text of `foldText` without the offsets, at a fraction of the cost.
+ * ASCII characters fold with `toLowerCase` on whole runs, every other character as `foldText` folds it.
+ */
+export function foldedString(text: string, spellOutUmlauts: boolean): string {
+    if (ASCII_ONLY.test(text)) {
+        return text.toLowerCase()
+    }
+    let folded = ""
+    let asciiFrom = 0
+    for (const character of text.matchAll(OTHER_THAN_ASCII_CHARACTER)) {
+        const start = character.index
+        const end = start + character[0].length
+        folded += text.slice(asciiFrom, start).toLowerCase()
+        folded += foldCharacter(text, start, end, spellOutUmlauts)
+        asciiFrom = end
+    }
+    return folded + text.slice(asciiFrom).toLowerCase()
 }
 
 export function foldCase(text: string): string {

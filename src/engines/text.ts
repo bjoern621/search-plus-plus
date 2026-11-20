@@ -1,4 +1,4 @@
-import { findInLine } from "../matching"
+import { findInLine, lineFilter } from "../matching"
 import { splitLines } from "../search/results"
 import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
 
@@ -12,11 +12,15 @@ export const textEngine = {
 
     search(file: SearchFile, query: Query, signal: AbortSignal): LineMatch[] {
         if (query.kind !== "text") return []
+        const mayMatch = lineFilter(file.text, query.pieces, query.matching)
+        if (mayMatch === undefined) return []
         const matches: LineMatch[] = []
         const lines = splitLines(file.text)
         for (let line = 0; line < lines.length; line++) {
             if (signal.aborted) return []
-            const found = findInLine(lines[line] ?? "", query.pieces, query.matching)
+            const text = lines[line] ?? ""
+            if (!mayMatch(text)) continue
+            const found = findInLine(text, query.pieces, query.matching)
             if (found.length === 0) continue
             matches.push({
                 line,

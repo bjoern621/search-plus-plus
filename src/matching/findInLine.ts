@@ -14,6 +14,7 @@ import {
     foldCase,
     foldCaseAndUmlauts,
     foldText,
+    foldedString,
     isCharacterBoundary,
     originalRange,
     type FoldedText
@@ -59,6 +60,201 @@ export function findInLine(
     }
 }
 
+/** Tests one line for one piece, true if the line may hold an occurrence. */
+type LineTest = (line: string, folds: LineFolds) => boolean
+
+/**
+ * Tests cheaply whether a line of `text` can hold a match of the pieces.
+ * A caller runs `findInLine` on the lines that pass.
+ * A line that fails the test gets no match from `findInLine`. A line that passes may get none as well.
+ * Returns undefined when no line of `text` can hold a match.
+ */
+export function lineFilter(
+    text: string,
+    pieces: TextPiece[],
+    matching: MatchingOptions = DEFAULT_MATCHING
+): ((line: string) => boolean) | undefined {
+    const query = compiledQuery(pieces, matching)
+    if (query.pieces.length === 0) {
+        return undefined
+    }
+    const file = new FileFolds(text)
+    const tests: LineTest[] = []
+    for (const piece of query.pieces) {
+        if (piece.kind === "wildcard") {
+            continue
+        }
+        const test = lineTest(piece, file)
+        if (test === undefined) {
+            return undefined
+        }
+        tests.push(test)
+    }
+    return (line) => {
+        const folds = new LineFolds(line)
+        return tests.every((test) => test(line, folds))
+    }
+}
+
+/** Returns undefined when no line of the file holds an occurrence of the piece. */
+function lineTest(
+    piece: Exclude<CompiledPiece, { kind: "wildcard" }>,
+    file: FileFolds
+): LineTest | undefined {
+    switch (piece.kind) {
+        case "exactWord":
+        case "exactLiteral":
+            if (!file.text.includes(piece.value)) {
+                return undefined
+            }
+            return (line) => line.includes(piece.value)
+        case "literal":
+            if (!file.mayHoldCaseFolded(piece.folded)) {
+                return undefined
+            }
+            return (_line, folds) => folds.caseFolded().includes(piece.folded)
+        case "word": {
+            const hitWords = piece.maxEdits === 0 ? [] : closeSpelledWords(piece, file)
+            if (hitWords.length === 0 && !file.mayHoldFullyFolded(piece.folded)) {
+                return undefined
+            }
+            if (hitWords.length > LINE_FILTER_MAX_HIT_WORDS) {
+                return () => true
+            }
+            return (line, folds) =>
+                folds.fullyFolded().includes(piece.folded) ||
+                hitWords.some((word) => line.includes(word))
+        }
+    }
+}
+
+/** The words of the file with a close spelling of the piece, as `fuzzyOccurrences` looks for them. */
+function closeSpelledWords(piece: FuzzyWordPiece, file: FileFolds): string[] {
+    const minSpanUnits = piece.foldedCodePoints.length - piece.maxEdits
+    const hitWords: string[] = []
+    const ascii = file.isAscii()
+    const words =
+        ascii && piece.runs.length > 0
+            ? wordsHoldingAQueryRun(piece, file.text, file.fullyFoldedText())
+            : new Set(file.text.match(WORD))
+    for (const word of words) {
+        // Folding keeps the length of ASCII text.
+        if ((ascii ? word.length : foldedString(word, true).length) < minSpanUnits) {
+            continue
+        }
+        if (cachedCloseSpellings(piece, word).length > 0) {
+            hitWords.push(word)
+        }
+    }
+    return hitWords
+}
+
+/**
+ * The folds of a whole file, computed on first use.
+ * A line folds to a run of the file's fold, since folding works per character and no character spans a line break.
+ * A combining mark at the start of a line breaks that: the file joins it to the line break before it.
+ */
+class FileFolds {
+    private caseFolded?: string
+    private fullyFolded?: string
+    private ascii?: boolean
+    private readonly marksAfterLineBreaks: boolean
+
+    constructor(readonly text: string) {
+        this.marksAfterLineBreaks = LINE_BREAK_BEFORE_MARK.test(text)
+    }
+
+    isAscii(): boolean {
+        this.ascii ??= ASCII_ONLY.test(this.text)
+        return this.ascii
+    }
+
+    fullyFoldedText(): string {
+        this.fullyFolded ??= foldedString(this.text, true)
+        return this.fullyFolded
+    }
+
+    mayHoldCaseFolded(value: string): boolean {
+        this.caseFolded ??= foldedString(this.text, false)
+        return this.marksAfterLineBreaks || this.caseFolded.includes(value)
+    }
+
+    mayHoldFullyFolded(value: string): boolean {
+        return this.marksAfterLineBreaks || this.fullyFoldedText().includes(value)
+    }
+}
+
+/**
+ * Collects the words of an ASCII text that hold one of the runs of the query word.
+ * `folded` must be the fold of `text`, which keeps every offset of ASCII text.
+ */
+function wordsHoldingAQueryRun(piece: FuzzyWordPiece, text: string, folded: string): Set<string> {
+    const words = new Set<string>()
+    const wordStarts = new Set<number>()
+    for (const run of piece.runs) {
+        for (let at = folded.indexOf(run); at !== -1; at = folded.indexOf(run, at + 1)) {
+            let start = at
+            while (start > 0 && isAsciiWordUnit(text.charCodeAt(start - 1))) {
+                start--
+            }
+            if (wordStarts.has(start)) {
+                continue
+            }
+            wordStarts.add(start)
+            let end = at
+            while (end < text.length && isAsciiWordUnit(text.charCodeAt(end))) {
+                end++
+            }
+            if (end > start) {
+                words.add(text.slice(start, end))
+            }
+        }
+    }
+    return words
+}
+
+/** Letters and digits, the ASCII characters that `WORD` matches. */
+function isAsciiWordUnit(code: number): boolean {
+    return (
+        (code >= 0x30 && code <= 0x39) ||
+        (code >= 0x41 && code <= 0x5a) ||
+        (code >= 0x61 && code <= 0x7a)
+    )
+}
+
+/**
+ * Splits the folded query word into 2k + 1 runs, k the allowed edits.
+ * A close spelling holds one of the runs as written, since each edit breaks at most two runs: a swap of two neighbors on a run border breaks both.
+ */
+function queryRuns(foldedCodePoints: number[], maxEdits: number): string[] {
+    const count = 2 * maxEdits + 1
+    const runs: string[] = []
+    for (let index = 0; index < count; index++) {
+        const from = Math.floor((index * foldedCodePoints.length) / count)
+        const to = Math.floor(((index + 1) * foldedCodePoints.length) / count)
+        runs.push(String.fromCodePoint(...foldedCodePoints.slice(from, to)))
+    }
+    return runs
+}
+
+/** The folds of one line, computed on first use. */
+class LineFolds {
+    private caseFoldedLine?: string
+    private fullyFoldedLine?: string
+
+    constructor(private readonly line: string) {}
+
+    caseFolded(): string {
+        this.caseFoldedLine ??= foldedString(this.line, false)
+        return this.caseFoldedLine
+    }
+
+    fullyFolded(): string {
+        this.fullyFoldedLine ??= foldedString(this.line, true)
+        return this.fullyFoldedLine
+    }
+}
+
 interface FuzzyWordPiece {
     kind: "word"
     value: string
@@ -69,6 +265,13 @@ interface FuzzyWordPiece {
     /** True when the options fold less than `foldCaseAndUmlauts` does, so each find gets checked against `normalized`. */
     strict: boolean
     maxEdits: number
+    /**
+     * Runs of `folded` of which every close spelling holds one, see `queryRuns`.
+     * Empty when a run would be empty, since the empty run rules out no word.
+     */
+    runs: string[]
+    /** Per character of `folded`: how often it appears there. */
+    characterCounts: Map<string, number>
     /** Maps a line word to its close spellings, at most `CLOSE_SPELLING_CACHE_MAX_WORDS` entries. */
     closeSpellingsByWord: Map<string, CloseSpelling[]>
 }
@@ -100,6 +303,8 @@ interface Tail {
 }
 
 const CLOSE_SPELLING_CACHE_MAX_WORDS = 50_000
+/** Above this many close-spelled words in a file, every line passes the test of a word piece, since the test would cost more than it saves. */
+const LINE_FILTER_MAX_HIT_WORDS = 64
 
 const WORD = /[\p{L}\p{N}][\p{L}\p{N}\p{M}]*/gu
 const ASCII_WITHOUT_LETTERS = /^[\x00-\x40\x5b-\x60\x7b-\x7f]*$/
@@ -108,6 +313,8 @@ const DIGIT = /\p{N}/u
 const MARK = /\p{M}/u
 const WORD_CHAR_BEFORE = /[\p{L}\p{N}\p{M}]$/u
 const WORD_CHAR_AFTER = /^[\p{L}\p{N}\p{M}]/u
+const LINE_BREAK_BEFORE_MARK = /[\r\n]\p{M}/u
+const ASCII_ONLY = /^[\x00-\x7f]*$/
 
 const compiledQueries = new WeakMap<
     TextPiece[],
@@ -165,20 +372,37 @@ function compilePiece(piece: TextPiece, matching: MatchingOptions): CompiledPiec
                 return { kind: "exactWord", value: piece.value }
             }
             const folded = foldCaseAndUmlauts(piece.value)
+            const foldedCodePoints = codePoints(folded)
+            const maxEdits = matching.fuzzy
+                ? allowedEdits(codePointLength(piece.value), matching)
+                : 0
             return {
                 kind: "word",
                 value: piece.value,
                 folded,
-                foldedCodePoints: codePoints(folded),
+                foldedCodePoints,
                 normalized: normalizeWord(piece.value, matching),
                 strict: matching.matchCase || !matching.umlautVariants,
-                maxEdits: matching.fuzzy ? allowedEdits(codePointLength(piece.value), matching) : 0,
+                maxEdits,
+                runs:
+                    foldedCodePoints.length > 2 * maxEdits
+                        ? queryRuns(foldedCodePoints, maxEdits)
+                        : [],
+                characterCounts: characterCounts(folded),
                 closeSpellingsByWord: new Map()
             }
         }
         default:
             return never(`unknown text piece ${JSON.stringify(piece)}`)
     }
+}
+
+function characterCounts(text: string): Map<string, number> {
+    const counts = new Map<string, number>()
+    for (const character of text) {
+        counts.set(character, (counts.get(character) ?? 0) + 1)
+    }
+    return counts
 }
 
 /** Folding leaves ASCII other than letters alone, so a literal of such characters has to appear as written. */
@@ -504,6 +728,9 @@ function cachedCloseSpellings(piece: FuzzyWordPiece, word: string): CloseSpellin
 
 /** Returns the spans of `word` within the allowed edits of the query word, offsets relative to the word. */
 function closeSpellings(piece: FuzzyWordPiece, word: string): CloseSpelling[] {
+    if (lacksTooManyCharacters(piece, foldedString(word, true))) {
+        return []
+    }
     const folded = foldText(word, true)
     const queryLength = piece.foldedCodePoints.length
     // Code points never outnumber code units and take at most two each, so code units bound the length of a span.
@@ -533,6 +760,30 @@ function closeSpellings(piece: FuzzyWordPiece, word: string): CloseSpelling[] {
     }
     const fewestEdits = Math.min(...spellings.map((spelling) => spelling.edits))
     return spellings.filter((spelling) => spelling.edits === fewestEdits)
+}
+
+/**
+ * Returns true if the folded word lacks more characters of the query word than the allowed edits.
+ * Such a word holds no close spelling, since each edit takes at most one character of the query word away.
+ * A swap of two neighbors takes none.
+ */
+function lacksTooManyCharacters(piece: FuzzyWordPiece, foldedWord: string): boolean {
+    let missing = 0
+    for (const [character, needed] of piece.characterCounts) {
+        let found = 0
+        for (
+            let at = foldedWord.indexOf(character);
+            at !== -1 && found < needed;
+            at = foldedWord.indexOf(character, at + character.length)
+        ) {
+            found++
+        }
+        missing += needed - found
+        if (missing > piece.maxEdits) {
+            return true
+        }
+    }
+    return false
 }
 
 type CharacterClass = "upper" | "lower" | "digit"
