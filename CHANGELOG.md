@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.1.0 (2026-11-20)
+
 ### Added
 
 - Search view in the activity bar, bound to Ctrl+Shift+F.
