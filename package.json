@@ -2,7 +2,7 @@
     "name": "search-plus-plus",
     "displayName": "Search Plus Plus",
     "description": "Search text and the key paths of YAML, JSON and TOML files. Typos and umlaut spellings match by default.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "publisher": "bjoern621",
     "license": "MIT",
     "private": true,
