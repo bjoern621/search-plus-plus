@@ -115,6 +115,16 @@
                 "command": "searchPlusPlus.turnOn.fuzzy",
                 "title": "  Fuzzy Matches",
                 "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOff.searchIgnoredFiles",
+                "title": "✓ Search Ignored Files",
+                "category": "Search++"
+            },
+            {
+                "command": "searchPlusPlus.turnOn.searchIgnoredFiles",
+                "title": "  Search Ignored Files",
+                "category": "Search++"
             }
         ],
         "submenus": [
@@ -175,6 +185,16 @@
                     "command": "searchPlusPlus.turnOn.fuzzy",
                     "when": "view == searchPlusPlus.view && !config.searchPlusPlus.fuzzy",
                     "group": "1_matching@4"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.searchIgnoredFiles",
+                    "when": "view == searchPlusPlus.view && config.searchPlusPlus.searchIgnoredFiles",
+                    "group": "2_files@1"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.searchIgnoredFiles",
+                    "when": "view == searchPlusPlus.view && !config.searchPlusPlus.searchIgnoredFiles",
+                    "group": "2_files@1"
                 }
             ],
             "searchPlusPlus.viewAs": [
@@ -219,6 +239,14 @@
                 {
                     "command": "searchPlusPlus.turnOn.fuzzy",
                     "when": "!config.searchPlusPlus.fuzzy"
+                },
+                {
+                    "command": "searchPlusPlus.turnOff.searchIgnoredFiles",
+                    "when": "config.searchPlusPlus.searchIgnoredFiles"
+                },
+                {
+                    "command": "searchPlusPlus.turnOn.searchIgnoredFiles",
+                    "when": "!config.searchPlusPlus.searchIgnoredFiles"
                 }
             ]
         },
@@ -270,24 +298,30 @@
                     "markdownDescription": "A query word of this many letters or more also finds words two letters off. Raise it when long words pull in unrelated matches. Needs `#searchPlusPlus.fuzzy#`.",
                     "order": 6
                 },
+                "searchPlusPlus.searchIgnoredFiles": {
+                    "type": "boolean",
+                    "default": false,
+                    "order": 7,
+                    "markdownDescription": "Searches the files that the ignore files hide, such as `.gitignore`. Turn it on to find text in `node_modules` or build output. A search over many ignored files takes longer."
+                },
                 "searchPlusPlus.exclude": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     },
                     "default": [],
-                    "markdownDescription": "Globs of files and folders that every search leaves out, such as `**/node_modules`. Every search also leaves out what `#files.exclude#` hides. The ignore files and `#search.exclude#` hide nothing from Search++.",
-                    "order": 7
+                    "markdownDescription": "Globs of files and folders that every search leaves out, such as `**/generated`. Every search also leaves out what `#files.exclude#` hides. `#search.exclude#` hides nothing from Search++.",
+                    "order": 8
                 },
                 "searchPlusPlus.maxResults": {
                     "type": "integer",
                     "default": 10000,
                     "minimum": 1,
                     "markdownDescription": "Matched lines that a search shows at most. A search that reaches the limit stops and says so. A higher limit makes a broad search slower to finish.",
-                    "order": 8
+                    "order": 9
                 },
                 "searchPlusPlus.contextLines": {
-                    "order": 9,
+                    "order": 10,
                     "type": "integer",
                     "default": 1,
                     "minimum": 0,

@@ -37,6 +37,7 @@ The level decides how far the view keeps the feature from the query input.
 | Results as a list or a folder tree   | Frequent | View As menu in the view title                                                 |
 | Files to include and exclude         | Frequent | behind the `…` button right of the query input, opened once an exclusion lands |
 | Matching defaults on and off         | Rare     | in the `...` menu of the view title, a check marking each one that holds       |
+| Search ignored files on and off      | Rare     | in the `...` menu of the view title, a check marking it while it holds         |
 | Settings for the matching defaults   | Rare     | behind the gear in the view title                                              |
 
 The empty query input shows the placeholder `Search`, as the built-in Search view does.
@@ -50,8 +51,12 @@ Switching to the view selects the query, so typing replaces it, as Ctrl+Shift+F 
 A keystroke cancels the search that runs.
 An empty query clears the results.
 A query enters the search history on Enter or once no other search replaced it for two seconds, as in the built-in Search view.
-Every search covers the files that the ignore files and `search.exclude` hide.
-It leaves out the `.git` folders, the globs that `files.exclude` turns on and the globs of `searchPlusPlus.exclude`.
+Every search leaves out the `.git` folders, the globs that `files.exclude` turns on and the globs of `searchPlusPlus.exclude`.
+It leaves out the files that the ignore files hide, such as `node_modules` under a `.gitignore`, since they multiply the files to read.
+`searchPlusPlus.searchIgnoredFiles` searches them as well.
+The `...` menu of the view title turns it on and off.
+`search.useParentIgnoreFiles` and `search.useGlobalIgnoreFiles` add the ignore files above the folder and the global one, as in the built-in Search view.
+Every search covers the files that `search.exclude` hides.
 A `files.exclude` glob with a `when` condition stays searched.
 
 ## Results

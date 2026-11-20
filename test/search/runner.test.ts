@@ -35,6 +35,23 @@ describe("SearchRunner", () => {
         }
     })
 
+    it("leaves out the files that an ignore file hides, unless the root reads no ignore file", async () => {
+        const dir = await folderWith({
+            ".gitignore": "built/\n",
+            "a.txt": "needle\n",
+            "built/b.txt": "needle\n"
+        })
+        for (const query of ["needle", "/needle/"]) {
+            const honored = await runSearch(query, [rootAt(0, dir)])
+            expect(matchedLines(honored.files)).toEqual(["a.txt:1: needle"])
+            const root = rootAt(0, dir)
+            const all = await runSearch(query, [
+                { ...root, walk: { ...root.walk, useIgnoreFiles: false } }
+            ])
+            expect(matchedLines(all.files)).toEqual(["a.txt:1: needle", "built/b.txt:1: needle"])
+        }
+    })
+
     it("stops at the result limit of the request", async () => {
         const dir = await folderWith({ "a.txt": "needle\n".repeat(50) })
         const result = await runSearch("needle", [rootAt(0, dir)], { resultLineLimit: 7 })

@@ -8,12 +8,18 @@ import { SearchRunner } from "./search/runner"
 import { SearchViewProvider } from "./searchViewProvider"
 import { structuralEngines } from "./structural"
 
-/** The matching settings that the view's menu turns on and off. */
-const MATCHING_TOGGLES = ["matchCase", "matchWholeWord", "umlautVariants", "fuzzy"] as const
+/** The settings that the view's menu turns on and off. */
+const MENU_TOGGLES = [
+    "matchCase",
+    "matchWholeWord",
+    "umlautVariants",
+    "fuzzy",
+    "searchIgnoredFiles"
+] as const
 
 /** Writes the setting where it holds its value: in the workspace when set there, otherwise in the user settings. */
-async function setMatchingSetting(
-    setting: (typeof MATCHING_TOGGLES)[number],
+async function setToggleSetting(
+    setting: (typeof MENU_TOGGLES)[number],
     value: boolean
 ): Promise<void> {
     const settings = vscode.workspace.getConfiguration("searchPlusPlus")
@@ -63,7 +69,9 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
             if (event.affectsConfiguration("workbench.iconTheme")) void provider.reloadIconTheme()
             if (
                 event.affectsConfiguration("searchPlusPlus") ||
-                event.affectsConfiguration("files.exclude")
+                event.affectsConfiguration("files.exclude") ||
+                event.affectsConfiguration("search.useParentIgnoreFiles") ||
+                event.affectsConfiguration("search.useGlobalIgnoreFiles")
             )
                 provider.searchAgain()
             if (
@@ -90,12 +98,12 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
         vscode.commands.registerCommand("searchPlusPlus.viewAsList", () =>
             provider.setResultsLayout("list")
         ),
-        ...MATCHING_TOGGLES.flatMap((setting) => [
+        ...MENU_TOGGLES.flatMap((setting) => [
             vscode.commands.registerCommand(`searchPlusPlus.turnOn.${setting}`, () =>
-                setMatchingSetting(setting, true)
+                setToggleSetting(setting, true)
             ),
             vscode.commands.registerCommand(`searchPlusPlus.turnOff.${setting}`, () =>
-                setMatchingSetting(setting, false)
+                setToggleSetting(setting, false)
             )
         ])
     )

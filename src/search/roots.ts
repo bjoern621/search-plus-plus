@@ -17,8 +17,10 @@ export function searchRoots(): SearchRoot[] {
 
 /**
  * Picks the files of one workspace folder.
- * Every search covers the files that the ignore files and `search.exclude` hide.
  * It leaves out the `.git` folders, the globs that `files.exclude` turns on and the globs of `searchPlusPlus.exclude`.
+ * It leaves out what the ignore files hide while `searchPlusPlus.searchIgnoredFiles` stays off.
+ * `search.useParentIgnoreFiles` and `search.useGlobalIgnoreFiles` add the ignore files above the folder and the global one, as in the built-in Search view.
+ * Every search covers the files that `search.exclude` hides.
  */
 function walkSettings(folder: vscode.WorkspaceFolder): WalkSettings {
     const search = vscode.workspace.getConfiguration("search", folder.uri)
@@ -30,9 +32,9 @@ function walkSettings(folder: vscode.WorkspaceFolder): WalkSettings {
             ...turnedOnGlobs(files.get<Record<string, unknown>>("exclude", {})),
             ...own.get<string[]>("exclude", [])
         ],
-        useIgnoreFiles: false,
-        useParentIgnoreFiles: false,
-        useGlobalIgnoreFiles: false,
+        useIgnoreFiles: !own.get<boolean>("searchIgnoredFiles", false),
+        useParentIgnoreFiles: search.get<boolean>("useParentIgnoreFiles", false),
+        useGlobalIgnoreFiles: search.get<boolean>("useGlobalIgnoreFiles", false),
         followSymlinks: search.get<boolean>("followSymlinks", true)
     }
 }
