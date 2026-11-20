@@ -258,7 +258,11 @@ A hint that stopped the search shows in the error colors of an input, as the bui
 
 - A search engine reads a query and a file and returns its matches.
 - Each search engine sits in its own module behind one interface.
-- Other VS Code extensions add search engines through the API that Search++ exports from its `activate` function.
+- Other VS Code extensions add search engines through the API that Search++ returns from its `activate` function.
+  [API.md](API.md) describes it.
+- An extension registers either a whole search engine or a file type whose keys it reads.
+  Search++ matches the keys of such a file type with the code of its own key path search.
+  The JSON and TOML engines run through the same hook.
 - A search engine declares the file types and the queries that it accepts.
 - Every query runs in every search engine that accepts it.
   `example.com` runs the plain text engine in every file and the key path engines in YAML, JSON and TOML files.
