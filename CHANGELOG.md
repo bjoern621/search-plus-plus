@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The Marketplace lists the extension as Search Plus Plus, since another extension holds the name search++.
+
 ## v0.1.0 (2026-11-20)
 
 ### Added
