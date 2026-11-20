@@ -226,6 +226,7 @@ class RunningSearch {
             const found = await this.searchWith(engine, { ...file, text })
             if (found) lists.push(found)
         }
+        if (lists.every((list) => list.length === 0)) return
         const lines = splitLines(text)
         const merged = mergeLineMatches(lists.map((list) => validMatches(list, lines)))
         this.emit(item.root, file, lines, merged)
