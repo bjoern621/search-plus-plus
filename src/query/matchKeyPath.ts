@@ -28,7 +28,7 @@ interface FoundReason {
 }
 
 interface Context {
-    keys: string[]
+    keys: readonly string[]
     /** Per key, the UTF-16 offsets at which a code point starts, plus the key length. */
     boundaries: number[][]
     compareKey: CompareKey
@@ -47,7 +47,7 @@ interface Context {
  */
 export function matchKeyPath(
     pattern: KeyPathPattern,
-    keys: string[],
+    keys: readonly string[],
     compareKey: CompareKey
 ): KeyPathMatch | undefined {
     if (keys.length === 0) {

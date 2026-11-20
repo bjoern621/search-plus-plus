@@ -14,16 +14,6 @@ export const YAML_FILES: FileKind = {
     extensions: [".yaml", ".yml"]
 }
 
-export const JSON_FILES: FileKind = {
-    languageIds: new Set(["json", "jsonc"]),
-    extensions: [".json", ".jsonc"]
-}
-
-export const TOML_FILES: FileKind = {
-    languageIds: new Set(["toml"]),
-    extensions: [".toml"]
-}
-
 export const CODE_FILES: FileKind = {
     languageIds: new Set(["typescript", "javascript", "typescriptreact", "javascriptreact"]),
     extensions: [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]

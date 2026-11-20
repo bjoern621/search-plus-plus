@@ -2,13 +2,14 @@ import { existsSync } from "node:fs"
 import { mkdtemp, writeFile, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
+import type { SearchPlusPlusApi } from "../../src/api"
 import { RegexEngine } from "../../src/engines/regex"
 import { textEngine } from "../../src/engines/text"
 import type { FileResult } from "../../src/messages"
 import { parseQuery } from "../../src/query"
 import { NO_FILE_FIELDS } from "../../src/search/globs"
 import { LanguageIndex } from "../../src/search/languages"
-import { EngineRegistry } from "../../src/search/registry"
+import { EngineRegistry, searchPlusPlusApi } from "../../src/search/registry"
 import { SearchRunner, type SearchOutcome } from "../../src/search/runner"
 import type { SearchRoot } from "../../src/search/workspaceEngine"
 
@@ -53,16 +54,24 @@ export interface RunResult {
     log: string[]
 }
 
-/** Runs `raw` through a runner with the text and regex engines, as the extension builds it. */
+/**
+ * Runs `raw` through a runner with the text and regex engines, as the extension builds it.
+ * `plugins` receives the API that `activate` returns, to register engines as another extension does.
+ */
 export async function runSearch(
     raw: string,
     roots: SearchRoot[],
-    options: { rgPath?: string; resultLineLimit?: number } = {}
+    options: {
+        rgPath?: string
+        resultLineLimit?: number
+        plugins?: (api: SearchPlusPlusApi) => void
+    } = {}
 ): Promise<RunResult> {
     const rgPath = "rgPath" in options ? options.rgPath : ripgrepOnPath()
     const log: string[] = []
     const registry = new EngineRegistry()
     registry.register(textEngine)
+    options.plugins?.(searchPlusPlusApi(registry))
     const runner = new SearchRunner({
         registry,
         workspaceEngines: [new RegexEngine(rgPath, (message) => log.push(message))],

@@ -1,21 +1,12 @@
-import type * as vscode from "vscode"
+import { API_VERSION, type Disposable, type SearchPlusPlusApi } from "../api"
+import { keyPathEngine } from "../structural/keyPathEngine"
 import type { SearchEngine } from "./types"
-
-/** The API that `activate` returns to other extensions. */
-export interface SearchPlusPlusApi {
-    /**
-     * Adds a search engine to every search that starts after the call.
-     * Throws if the id is empty or an engine with the same id is registered already.
-     * Disposing the result removes the engine.
-     */
-    registerEngine(engine: SearchEngine): vscode.Disposable
-}
 
 export class EngineRegistry {
     /** Maps an engine id to its engine. */
     private readonly engines = new Map<string, SearchEngine>()
 
-    register(engine: SearchEngine): vscode.Disposable {
+    register(engine: SearchEngine): Disposable {
         if (!engine.id)
             throw new Error(
                 "A search engine needs an id. Set `id` to a name unique across extensions."
@@ -35,5 +26,14 @@ export class EngineRegistry {
     /** Returns a copy, so a registration during a search leaves that search alone. */
     list(): SearchEngine[] {
         return [...this.engines.values()]
+    }
+}
+
+/** The API that `activate` returns, with every registration going into `registry`. */
+export function searchPlusPlusApi(registry: EngineRegistry): SearchPlusPlusApi {
+    return {
+        apiVersion: API_VERSION,
+        registerEngine: (engine) => registry.register(engine),
+        registerKeyPathFiles: (files) => registry.register(keyPathEngine(files))
     }
 }

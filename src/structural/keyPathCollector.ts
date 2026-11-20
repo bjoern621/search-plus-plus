@@ -52,7 +52,7 @@ export class KeyPathCollector {
      * `throughAlias` marks a node that the walk reached through an alias or a merge key.
      * Throws `SearchAborted` once the signal fires.
      */
-    visit(keys: string[], start: number, end: number, throughAlias = false): void {
+    visit(keys: readonly string[], start: number, end: number, throughAlias = false): void {
         this.visitedNodes++
         if (this.visitedNodes % ABORT_CHECK_INTERVAL_NODES === 0 && this.signal.aborted) {
             throw new SearchAborted()
@@ -122,7 +122,7 @@ function isVariable(segment: KeyPathSegment): boolean {
     return segment.kind === "globstar" || segment.pieces.some((piece) => piece.kind === "group")
 }
 
-function passesFilters(filters: PositionFilters, keys: string[]): boolean {
+function passesFilters(filters: PositionFilters, keys: readonly string[]): boolean {
     if (keys.length < filters.leading.length + filters.trailing.length) {
         return false
     }

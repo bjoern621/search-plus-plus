@@ -1,8 +1,9 @@
 import * as vscode from "vscode"
+import type { SearchPlusPlusApi } from "./api"
 import { textEngine } from "./engines/text"
 import { RegexEngine } from "./engines/regex"
 import { LanguageIndex, languageContributions } from "./search/languages"
-import { EngineRegistry, type SearchPlusPlusApi } from "./search/registry"
+import { EngineRegistry, searchPlusPlusApi } from "./search/registry"
 import { findRipgrep } from "./search/ripgrep"
 import { SearchRunner } from "./search/runner"
 import { SearchViewProvider } from "./searchViewProvider"
@@ -108,7 +109,7 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
         ])
     )
 
-    return { registerEngine: (engine) => registry.register(engine) }
+    return searchPlusPlusApi(registry)
 }
 
 export function deactivate(): void {}
