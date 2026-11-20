@@ -6,6 +6,9 @@
 
 - A click on a result line moves the focus into the editor, with the match selected.
   Space opens the file and keeps the focus in the results.
+- The clear and exclude buttons show filled icons.
+  The button for the files to include and exclude shows sliders in place of three dots.
+  The three dots stay for the menu in the view title.
 
 ### Fixed
 

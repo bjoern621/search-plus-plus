@@ -193,6 +193,12 @@ button {
     color: var(--vscode-icon-foreground);
 }
 
+/* A filled icon sits in the middle of its button, as a codicon does. */
+.filled-icon {
+    display: block;
+    margin: auto;
+}
+
 .icon:hover {
     background: var(--vscode-toolbar-hoverBackground);
 }

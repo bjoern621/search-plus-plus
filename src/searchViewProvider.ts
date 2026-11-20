@@ -21,6 +21,7 @@ import { DEFAULT_MATCHING, type MatchingOptions } from "./search/types"
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs"
 import { RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config"
 import { parseQuery } from "./query"
+import { SLIDERS_ICON, TRASH_ICON } from "./webview/filledIcons"
 import { readSearchText, unsavedTexts } from "./search/reader"
 import { splitLines } from "./search/results"
 import { searchRoots } from "./search/roots"
@@ -374,13 +375,13 @@ function renderHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     <div class="query-box">
       <div id="query-highlight" class="query-highlight" aria-hidden="true"></div>
       <input id="query" class="query-input" aria-label="Search" placeholder="Search" spellcheck="false" autocomplete="off">
-      <button class="icon clear" data-clears="query" tabindex="-1" aria-label="Clear" title="Clear"><span class="codicon codicon-trash" aria-hidden="true"></span></button>
+      <button class="icon clear" data-clears="query" tabindex="-1" aria-label="Clear" title="Clear">${TRASH_ICON}</button>
     </div>
-    <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields"><span class="codicon codicon-ellipsis" aria-hidden="true"></span></button>
+    <button id="details" class="icon" aria-label="Toggle search details" title="Toggle search details" aria-expanded="false" aria-controls="file-fields">${SLIDERS_ICON}</button>
   </div>
   <div id="file-fields" class="file-fields" hidden>
-    <label class="file-field">Files to include<span class="input-box"><input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="Examples: *.yaml, ./charts"><button class="icon clear" data-clears="include" tabindex="-1" aria-label="Clear" title="Clear"><span class="codicon codicon-trash" aria-hidden="true"></span></button></span></label>
-    <label class="file-field">Files to exclude<span class="input-box"><input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="Examples: ./vendor/, *.lock"><button class="icon clear" data-clears="exclude" tabindex="-1" aria-label="Clear" title="Clear"><span class="codicon codicon-trash" aria-hidden="true"></span></button></span></label>
+    <label class="file-field">Files to include<span class="input-box"><input id="include" class="input" spellcheck="false" autocomplete="off" placeholder="Examples: *.yaml, ./charts"><button class="icon clear" data-clears="include" tabindex="-1" aria-label="Clear" title="Clear">${TRASH_ICON}</button></span></label>
+    <label class="file-field">Files to exclude<span class="input-box"><input id="exclude" class="input" spellcheck="false" autocomplete="off" placeholder="Examples: ./vendor/, *.lock"><button class="icon clear" data-clears="exclude" tabindex="-1" aria-label="Clear" title="Clear">${TRASH_ICON}</button></span></label>
   </div>
   <div id="hint" class="hint" role="status" hidden></div>
 </div>
