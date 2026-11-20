@@ -14,16 +14,18 @@ export interface RootFile {
  * Lists every file of every root, ignored and excluded files included, minus the `.git` folders.
  * A root on disk gets listed by ripgrep. Without ripgrep, or on another file system, `workspace.findFiles` lists it.
  * A root that cannot be listed, such as a folder deleted since the workspace opened, adds no files and a log line.
+ * `onFile` receives each file once it got listed, before the promise resolves.
  */
 export async function collectFiles(
     roots: readonly SearchRoot[],
     rgPath: string | undefined,
     signal: AbortSignal,
-    log: (message: string) => void
+    log: (message: string) => void,
+    onFile: (file: RootFile) => void = () => {}
 ): Promise<RootFile[]> {
     const lists = await Promise.all(
         roots.map((root) =>
-            listRoot(root, rgPath, signal, log).catch((error: unknown) => {
+            listRoot(root, rgPath, signal, log, onFile).catch((error: unknown) => {
                 if (!signal.aborted)
                     log(`Could not list the files of ${root.uri}: ${String(error)}`)
                 return []
@@ -33,15 +35,18 @@ export async function collectFiles(
     return lists.flat()
 }
 
-function listRoot(
+async function listRoot(
     root: SearchRoot,
     rgPath: string | undefined,
     signal: AbortSignal,
-    log: (message: string) => void
+    log: (message: string) => void,
+    onFile: (file: RootFile) => void
 ): Promise<RootFile[]> {
-    return rgPath && root.fsPath !== undefined
-        ? listWithRipgrep(rgPath, root, root.fsPath, signal, log)
-        : listWithFindFiles(root, signal)
+    if (rgPath && root.fsPath !== undefined)
+        return listWithRipgrep(rgPath, root, root.fsPath, signal, log, onFile)
+    const files = await listWithFindFiles(root, signal)
+    files.forEach(onFile)
+    return files
 }
 
 async function listWithRipgrep(
@@ -49,7 +54,8 @@ async function listWithRipgrep(
     root: SearchRoot,
     cwd: string,
     signal: AbortSignal,
-    log: (message: string) => void
+    log: (message: string) => void,
+    onFile: (file: RootFile) => void
 ): Promise<RootFile[]> {
     const files: RootFile[] = []
     const toSlash =
@@ -59,7 +65,11 @@ async function listWithRipgrep(
     const exit = await runRipgrep(rgPath, ["--files", ...ripgrepWalkArgs(root.walk)], {
         cwd,
         signal,
-        onLine: (line) => files.push({ root, relativePath: toSlash(line) })
+        onLine: (line) => {
+            const file = { root, relativePath: toSlash(line) }
+            files.push(file)
+            onFile(file)
+        }
     })
     if (exit.code === 2) log(`ripgrep could not list every file in ${cwd}: ${exit.stderr.trim()}`)
     return files

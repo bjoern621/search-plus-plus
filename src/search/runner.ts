@@ -157,6 +157,17 @@ class RunningSearch {
         take: (item: PendingFile) => void,
         fieldFilter: PathFilter
     ): Promise<void> {
+        if (this.workspaceEngines.length === 0) {
+            // Each file gets searched once listed, since no file waits for the matches of a workspace engine.
+            await collectFiles(
+                this.request.roots,
+                this.deps.rgPath,
+                this.signal,
+                this.deps.log,
+                (file) => take({ root: file.root, relativePath: file.relativePath, lists: [] })
+            )
+            return
+        }
         const [files] = await Promise.all([
             collectFiles(this.request.roots, this.deps.rgPath, this.signal, this.deps.log),
             this.runWorkspaceEngines((root, relativePath, matches) => {
