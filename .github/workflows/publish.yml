@@ -8,6 +8,10 @@ on:
 jobs:
     publish:
         runs-on: ubuntu-latest
+        # The Marketplace's trusted publishing policy for this workflow takes the OIDC token in place of a token secret.
+        permissions:
+            contents: read
+            id-token: write
         steps:
             - uses: actions/checkout@v4
             - uses: actions/setup-node@v4
@@ -29,6 +33,4 @@ jobs:
                   name: search-plus-plus-vsix
                   path: search-plus-plus.vsix
                   if-no-files-found: error
-            - run: npx vsce publish --packagePath search-plus-plus.vsix
-              env:
-                  VSCE_PAT: ${{ secrets.VSCE_PAT }}
+            - run: npx vsce publish --oidc --packagePath search-plus-plus.vsix
