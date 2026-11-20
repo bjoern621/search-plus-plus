@@ -1,3 +1,4 @@
+import * as path from "node:path"
 import * as vscode from "vscode"
 import type { FileResult } from "../messages"
 import type { Hint } from "../query/types"
@@ -13,6 +14,7 @@ import { readSearchText, unsavedTexts } from "./reader"
 import type { EngineRegistry } from "./registry"
 import { buildFileResult, splitLines } from "./results"
 import type { FileInfo, LineMatch, Query, SearchEngine } from "./types"
+import type { PoolSearch, SearchWorkerPool } from "./worker/pool"
 import type { SearchRoot, WorkspaceSearchEngine } from "./workspaceEngine"
 
 export type SearchOutcome =
@@ -27,6 +29,8 @@ export interface SearchRunnerDeps {
     rgPath: string | undefined
     languages: () => LanguageIndex
     log: (message: string) => void
+    /** Searches files on disk in worker threads. Without it, every file gets searched in the extension host. */
+    workers?: SearchWorkerPool
 }
 
 export interface SearchRequest {
@@ -131,6 +135,7 @@ class RunningSearch {
     private async searchDisk(): Promise<void> {
         const fieldFilter = new PathFilter(this.request.fields)
         const queue = new WorkQueue(FILE_READ_CONCURRENCY, this.signal)
+        const workers = this.deps.workers?.start(this.request.query, this.signal)
         // Nested workspace folders list a file twice.
         const takenUris = new Set<string>()
         const take = (item: PendingFile) => {
@@ -138,12 +143,20 @@ class RunningSearch {
             const uri = this.fileUri(item.root, item.relativePath)
             if (takenUris.has(uri)) return
             takenUris.add(uri)
-            queue.add(() =>
-                this.searchFile(item).catch((error: unknown) =>
-                    this.deps.log(`Could not search ${item.relativePath}: ${String(error)}`)
-                )
-            )
+            this.dispatch(item, uri, queue, workers)
         }
+        try {
+            await this.takeFiles(take, fieldFilter)
+        } finally {
+            await workers?.drained()
+            await queue.drained()
+        }
+    }
+
+    private async takeFiles(
+        take: (item: PendingFile) => void,
+        fieldFilter: PathFilter
+    ): Promise<void> {
         const [files] = await Promise.all([
             collectFiles(this.request.roots, this.deps.rgPath, this.signal, this.deps.log),
             this.runWorkspaceEngines((root, relativePath, matches) => {
@@ -171,7 +184,51 @@ class RunningSearch {
         }
         for (const file of files)
             take({ root: file.root, relativePath: file.relativePath, lists: [] })
-        await queue.drained()
+    }
+
+    /** Hands a file to the workers where they can search it, else to `queue`. */
+    private dispatch(
+        item: PendingFile,
+        uri: string,
+        queue: WorkQueue,
+        workers: PoolSearch | undefined
+    ): void {
+        const file: FileInfo = {
+            uri,
+            relativePath: item.relativePath,
+            languageId: this.languageOf(item.relativePath)
+        }
+        const engines = this.fileEngines.filter((engine) => this.accepts(engine, file))
+        if (engines.length === 0 && item.lists.length === 0) return
+        const inThread = () =>
+            queue.add(() =>
+                this.searchFile(item, file, engines).catch((error: unknown) =>
+                    this.deps.log(`Could not search ${item.relativePath}: ${String(error)}`)
+                )
+            )
+        const fsPath = workers && this.workerPath(item, uri, engines)
+        if (workers === undefined || fsPath === undefined) {
+            inThread()
+            return
+        }
+        workers.add(
+            { fsPath, info: file, engineIds: engines.map((engine) => engine.id) },
+            (text, lists) => this.emitFound(item.root, file, text, lists),
+            inThread
+        )
+    }
+
+    /** The path on disk of a file that the workers can search: no workspace engine matched it, no editor holds unsaved changes and the workers run every engine that accepts it. */
+    private workerPath(
+        item: PendingFile,
+        uri: string,
+        engines: readonly SearchEngine[]
+    ): string | undefined {
+        const workers = this.deps.workers
+        if (workers === undefined || item.root.fsPath === undefined) return undefined
+        if (item.lists.length > 0 || engines.length === 0 || this.unsaved.has(uri)) return undefined
+        if (!engines.every((engine) => workers.engineIds.has(engine.id))) return undefined
+        return path.join(item.root.fsPath, item.relativePath)
     }
 
     /** Returns per workspace engine the matches of each text in `texts`. */
@@ -210,14 +267,11 @@ class RunningSearch {
         )
     }
 
-    private async searchFile(item: PendingFile): Promise<void> {
-        const file: FileInfo = {
-            uri: this.fileUri(item.root, item.relativePath),
-            relativePath: item.relativePath,
-            languageId: this.languageOf(item.relativePath)
-        }
-        const engines = this.fileEngines.filter((engine) => this.accepts(engine, file))
-        if (engines.length === 0 && item.lists.length === 0) return
+    private async searchFile(
+        item: PendingFile,
+        file: FileInfo,
+        engines: readonly SearchEngine[]
+    ): Promise<void> {
         const text = await readSearchText(vscode.Uri.parse(file.uri), this.unsaved)
         if (text === undefined || this.signal.aborted) return
 
@@ -226,10 +280,19 @@ class RunningSearch {
             const found = await this.searchWith(engine, { ...file, text })
             if (found) lists.push(found)
         }
-        if (lists.every((list) => list.length === 0)) return
+        this.emitFound(item.root, file, text, lists)
+    }
+
+    private emitFound(
+        root: SearchRoot,
+        file: FileInfo,
+        text: string,
+        lists: readonly LineMatch[][]
+    ): void {
+        if (this.signal.aborted || lists.every((list) => list.length === 0)) return
         const lines = splitLines(text)
         const merged = mergeLineMatches(lists.map((list) => validMatches(list, lines)))
-        this.emit(item.root, file, lines, merged)
+        this.emit(root, file, lines, merged)
     }
 
     private languageOf(relativePath: string): string {

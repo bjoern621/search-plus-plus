@@ -13,6 +13,13 @@ const builds = [
         mainFields: ["module", "main"]
     },
     {
+        entryPoints: { searchWorker: "src/search/worker/searchWorker.ts" },
+        outdir: "dist",
+        platform: "node",
+        format: "cjs",
+        mainFields: ["module", "main"]
+    },
+    {
         entryPoints: { webview: "src/webview/main.ts" },
         outdir: "dist",
         platform: "browser",

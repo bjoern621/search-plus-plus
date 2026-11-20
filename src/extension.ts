@@ -1,3 +1,4 @@
+import * as path from "node:path"
 import * as vscode from "vscode"
 import type { SearchPlusPlusApi } from "./api"
 import { textEngine } from "./engines/text"
@@ -6,6 +7,7 @@ import { LanguageIndex, languageContributions } from "./search/languages"
 import { EngineRegistry, searchPlusPlusApi } from "./search/registry"
 import { findRipgrep } from "./search/ripgrep"
 import { SearchRunner } from "./search/runner"
+import { SearchWorkerPool } from "./search/worker/pool"
 import { SearchViewProvider } from "./searchViewProvider"
 import { structuralEngines } from "./structural"
 
@@ -41,6 +43,10 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
     registry.register(textEngine)
     for (const engine of structuralEngines()) registry.register(engine)
     let languages: LanguageIndex | undefined
+    const workers = new SearchWorkerPool(
+        path.join(context.extensionPath, "dist", "searchWorker.js"),
+        (message) => log.warn(message)
+    )
     const runner = new SearchRunner({
         registry,
         workspaceEngines: [new RegexEngine(rgPath, (message) => log.warn(message))],
@@ -51,7 +57,8 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
                     vscode.extensions.all.map((extension) => extension.packageJSON)
                 )
             )),
-        log: (message) => log.warn(message)
+        log: (message) => log.warn(message),
+        workers
     })
     const provider = new SearchViewProvider(
         context.extensionUri,
@@ -62,6 +69,7 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
 
     context.subscriptions.push(
         log,
+        { dispose: () => workers.dispose() },
         vscode.extensions.onDidChange(() => {
             languages = undefined
             void provider.reloadIconTheme()

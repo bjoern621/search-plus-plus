@@ -11,7 +11,9 @@ import { NO_FILE_FIELDS } from "../../src/search/globs"
 import { LanguageIndex } from "../../src/search/languages"
 import { EngineRegistry, searchPlusPlusApi } from "../../src/search/registry"
 import { SearchRunner, type SearchOutcome } from "../../src/search/runner"
+import type { SearchWorkerPool } from "../../src/search/worker/pool"
 import type { SearchRoot } from "../../src/search/workspaceEngine"
+import { structuralEngines } from "../../src/structural"
 
 /** The ripgrep binary on the PATH. The runner tests need one, as VS Code ships one to the extension. */
 export function ripgrepOnPath(): string {
@@ -56,6 +58,7 @@ export interface RunResult {
 
 /**
  * Runs `raw` through a runner with the text and regex engines, as the extension builds it.
+ * `structural` adds the key path engines.
  * `plugins` receives the API that `activate` returns, to register engines as another extension does.
  */
 export async function runSearch(
@@ -65,19 +68,23 @@ export async function runSearch(
         rgPath?: string
         resultLineLimit?: number
         plugins?: (api: SearchPlusPlusApi) => void
+        structural?: boolean
+        workers?: SearchWorkerPool
     } = {}
 ): Promise<RunResult> {
     const rgPath = "rgPath" in options ? options.rgPath : ripgrepOnPath()
     const log: string[] = []
     const registry = new EngineRegistry()
     registry.register(textEngine)
+    if (options.structural) for (const engine of structuralEngines()) registry.register(engine)
     options.plugins?.(searchPlusPlusApi(registry))
     const runner = new SearchRunner({
         registry,
         workspaceEngines: [new RegexEngine(rgPath, (message) => log.push(message))],
         rgPath,
         languages: () => new LanguageIndex([]),
-        log: (message) => log.push(message)
+        log: (message) => log.push(message),
+        workers: options.workers
     })
     const files: FileResult[] = []
     const outcome = await runner.run({

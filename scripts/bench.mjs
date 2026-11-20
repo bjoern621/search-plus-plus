@@ -1,4 +1,4 @@
-// Measures the search runner on real folders: `npm run bench -- --folder <path> [--query <q>]... [--all-files] [--runs <n>]`.
+// Measures the search runner on real folders: `npm run bench -- --folder <path> [--query <q>]... [--all-files] [--no-workers] [--runs <n>]`.
 // Each row names the median duration, the matched files and lines and a hash of the matches, so two builds can be compared.
 import { spawnSync } from "node:child_process"
 import { existsSync, mkdtempSync } from "node:fs"
@@ -8,7 +8,7 @@ import * as esbuild from "esbuild"
 
 const outdir = mkdtempSync(join(tmpdir(), "search-plus-plus-bench-"))
 await esbuild.build({
-    entryPoints: { run: "test/bench/run.ts" },
+    entryPoints: { run: "test/bench/run.ts", searchWorker: "src/search/worker/searchWorker.ts" },
     outdir,
     bundle: true,
     platform: "node",
@@ -21,6 +21,7 @@ await esbuild.build({
 })
 
 const args = process.argv.slice(2)
+if (!args.includes("--no-workers")) args.push("--worker", join(outdir, "searchWorker.mjs"))
 if (!args.includes("--rg")) {
     const rg = (process.env.PATH ?? "")
         .split(delimiter)

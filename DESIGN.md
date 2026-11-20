@@ -269,6 +269,8 @@ A hint that stopped the search shows in the error colors of an input, as the bui
 - The results list the matches of all search engines together.
   A line that several search engines find shows once.
 - The plain text engine accepts every file, so a file type without an engine of its own still gets results.
+- The built-in engines search the files on disk in worker threads, to spread a search over several cores and keep the extension host free.
+- An engine of another extension and a file with unsaved changes get searched in the extension host.
 - The first version brings search engines for plain text, regex and key paths in YAML, JSON and TOML.
 - The search engines get picked during implementation.
   Candidates: the ripgrep that ships with VS Code, ugrep for fuzzy matching, `@ast-grep/napi` for code and the `yaml`, `jsonc-parser` and `toml-eslint-parser` packages for key paths.

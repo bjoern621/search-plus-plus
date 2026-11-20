@@ -20,3 +20,15 @@ export const LINE_EXCERPT_LEAD_CHARS = 40
 /** The bounds that VS Code sets on `workbench.tree.indent`. */
 export const TREE_INDENT_MIN_PX = 4
 export const TREE_INDENT_MAX_PX = 40
+
+/** The most worker threads that search files at once. The pool also leaves one core to the extension host. */
+export const SEARCH_WORKER_COUNT_MAX = 8
+
+/** Files per message to a worker, since a message per file would cost the extension host more than the search. */
+export const SEARCH_WORKER_CHUNK_FILES = 64
+
+/** Chunks that a worker holds at once. The second keeps the worker busy while the extension host reads the result of the first. */
+export const SEARCH_WORKER_CHUNKS_IN_FLIGHT = 2
+
+/** The workers quit after this long without a search, to give back their memory. */
+export const SEARCH_WORKER_IDLE_DURATION_MS = 60_000

@@ -1,8 +1,7 @@
 import { readFile, stat } from "node:fs/promises"
 import * as vscode from "vscode"
-import { BINARY_SNIFF_LENGTH_BYTES, FILE_SIZE_LIMIT_BYTES } from "./config"
-
-const decoder = new TextDecoder("utf-8")
+import { FILE_SIZE_LIMIT_BYTES } from "./config"
+import { searchTextOf } from "./decode"
 
 /**
  * Reads the text that a search sees in a file: the editor's text when the file has unsaved changes, else the file.
@@ -16,8 +15,7 @@ export async function readSearchText(
     const dirty = unsaved.get(uri.toString())
     if (dirty !== undefined) return dirty
     const bytes = await readBytes(uri).catch(() => undefined)
-    if (!bytes || isBinary(bytes)) return undefined
-    return decoder.decode(bytes)
+    return bytes && searchTextOf(bytes)
 }
 
 /** Snapshots the text of every editor with unsaved changes. */
@@ -36,8 +34,4 @@ async function readBytes(uri: vscode.Uri): Promise<Uint8Array | undefined> {
     }
     if ((await vscode.workspace.fs.stat(uri)).size > FILE_SIZE_LIMIT_BYTES) return undefined
     return vscode.workspace.fs.readFile(uri)
-}
-
-function isBinary(bytes: Uint8Array): boolean {
-    return bytes.subarray(0, BINARY_SNIFF_LENGTH_BYTES).includes(0)
 }

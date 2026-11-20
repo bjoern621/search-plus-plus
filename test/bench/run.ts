@@ -9,6 +9,7 @@ import { LanguageIndex } from "../../src/search/languages"
 import { EngineRegistry } from "../../src/search/registry"
 import { SearchRunner } from "../../src/search/runner"
 import { DEFAULT_MATCHING } from "../../src/search/types"
+import { SearchWorkerPool } from "../../src/search/worker/pool"
 import type { SearchRoot } from "../../src/search/workspaceEngine"
 import { structuralEngines } from "../../src/structural"
 
@@ -31,6 +32,8 @@ const { values } = parseArgs({
         "all-files": { type: "boolean", default: false },
         "no-fuzzy": { type: "boolean", default: false },
         rg: { type: "string" },
+        worker: { type: "string" },
+        "no-workers": { type: "boolean", default: false },
         json: { type: "boolean", default: false }
     }
 })
@@ -42,6 +45,10 @@ if (folders.length === 0 || !values.rg) {
 const rgPath = values.rg
 const runs = Number(values.runs)
 const matching = { ...DEFAULT_MATCHING, fuzzy: !values["no-fuzzy"] }
+const workers =
+    values.worker === undefined
+        ? undefined
+        : new SearchWorkerPool(values.worker, (message) => console.error(message))
 
 const roots: SearchRoot[] = folders.map((fsPath, index) => ({
     index,
@@ -66,7 +73,8 @@ function newRunner(): SearchRunner {
         workspaceEngines: [new RegexEngine(rgPath, () => {})],
         rgPath,
         languages: () => new LanguageIndex([]),
-        log: (message) => console.error(message)
+        log: (message) => console.error(message),
+        workers
     })
 }
 
