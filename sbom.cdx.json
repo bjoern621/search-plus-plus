@@ -9,7 +9,7 @@
         {
           "type": "application",
           "name": "npm",
-          "version": "10.9.9"
+          "version": "11.19.1"
         },
         {
           "type": "library",
@@ -98,7 +98,7 @@
       "name": "search-plus-plus",
       "version": "0.0.1",
       "bom-ref": "search-plus-plus@0.0.1",
-      "description": "Search by key paths in YAML, JSON and TOML, with typo and umlaut matching by default.",
+      "description": "Search text and the key paths of YAML, JSON and TOML files. Typos and umlaut spellings match by default.",
       "licenses": [
         {
           "license": {
@@ -107,7 +107,24 @@
           }
         }
       ],
-      "purl": "pkg:npm/search-plus-plus@0.0.1",
+      "purl": "pkg:npm/search-plus-plus@0.0.1?vcs_url=git%2Bhttps%3A%2F%2Fgithub.com%2Fbjoern621%2Fsearch-plus-plus.git",
+      "externalReferences": [
+        {
+          "url": "https://github.com/bjoern621/search-plus-plus/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "git+https://github.com/bjoern621/search-plus-plus.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/bjoern621/search-plus-plus#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        }
+      ],
       "properties": [
         {
           "name": "cdx:npm:package:constraint:engine:vscode",
