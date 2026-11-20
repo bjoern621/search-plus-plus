@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- The extension ID changes to `bjoern621.searchplusplus`, since another extension on the Marketplace holds the name `search-plus-plus`.
+  An extension that uses the API must name the new ID.
+
 ## v0.1.1 (2026-11-20)
 
 ### Changed

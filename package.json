@@ -1,5 +1,5 @@
 {
-    "name": "search-plus-plus",
+    "name": "searchplusplus",
     "displayName": "Search Plus Plus",
     "description": "Search text and the key paths of YAML, JSON and TOML files. Typos and umlaut spellings match by default.",
     "version": "0.1.1",

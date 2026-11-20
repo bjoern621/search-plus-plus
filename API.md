@@ -12,7 +12,7 @@ Declare Search++ as a dependency in the manifest of your extension:
 
 ```json
 // package.json
-"extensionDependencies": ["bjoern621.search-plus-plus"]
+"extensionDependencies": ["bjoern621.searchplusplus"]
 ```
 
 Fetch the API in your `activate` function and register what your extension brings:
@@ -25,7 +25,7 @@ import { iniFiles } from "./iniFiles"
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const api = await vscode.extensions
-        .getExtension<SearchPlusPlusApi>("bjoern621.search-plus-plus")
+        .getExtension<SearchPlusPlusApi>("bjoern621.searchplusplus")
         ?.activate()
     if (api?.apiVersion !== API_VERSION) return
     context.subscriptions.push(api.registerKeyPathFiles(iniFiles))

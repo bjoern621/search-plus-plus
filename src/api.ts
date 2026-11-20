@@ -7,7 +7,7 @@ export const API_VERSION = 1
 
 /**
  * The API that the `activate` function of Search++ returns to other extensions.
- * Get it with `vscode.extensions.getExtension<SearchPlusPlusApi>("bjoern621.search-plus-plus")?.activate()`.
+ * Get it with `vscode.extensions.getExtension<SearchPlusPlusApi>("bjoern621.searchplusplus")?.activate()`.
  */
 export interface SearchPlusPlusApi {
     /**
