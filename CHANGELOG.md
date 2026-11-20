@@ -7,6 +7,10 @@
 - A click on a result line moves the focus into the editor, with the match selected.
   Space opens the file and keeps the focus in the results.
 
+### Fixed
+
+- A divider inside a result block, where a blank line takes no row, separates the hover and selection outlines as well (both outlined the whole block).
+
 ## v0.1.2 (2026-11-20)
 
 ### Changed

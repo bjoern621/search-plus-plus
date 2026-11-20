@@ -17,43 +17,52 @@ export function indentColumns(line: ResultLine): number | undefined {
 }
 
 /**
- * Finds the columns to remove from each row, so the least indented line of a block starts at the left edge.
- * A block runs over the rows of one result block, meaning a match with its context, blank lines that take no row left out.
- * Every line of a block loses the same columns, so the lines keep their indentation relative to each other.
+ * Tells whether `row` shows the line right below the line of `above` in the same file.
+ * Such rows form one group: the rows of a result block between two lines that take no row, such as blank lines.
+ * A divider separates two groups. Hover and selection outline one group.
  */
-/**
- * Finds the line that a click on `line` opens: the line itself when it matched, else the first matched line of its block.
- * A context line outside every block, or in a block without a match, opens itself.
- */
-export function targetLine(file: FileResult, line: ResultLine): ResultLine {
-    if (line.match) return line
-    const block = file.blocks.find((lines) => lines.includes(line))
-    return block?.find((other) => other.match) ?? line
+export function continuesGroup(above: Row | undefined, row: Row | undefined): boolean {
+    return (
+        above?.kind === "line" &&
+        row?.kind === "line" &&
+        above.file === row.file &&
+        row.line.line === above.line.line + 1
+    )
 }
 
-/** Finds the first and the last row of the result block that holds the code line at `index`. */
-export function blockAround(rows: readonly Row[], index: number): { first: number; last: number } {
-    const row = rows[index]
-    if (row?.kind !== "line") return { first: index, last: index }
-    const block = row.file.blocks.find((lines) => lines.includes(row.line))
-    const inBlock = (other: Row | undefined) =>
-        other?.kind === "line" && other.file === row.file && (block?.includes(other.line) ?? false)
+/** Finds the first and the last row of the group that holds the code line at `index`. */
+export function groupAround(rows: readonly Row[], index: number): { first: number; last: number } {
     let first = index
     let last = index
-    while (inBlock(rows[first - 1])) first--
-    while (inBlock(rows[last + 1])) last++
+    while (continuesGroup(rows[first - 1], rows[first])) first--
+    while (continuesGroup(rows[last], rows[last + 1])) last++
     return { first, last }
 }
 
-export function blockDedents(rows: readonly Row[]): number[] {
-    const dedents = rows.map(() => 0)
-    const blockOf = new Map<ResultLine, readonly ResultLine[]>()
-    const continuesBlock = (above: Row | undefined, row: Row | undefined): boolean => {
-        if (above?.kind !== "line" || row?.kind !== "line" || above.file !== row.file) return false
-        if (!blockOf.has(above.line))
-            for (const block of row.file.blocks) for (const line of block) blockOf.set(line, block)
-        return blockOf.get(above.line) === blockOf.get(row.line)
+/**
+ * Finds the line that a click on the code line at `index` opens.
+ * A matched line opens itself. A context line opens the first matched line of its group, else of its result block.
+ * A context line outside every block, or in a block without a match, opens itself.
+ */
+export function targetLine(rows: readonly Row[], index: number): ResultLine | undefined {
+    const row = rows[index]
+    if (row?.kind !== "line") return undefined
+    if (row.line.match) return row.line
+    const group = groupAround(rows, index)
+    for (let other = group.first; other <= group.last; other++) {
+        const candidate = rows[other]
+        if (candidate?.kind === "line" && candidate.line.match) return candidate.line
     }
+    const block = row.file.blocks.find((lines) => lines.includes(row.line))
+    return block?.find((line) => line.match) ?? row.line
+}
+
+/**
+ * Finds the columns to remove from each row, to start the least indented line of a group at the left edge.
+ * Every line of a group loses the same columns. The lines keep their indentation relative to each other.
+ */
+export function groupDedents(rows: readonly Row[]): number[] {
+    const dedents = rows.map(() => 0)
     let start = 0
     while (start < rows.length) {
         if (rows[start]?.kind !== "line") {
@@ -61,7 +70,7 @@ export function blockDedents(rows: readonly Row[]): number[] {
             continue
         }
         let end = start + 1
-        while (end < rows.length && continuesBlock(rows[end - 1], rows[end])) end++
+        while (end < rows.length && continuesGroup(rows[end - 1], rows[end])) end++
         let smallest = Infinity
         for (let index = start; index < end; index++) {
             const row = rows[index]
@@ -90,7 +99,7 @@ export function dedent(line: ResultLine, columns: number): ResultLine {
 /**
  * Cuts the start of a match line whose first match would end past the right edge of its row.
  * The line keeps its indentation, then the text from a word boundary about a third of the row before the match.
- * The indentation always stays, so the line lines up with the other lines of its block. The caller marks the cut outside the text.
+ * The indentation always stays, so the line lines up with the other lines of its group. The caller marks the cut outside the text.
  * Returns undefined for a line whose match fits in `fitsChars` characters.
  */
 export function cutToMatch(line: ResultLine, fitsChars: number): ResultLine | undefined {

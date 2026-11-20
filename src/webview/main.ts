@@ -19,7 +19,14 @@ import { QueryHighlight, renderHint } from "./queryInput"
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree"
 import { keyPathElement, shownKeys } from "./keyPath"
 import { fitPaths, folderCuts, pathElement } from "./fitPaths"
-import { blockAround, blockDedents, cutToMatch, dedent, targetLine } from "./codeLines"
+import {
+    continuesGroup,
+    cutToMatch,
+    dedent,
+    groupAround,
+    groupDedents,
+    targetLine
+} from "./codeLines"
 
 interface ViewState extends FileFields {
     query: string
@@ -155,10 +162,9 @@ rowsElement.addEventListener("click", (event) => {
         return
     }
     const index = rowIndexFromEvent(event)
-    const row = rows[index]
-    if (!row) return
+    if (!rows[index]) return
     focusRow(index)
-    activate(row, { preview: true, preserveFocus: false })
+    activate(index, { preview: true, preserveFocus: false })
 })
 
 // The class "keyboard-focus" shows the selection outline after a key press in the results and hides it on a click.
@@ -195,8 +201,8 @@ results.addEventListener("keydown", (event) => {
 })
 
 rowsElement.addEventListener("dblclick", (event) => {
-    const row = rows[rowIndexFromEvent(event)]
-    if (row?.kind === "line") activate(row, { preview: false, preserveFocus: false })
+    const index = rowIndexFromEvent(event)
+    if (rows[index]?.kind === "line") activate(index, { preview: false, preserveFocus: false })
 })
 
 rowsElement.addEventListener("contextmenu", (event) => {
@@ -461,7 +467,7 @@ function layout(): void {
     layoutStale = false
     rows = tree.rows(collapsed, resultsLayout)
     offsets = rowOffsets(rows)
-    dedents = blockDedents(rows)
+    dedents = groupDedents(rows)
     if (focusedIndex >= rows.length) focusedIndex = rows.length - 1
     rowsElement.style.height = `${offsets.at(-1) ?? 0}px`
     const widest = rows.reduce(
@@ -636,12 +642,12 @@ function cutMatchLines(): void {
     }
 }
 
-/** True for a code line whose number does not follow the code line above it in the same file. */
+/** True for a code line that starts a group below another code line of the same file. */
 function skipsLines(index: number): boolean {
     const row = rows[index]
     const above = rows[index - 1]
     if (row?.kind !== "line" || above?.kind !== "line" || above.file !== row.file) return false
-    return row.line.line !== above.line.line + 1
+    return !continuesGroup(above, row)
 }
 
 /** One rounded outline around the group of the hovered row, one around the group of the focused row. */
@@ -657,12 +663,12 @@ function outlineElement(kind: string): HTMLDivElement {
 
 /**
  * Finds the rows that hover and selection mark together.
- * A folder or file takes the rows inside it. A code line takes its result block, meaning its match with the context lines.
+ * A folder or file takes the rows inside it. A code line takes its group, meaning the rows between two dividers.
  */
 function groupOf(index: number): { first: number; last: number } | undefined {
     const row = rows[index]
     if (!row) return undefined
-    if (row.kind === "line") return blockAround(rows, index)
+    if (row.kind === "line") return groupAround(rows, index)
     let last = index
     while (last + 1 < rows.length && (rows[last + 1]?.depth ?? 0) > row.depth) last++
     return { first: index, last }
@@ -729,16 +735,15 @@ function rowIndexFromEvent(event: Event): number {
 function handleRowKey(press: KeyPress): boolean {
     const command = rowCommand(rows, focusedIndex, press)
     if (!command) return false
-    const row = rows[focusedIndex]
     switch (command.kind) {
         case "focus":
             focusRow(command.index)
             return true
         case "activate":
-            if (row) activate(row, command.open)
+            activate(focusedIndex, command.open)
             return true
         case "toggle":
-            if (row) activate(row, { preview: true, preserveFocus: true })
+            activate(focusedIndex, { preview: true, preserveFocus: true })
             return true
         case "menu":
             openMenu(focusedIndex, true)
@@ -765,7 +770,7 @@ function scrollRowIntoView(index: number): void {
 }
 
 /** Opens the context menu of the matched line at `index`. Returns false for any other row. */
-/** A context line opens the menu of the matched line of its block, as a click on it opens that match. */
+/** A context line opens the menu of the matched line of its group, as a click on it opens that match. */
 function openMenu(clickedIndex: number, fromKeyboard: boolean): boolean {
     const index = targetRowIndex(clickedIndex)
     const row = rows[index]
@@ -786,7 +791,7 @@ function openMenu(clickedIndex: number, fromKeyboard: boolean): boolean {
 function targetRowIndex(index: number): number {
     const row = rows[index]
     if (row?.kind !== "line") return index
-    const target = targetLine(row.file, row.line)
+    const target = targetLine(rows, index)
     const found = rows.findIndex(
         (candidate) =>
             candidate.kind === "line" && candidate.file === row.file && candidate.line === target
@@ -818,8 +823,11 @@ function runMenuAction(action: MenuAction): void {
 }
 
 /** A line opens its file at the match. A folder or file row collapses or expands. */
-function activate(row: Row, open: OpenOptions): void {
-    switch (row.kind) {
+function activate(index: number, open: OpenOptions): void {
+    const row = rows[index]
+    switch (row?.kind) {
+        case undefined:
+            return
         case "folder":
         case "file":
             if (collapsed.has(row.key)) collapsed.delete(row.key)
@@ -827,7 +835,7 @@ function activate(row: Row, open: OpenOptions): void {
             invalidateLayout()
             return
         case "line":
-            openLine(row.file, targetLine(row.file, row.line), open)
+            openLine(row.file, targetLine(rows, index) ?? row.line, open)
             return
     }
 }
