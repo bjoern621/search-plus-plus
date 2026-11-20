@@ -3,3 +3,5 @@ dist/
 package-lock.json
 sbom.cdx.json
 **/fixtures/
+# A copy of the shared taskfiles repository, kept byte for byte.
+taskfiles/

@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.0.1
+## Unreleased
 
-First release.
+### Added
 
 - Search view in the activity bar, bound to Ctrl+Shift+F.
 - Text search that matches in any case, inside words, across umlaut spellings and across a typo or two.
@@ -11,5 +11,7 @@ First release.
 - Member chain search in TypeScript and JavaScript: `config.server.port` finds `this.config.server.port`.
 - Regex search for a query between two slashes.
 - Results as a list or a folder tree, with context lines, exclude buttons and a context menu that says why a line matched.
+- Search on several cores, with the first results shown while the file listing still runs.
+- Files hidden by `.gitignore` and the other ignore files stay out of a search, unless the view menu or `searchPlusPlus.searchIgnoredFiles` turns them on.
 - Settings for each matching default, the excluded globs, the result limit and the context lines.
 - An API for other extensions to add search engines.

@@ -1,0 +1,16 @@
+version: "3"
+
+# task release, task version and task notes come from the shared taskfiles repository, copied into taskfiles/.
+includes:
+    release:
+        taskfile: ./taskfiles/release.yml
+        dir: .
+        flatten: true
+        vars:
+            TAG_PREFIX: v
+            FORGE: github
+            BRANCH: main
+            CHANGELOG: CHANGELOG.md
+            # vsce publishes the version in package.json. The SBOM names it as well.
+            PREPARE: npm version "$VERSION" --no-git-tag-version --allow-same-version && npm run sbom
+            CI: true
