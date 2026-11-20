@@ -1,0 +1,34 @@
+name: Publish
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: npm
+            # The runner tests spawn ripgrep, which VS Code ships to the extension.
+            - run: sudo apt-get update && sudo apt-get install --yes ripgrep
+            - run: npm ci
+            # vsce publishes the version in package.json, whatever the tag names.
+            - name: Check that the tag matches the version
+              run: test "$GITHUB_REF_NAME" = "v$(node --print 'require("./package.json").version')"
+            - run: npm run typecheck
+            - run: npm test
+            - run: npm run sbom:check
+            - run: npm run package -- --out search-plus-plus.vsix
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: search-plus-plus-vsix
+                  path: search-plus-plus.vsix
+                  if-no-files-found: error
+            - run: npx vsce publish --packagePath search-plus-plus.vsix
+              env:
+                  VSCE_PAT: ${{ secrets.VSCE_PAT }}
