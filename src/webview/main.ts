@@ -1,6 +1,7 @@
 import type {
     FileResult,
     HostMessage,
+    OpenOptions,
     ResultLine,
     ResultsLayout,
     SearchStatus,
@@ -157,7 +158,7 @@ rowsElement.addEventListener("click", (event) => {
     const row = rows[index]
     if (!row) return
     focusRow(index)
-    activate(row, true)
+    activate(row, { preview: true, preserveFocus: false })
 })
 
 // The class "keyboard-focus" shows the selection outline after a key press in the results and hides it on a click.
@@ -195,7 +196,7 @@ results.addEventListener("keydown", (event) => {
 
 rowsElement.addEventListener("dblclick", (event) => {
     const row = rows[rowIndexFromEvent(event)]
-    if (row?.kind === "line") activate(row, false)
+    if (row?.kind === "line") activate(row, { preview: false, preserveFocus: false })
 })
 
 rowsElement.addEventListener("contextmenu", (event) => {
@@ -734,10 +735,10 @@ function handleRowKey(press: KeyPress): boolean {
             focusRow(command.index)
             return true
         case "activate":
-            if (row) activate(row, command.preserveFocus)
+            if (row) activate(row, command.open)
             return true
         case "toggle":
-            if (row) activate(row, true)
+            if (row) activate(row, { preview: true, preserveFocus: true })
             return true
         case "menu":
             openMenu(focusedIndex, true)
@@ -817,7 +818,7 @@ function runMenuAction(action: MenuAction): void {
 }
 
 /** A line opens its file at the match. A folder or file row collapses or expands. */
-function activate(row: Row, preserveFocus: boolean): void {
+function activate(row: Row, open: OpenOptions): void {
     switch (row.kind) {
         case "folder":
         case "file":
@@ -826,18 +827,18 @@ function activate(row: Row, preserveFocus: boolean): void {
             invalidateLayout()
             return
         case "line":
-            openLine(row.file, targetLine(row.file, row.line), preserveFocus)
+            openLine(row.file, targetLine(row.file, row.line), open)
             return
     }
 }
 
-function openLine(file: FileResult, line: ResultLine, preserveFocus: boolean): void {
+function openLine(file: FileResult, line: ResultLine, open: OpenOptions): void {
     vscode.postMessage({
         type: "open",
         uri: file.uri,
         line: line.line,
         range: line.ranges[0],
-        preserveFocus
+        ...open
     })
 }
 

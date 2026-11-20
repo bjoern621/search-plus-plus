@@ -1,9 +1,10 @@
+import type { OpenOptions } from "../messages"
 import type { Row } from "./tree"
 
 /** What a key pressed on the results does. */
 export type RowCommand =
     | { kind: "focus"; index: number }
-    | { kind: "activate"; preserveFocus: boolean }
+    | { kind: "activate"; open: OpenOptions }
     | { kind: "toggle" }
     | { kind: "menu" }
 
@@ -45,9 +46,9 @@ export function rowCommand(
     if (!row) return undefined
     switch (press.key) {
         case "Enter":
-            return { kind: "activate", preserveFocus: false }
+            return { kind: "activate", open: { preview: false, preserveFocus: false } }
         case " ":
-            return { kind: "activate", preserveFocus: true }
+            return { kind: "activate", open: { preview: true, preserveFocus: true } }
         case "ArrowLeft":
             if (row.kind !== "line" && !row.collapsed) return { kind: "toggle" }
             return focusParent(rows, index)

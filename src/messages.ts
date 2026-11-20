@@ -68,6 +68,16 @@ export interface IconFontFace {
     style: string
 }
 
+/**
+ * How a result line opens its file.
+ * `preview`: the editor opens in the preview tab, which the next opened file replaces.
+ * `preserveFocus`: the focus stays in the view.
+ */
+export interface OpenOptions {
+    preview: boolean
+    preserveFocus: boolean
+}
+
 /** The fonts and the icon definitions of the active file icon theme, keyed by definition id. */
 export interface IconTable {
     fonts: IconFontFace[]
@@ -86,7 +96,7 @@ export type ViewMessage =
     | { type: "ready" }
     | ({ type: "search"; query: string } & FileFields)
     | { type: "cancelSearch" }
-    | { type: "open"; uri: string; line: number; range?: Range; preserveFocus: boolean }
+    | ({ type: "open"; uri: string; line: number; range?: Range } & OpenOptions)
     | { type: "copy"; text: string }
     /** Copies the whole line, since the view holds an excerpt of a long line. */
     | { type: "copyLine"; uri: string; line: number }

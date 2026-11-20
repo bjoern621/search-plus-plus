@@ -257,7 +257,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         const range = message.range ?? { start: 0, end: 0 }
         await vscode.window.showTextDocument(vscode.Uri.parse(message.uri), {
             selection: new vscode.Range(message.line, range.start, message.line, range.end),
-            preview: message.preserveFocus,
+            preview: message.preview,
             preserveFocus: message.preserveFocus
         })
     }

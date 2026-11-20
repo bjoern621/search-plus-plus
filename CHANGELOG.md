@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- A click on a result line moves the focus into the editor, with the match selected.
+  Space opens the file and keeps the focus in the results.
+
 ## v0.1.2 (2026-11-20)
 
 ### Changed
