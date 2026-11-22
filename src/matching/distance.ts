@@ -19,25 +19,31 @@ export function allowedEdits(
  * Counts the edits between two code point sequences: inserts, deletes, replacements and swaps of two neighbours.
  * It computes the optimal string alignment distance, which edits no substring twice: `ca` to `abc` takes 3 edits.
  * Stops once the distance exceeds `maxEdits` and returns `maxEdits + 1` then.
+ * `bLength` lets a caller pass a reused array, of which the first `bLength` code points count.
  */
-export function editDistance(a: readonly number[], b: readonly number[], maxEdits: number): number {
+export function editDistance(
+    a: readonly number[],
+    b: readonly number[],
+    maxEdits: number,
+    bLength = b.length
+): number {
     assert(maxEdits >= 0, `maxEdits must not be negative, got ${maxEdits}`)
     const tooFar = maxEdits + 1
-    if (Math.abs(a.length - b.length) > maxEdits) {
+    if (Math.abs(a.length - bLength) > maxEdits) {
         return tooFar
     }
 
-    ensureRowLength(b.length + 1)
+    ensureRowLength(bLength + 1)
     let rowBeforePrevious = rows[0]
     let previousRow = rows[1]
     let row = rows[2]
-    for (let column = 0; column <= b.length; column++) {
+    for (let column = 0; column <= bLength; column++) {
         previousRow[column] = column
     }
     for (let i = 1; i <= a.length; i++) {
         row[0] = i
         let rowMinimum = i
-        for (let j = 1; j <= b.length; j++) {
+        for (let j = 1; j <= bLength; j++) {
             const replaceCost = a[i - 1] === b[j - 1] ? 0 : 1
             let distance = Math.min(
                 previousRow[j]! + 1,
@@ -59,7 +65,7 @@ export function editDistance(a: readonly number[], b: readonly number[], maxEdit
         previousRow = row
         row = recycled
     }
-    return Math.min(previousRow[b.length]!, tooFar)
+    return Math.min(previousRow[bLength]!, tooFar)
 }
 
 // Reused across calls, since fuzzy matching runs the distance for many words per line.

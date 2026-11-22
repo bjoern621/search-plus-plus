@@ -25,7 +25,8 @@ const ABORT_CHECK_INTERVAL_NODES = 1024
  * A match met directly wins over one met through a YAML alias, so it shows the key path as written.
  */
 export class KeyPathCollector {
-    private readonly lines: LineIndex
+    /** Built at the first match, since most files that a search walks hold none. */
+    private lines: LineIndex | undefined
     /** Maps the file offset of a matched node to its match. */
     private readonly matches = new Map<number, { match: LineMatch; throughAlias: boolean }>()
     private readonly compareKey: CompareKey
@@ -34,14 +35,14 @@ export class KeyPathCollector {
     private visitedNodes = 0
 
     constructor(
-        text: string,
+        private readonly text: string,
         private readonly pattern: KeyPathPattern,
         compareKey: CompareKey,
         private readonly signal: AbortSignal
     ) {
-        this.lines = new LineIndex(text)
         this.compareKey = cachedCompareKey(compareKey)
-        this.filters = positionFilters(pattern, this.compareKey)
+        // Each filter caches its verdicts, so a second cache in front of compareKey would cost a lookup per key for nothing.
+        this.filters = positionFilters(pattern, compareKey)
         this.showKeyPath = usesKeyPathSyntax(pattern)
     }
 
@@ -68,6 +69,7 @@ export class KeyPathCollector {
         if (match === undefined) {
             return
         }
+        this.lines ??= new LineIndex(this.text)
         const found = lineMatch(this.lines, start, end, [...keys], reasonsOf(match))
         this.matches.set(start, {
             match: this.showKeyPath ? { ...found, showKeyPath: true } : found,
@@ -151,12 +153,12 @@ function keyFilter(segment: KeyPathSegment, compareKey: CompareKey): KeyFilter |
     }
     const how =
         only.kind === "quoted" ? { exact: true, fuzzy: false } : { exact: false, fuzzy: true }
-    const verdicts = new Map<string, boolean>()
+    const verdicts: Record<string, boolean> = Object.create(null)
     return (key) => {
-        let verdict = verdicts.get(key)
+        let verdict = verdicts[key]
         if (verdict === undefined) {
             verdict = compareKey(only.value, key, how) !== undefined
-            verdicts.set(key, verdict)
+            verdicts[key] = verdict
         }
         return verdict
     }

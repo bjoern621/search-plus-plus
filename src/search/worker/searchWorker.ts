@@ -1,21 +1,26 @@
 // The entry of a worker thread that reads files from disk and runs the built-in engines on them.
 
 import { readFileSync, statSync } from "node:fs"
-import { parentPort } from "node:worker_threads"
+import { parentPort, workerData } from "node:worker_threads"
 import { assert, assertNever } from "../assert"
 import { FILE_SIZE_LIMIT_BYTES } from "../config"
 import { searchTextOf } from "../decode"
-import type { LineMatch, Query, SearchEngine, SearchFile } from "../types"
-import type { ChunkDone, FoundFile, SearchChunk, ToWorker } from "./protocol"
+import { fileMatches, shownLines, splitLines } from "../results"
+import type { LineMatch, PreparedFile, Query, SearchEngine } from "../types"
+import type { ChunkDone, SearchChunk, ToWorker, WorkerData } from "./protocol"
 import { workerEngines } from "./engines"
+import { type CachedFile, cachedFile, TextCache } from "./textCache"
 
 interface RunningSearch {
     query: Query
+    contextLines: number
     signal: AbortSignal
 }
 
 const port = parentPort
 if (port === null) throw new Error("searchWorker.js must run in a worker thread")
+
+const texts = new TextCache((workerData as WorkerData).textCacheBytes)
 
 const engines = new Map(workerEngines().map((engine) => [engine.id, engine]))
 const searches = new Map<number, RunningSearch>()
@@ -23,8 +28,10 @@ const searches = new Map<number, RunningSearch>()
 port.on("message", (message: ToWorker) => {
     switch (message.type) {
         case "start":
+            texts.startSearch()
             searches.set(message.searchId, {
                 query: message.query,
+                contextLines: message.contextLines,
                 signal: flagSignal(message.aborted)
             })
             return
@@ -45,22 +52,36 @@ function searchChunk(chunk: SearchChunk): ChunkDone {
     if (search === undefined) return done
     chunk.files.forEach((file, index) => {
         if (search.signal.aborted) return
-        const text = readText(file.fsPath)
-        if (text === undefined) return
+        const cached = readFile(file.fsPath)
+        if (cached?.text === undefined || cached.folds === undefined) return
+        const text = cached.text
+        let lines: string[] | undefined
+        const prepared: PreparedFile = {
+            ...file.info,
+            text,
+            folds: cached.folds,
+            lines: () => (lines ??= splitLines(text))
+        }
         const lists = file.engineIds.map((id) => {
             const engine = engines.get(id)
             assert(engine !== undefined, "a chunk names only the engines of workerEngines")
-            return runEngine(engine, { ...file.info, text }, search, done.errors)
+            return runEngine(engine, prepared, search, done.errors)
         })
-        if (lists.some((list) => list.length > 0))
-            done.found.push({ index, text, lists } satisfies FoundFile)
+        if (lists.every((list) => list.length === 0)) return
+        const { matches } = fileMatches(prepared.lines(), lists)
+        if (matches.length === 0) return
+        done.found.push({
+            index,
+            lines: shownLines(prepared.lines(), matches, search.contextLines),
+            matches
+        })
     })
     return done
 }
 
 function runEngine(
     engine: SearchEngine,
-    file: SearchFile,
+    file: PreparedFile,
     search: RunningSearch,
     errors: string[]
 ): LineMatch[] {
@@ -78,11 +99,19 @@ function runEngine(
     }
 }
 
-/** Reads a file as `readSearchText` does. Returns undefined for a binary file, a file over `FILE_SIZE_LIMIT_BYTES` and a file that cannot be read. */
-function readText(fsPath: string): string | undefined {
+/**
+ * Reads a file as `readSearchText` does, from `texts` while it keeps its size and modification time.
+ * Returns undefined for a file over `FILE_SIZE_LIMIT_BYTES` and a file that cannot be read.
+ */
+function readFile(fsPath: string): CachedFile | undefined {
     try {
-        if (statSync(fsPath).size > FILE_SIZE_LIMIT_BYTES) return undefined
-        return searchTextOf(readFileSync(fsPath))
+        const stat = statSync(fsPath)
+        if (stat.size > FILE_SIZE_LIMIT_BYTES) return undefined
+        const known = texts.get(fsPath, stat.mtimeMs, stat.size)
+        if (known !== undefined) return known
+        const file = cachedFile(stat.mtimeMs, stat.size, searchTextOf(readFileSync(fsPath)))
+        texts.set(fsPath, file)
+        return file
     } catch {
         return undefined
     }

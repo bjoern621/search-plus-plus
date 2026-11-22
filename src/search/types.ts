@@ -2,6 +2,7 @@
 // The parts that other extensions see sit in `src/api.ts`.
 
 import type * as api from "../api"
+import type { FileFolds } from "../matching"
 import type { KeyPathPattern, QueryError } from "../query/types"
 
 export type {
@@ -43,4 +44,11 @@ export interface SearchEngine {
         query: Query,
         signal: AbortSignal
     ): api.LineMatch[] | Promise<api.LineMatch[]>
+}
+
+/** A file as a search worker hands it to the built-in engines, with views of its text that outlive one search. */
+export interface PreparedFile extends api.SearchFile {
+    folds: FileFolds
+    /** The lines of `text` as `splitLines` splits them, split once per search. */
+    lines(): string[]
 }

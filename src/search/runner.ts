@@ -9,10 +9,9 @@ import { collectFiles } from "./files"
 import { type FileFields, PathFilter } from "./globs"
 import type { LanguageIndex } from "./languages"
 import { LineFeedLineMap } from "./lineFeedLines"
-import { mergeLineMatches } from "./merge"
 import { readSearchText, unsavedTexts } from "./reader"
 import type { EngineRegistry } from "./registry"
-import { buildFileResult, splitLines } from "./results"
+import { buildFileResult, fileMatches, splitLines } from "./results"
 import type { FileInfo, LineMatch, Query, SearchEngine } from "./types"
 import type { PoolSearch, SearchWorkerPool } from "./worker/pool"
 import type { SearchRoot, WorkspaceSearchEngine } from "./workspaceEngine"
@@ -147,7 +146,11 @@ class RunningSearch {
         if (this.request.roots.length === 0) return
         const fieldFilter = new PathFilter(this.request.fields)
         const queue = new WorkQueue(FILE_READ_CONCURRENCY, this.signal)
-        const workers = this.deps.workers?.start(this.request.query, this.signal)
+        const workers = this.deps.workers?.start(
+            this.request.query,
+            this.request.contextLines,
+            this.signal
+        )
         // Nested workspace folders list a file twice.
         const take = (item: PendingFile) => {
             if (!fieldFilter.accepts(item.relativePath)) return
@@ -270,7 +273,7 @@ class RunningSearch {
         }
         workers.add(
             { fsPath, info: file, engineIds: engines.map((engine) => engine.id) },
-            (text, lists) => this.emitFound(item.root, file, text, lists),
+            (lines, matches) => this.emit(item.root, file, lines, matches),
             inThread
         )
     }
@@ -347,16 +350,21 @@ class RunningSearch {
         lists: readonly LineMatch[][]
     ): void {
         if (this.signal.aborted || lists.every((list) => list.length === 0)) return
-        const lines = splitLines(text)
-        const merged = mergeLineMatches(lists.map((list) => validMatches(list, lines)))
-        this.emit(root, file, lines, merged)
+        const { lines, matches } = fileMatches(splitLines(text), lists)
+        this.emit(root, file, lines, matches)
     }
 
     private languageOf(relativePath: string): string {
         return this.languages.languageOf(relativePath.slice(relativePath.lastIndexOf("/") + 1))
     }
 
-    private emit(root: ResultRoot, file: FileInfo, lines: string[], merged: LineMatch[]): void {
+    /** `lines` must hold the lines that `buildFileResult` reads for `merged`. */
+    private emit(
+        root: ResultRoot,
+        file: FileInfo,
+        lines: readonly string[],
+        merged: readonly LineMatch[]
+    ): void {
         const limit = this.request.resultLineLimit ?? RESULT_LINE_LIMIT
         const room = limit - this.matchedLines
         if (merged.length === 0 || room <= 0 || this.signal.aborted) return
@@ -418,18 +426,6 @@ function workspaceEditorLines(text: string, lists: readonly LineMatch[][]): Line
     if (lists.length === 0) return []
     const lineFeeds = new LineFeedLineMap(text)
     return lists.map((list) => lineFeeds.toEditorLines(list))
-}
-
-/** Drops matches that point outside the file and ranges that point outside their line, since engines from other extensions may send them. */
-function validMatches(matches: readonly LineMatch[], lines: readonly string[]): LineMatch[] {
-    return matches.flatMap((match) => {
-        const text = lines[match.line]
-        if (!Number.isInteger(match.line) || text === undefined) return []
-        const ranges = match.ranges.filter(
-            (range) => range.start >= 0 && range.start <= range.end && range.end <= text.length
-        )
-        return [{ ...match, ranges }]
-    })
 }
 
 /** Runs added work at most `limit` at a time. Drops the waiting work once `signal` aborts. */

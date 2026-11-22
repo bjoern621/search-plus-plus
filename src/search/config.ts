@@ -25,10 +25,13 @@ export const TREE_INDENT_MAX_PX = 40
 export const SEARCH_WORKER_COUNT_MAX = 8
 
 /** Files per message to a worker, since a message per file would cost the extension host more than the search. */
-export const SEARCH_WORKER_CHUNK_FILES = 64
+export const SEARCH_WORKER_CHUNK_FILES = 16
 
 /** Chunks that a worker holds at once. The second keeps the worker busy while the extension host reads the result of the first. */
 export const SEARCH_WORKER_CHUNKS_IN_FLIGHT = 2
+
+/** The workers keep the texts of at most this many bytes on disk between searches, shared out evenly among them. */
+export const SEARCH_TEXT_CACHE_MAX_BYTES = 128 * 1024 * 1024
 
 /** The workers quit after this long without a search, to give back their memory. */
 export const SEARCH_WORKER_IDLE_DURATION_MS = 60_000

@@ -4,6 +4,9 @@
 
 ### Changed
 
+- A search after the first one returns faster.
+  The search workers keep the files that they read, with what the search derived from them, until a file changes.
+  They keep up to 128 MiB of files, counted by their size on disk.
 - A click on a result line moves the focus into the editor, with the match selected.
   Space opens the file and keeps the focus in the results.
 - The clear and exclude buttons show filled icons.

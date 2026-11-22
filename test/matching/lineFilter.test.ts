@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { findInLine, lineFilter } from "../../src/matching"
+import { FileFolds, findInLine, lineFilter } from "../../src/matching"
 import { foldedString, foldText } from "../../src/matching/fold"
 import { splitLines } from "../../src/search/results"
 import { DEFAULT_MATCHING, type MatchingOptions, type TextPiece } from "../../src/search/types"
@@ -133,13 +133,13 @@ describe("lineFilter", () => {
             const pieces = randomPieces(next)
             const matching = MATCHINGS[run % MATCHINGS.length]!
             const mayMatch = lineFilter(text, pieces, matching)
-            for (const line of splitLines(text)) {
-                if (findInLine(line, pieces, matching).length === 0) continue
+            splitLines(text).forEach((line, index) => {
+                if (findInLine(line, pieces, matching).length === 0) return
                 matchedLines++
-                expect(mayMatch?.(line), JSON.stringify({ text, line, pieces, matching })).toBe(
+                expect(mayMatch?.(index), JSON.stringify({ text, line, pieces, matching })).toBe(
                     true
                 )
-            }
+            })
         }
         expect(matchedLines).toBeGreaterThan(1000)
     })
@@ -152,13 +152,13 @@ describe("lineFilter", () => {
             const pieces = randomPieces(next, ASCII_QUERY_WORDS)
             const matching = MATCHINGS[run % MATCHINGS.length]!
             const mayMatch = lineFilter(text, pieces, matching)
-            for (const line of splitLines(text)) {
-                if (findInLine(line, pieces, matching).length === 0) continue
+            splitLines(text).forEach((line, index) => {
+                if (findInLine(line, pieces, matching).length === 0) return
                 matchedLines++
-                expect(mayMatch?.(line), JSON.stringify({ text, line, pieces, matching })).toBe(
+                expect(mayMatch?.(index), JSON.stringify({ text, line, pieces, matching })).toBe(
                     true
                 )
-            }
+            })
         }
         expect(matchedLines).toBeGreaterThan(1000)
     })
@@ -174,22 +174,60 @@ describe("lineFilter", () => {
         const pieces: TextPiece[] = [{ kind: "literal", value: "\u0340" }]
         const text = "a\n\u0340b"
         expect(findInLine("\u0340b", pieces)).toHaveLength(1)
-        expect(lineFilter(text, pieces)?.("\u0340b")).toBe(true)
+        expect(lineFilter(text, pieces)?.(1)).toBe(true)
     })
 
     it("keeps a word of an ASCII file that two swaps of neighbors make from the query word", () => {
-        // Each swap breaks two runs of the query word, so three runs would leave none intact.
+        // Each swap breaks two runs of the query word, so a filter on three runs of it would drop the line.
         const pieces: TextPiece[] = [{ kind: "word", value: "configuration", exact: false }]
         const line = "const conifguratoin = 1"
         expect(findInLine(line, pieces)).toHaveLength(1)
-        expect(lineFilter(line, pieces)?.(line)).toBe(true)
+        expect(lineFilter(line, pieces)?.(0)).toBe(true)
     })
 
     it("drops the lines that hold none of a piece", () => {
         const pieces: TextPiece[] = [{ kind: "word", value: "configuration", exact: false }]
         const mayMatch = lineFilter("a configuratoin\nnothing here\nConfiguration\n", pieces)!
-        expect(mayMatch("a configuratoin")).toBe(true)
-        expect(mayMatch("nothing here")).toBe(false)
-        expect(mayMatch("Configuration")).toBe(true)
+        expect(mayMatch(0)).toBe(true)
+        expect(mayMatch(1)).toBe(false)
+        expect(mayMatch(2)).toBe(true)
+    })
+})
+
+describe("findInLine with the folds of its file", () => {
+    /** Searches `text` as the text engine does: the lines that the filter keeps, with the folds that it filled. */
+    function searchAsTextEngine(text: string, pieces: TextPiece[], matching: MatchingOptions) {
+        const folds = new FileFolds(text)
+        const mayMatch = lineFilter(folds, pieces, matching)
+        return splitLines(text).map((line, index) =>
+            mayMatch?.(index) === true ? findInLine(line, pieces, matching, folds) : []
+        )
+    }
+
+    it("finds what findInLine finds without them", () => {
+        const next = random(4)
+        let matchedLines = 0
+        for (let run = 0; run < 10_000; run++) {
+            const ascii = run % 2 === 0
+            const text = ascii ? randomAsciiText(next) : randomText(next, Math.floor(next() * 80))
+            const pieces = randomPieces(next, ascii ? ASCII_QUERY_WORDS : QUERY_WORDS)
+            const matching = MATCHINGS[run % MATCHINGS.length]!
+            const expected = splitLines(text).map((line) => findInLine(line, pieces, matching))
+            matchedLines += expected.filter((matches) => matches.length > 0).length
+            expect(
+                searchAsTextEngine(text, pieces, matching),
+                JSON.stringify({ text, pieces, matching })
+            ).toEqual(expected)
+        }
+        expect(matchedLines).toBeGreaterThan(1000)
+    })
+
+    it("finds a close spelling inside a word of many short parts", () => {
+        // A hash of a lockfile splits into parts of one or two letters, so a close spelling may span several parts.
+        const text = "sha512-AbUrIxQ9\nnothing\n"
+        const pieces: TextPiece[] = [{ kind: "word", value: "Uri", exact: false }]
+        const expected = splitLines(text).map((line) => findInLine(line, pieces))
+        expect(expected[0]).not.toEqual([])
+        expect(searchAsTextEngine(text, pieces, DEFAULT_MATCHING)).toEqual(expected)
     })
 })

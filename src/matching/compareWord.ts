@@ -2,6 +2,8 @@ import { DEFAULT_MATCHING, type MatchingOptions, type MatchReason } from "../sea
 import { allowedEdits, editDistance } from "./distance"
 import { codePointLength, codePoints, foldCase, foldCaseAndUmlauts, spellOutUmlauts } from "./fold"
 
+const ASCII_ONLY = /^[\x00-\x7f]*$/
+
 export interface WordComparison {
     /** Empty for a match as written. */
     reasons: MatchReason[]
@@ -26,8 +28,15 @@ export function compareWord(
     if (exact) {
         return undefined
     }
-
-    const foldedQuery = normalizeWord(queryWord, matching)
+    const maxEdits = matching.fuzzy ? allowedEdits(codePointLength(queryWord), matching) : 0
+    const foldedQuery = normalizedQueryWord(queryWord, matching)
+    // An ASCII candidate folds to as many code points as it holds. One too far off in length skips its fold.
+    if (
+        Math.abs(codePointLength(foldedQuery) - candidate.length) > maxEdits &&
+        ASCII_ONLY.test(candidate)
+    ) {
+        return undefined
+    }
     const foldedCandidate = normalizeWord(candidate, matching)
     if (foldedQuery === foldedCandidate) {
         return { reasons: reasonsForFoldedMatch(queryWord, candidate) }
@@ -36,7 +45,6 @@ export function compareWord(
         return undefined
     }
 
-    const maxEdits = matching.fuzzy ? allowedEdits(codePointLength(queryWord), matching) : 0
     if (maxEdits === 0) {
         return undefined
     }
@@ -45,6 +53,29 @@ export function compareWord(
         return undefined
     }
     return { reasons: [{ kind: "fuzzy", query: queryWord, found: candidate, edits }] }
+}
+
+let lastQueryWord:
+    { text: string; matchCase: boolean; umlautVariants: boolean; folded: string } | undefined
+
+/** `normalizeWord` of a query word, kept for the next call, since a search compares one query word with many candidates in a row. */
+function normalizedQueryWord(text: string, matching: MatchingOptions): string {
+    const last = lastQueryWord
+    if (
+        last?.text === text &&
+        last.matchCase === matching.matchCase &&
+        last.umlautVariants === matching.umlautVariants
+    ) {
+        return last.folded
+    }
+    const folded = normalizeWord(text, matching)
+    lastQueryWord = {
+        text,
+        matchCase: matching.matchCase,
+        umlautVariants: matching.umlautVariants,
+        folded
+    }
+    return folded
 }
 
 /** Folds the case and the umlauts of a text as far as `matching` allows, so two texts that `matching` treats as equal come out equal. */

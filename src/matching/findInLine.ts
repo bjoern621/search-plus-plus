@@ -1,3 +1,4 @@
+import { LINE_BREAK } from "../search/results"
 import {
     DEFAULT_MATCHING,
     type MatchingOptions,
@@ -11,6 +12,7 @@ import { allowedEdits, editDistance } from "./distance"
 import {
     codePointLength,
     codePoints,
+    codePointsInto,
     foldCase,
     foldCaseAndUmlauts,
     foldText,
@@ -36,18 +38,20 @@ export interface LineTextMatch {
  * A wildcard matches the shortest run of characters that lets the rest match.
  * Pieces without a word or a literal match nothing.
  * Caches the compiled pieces per array, so the caller must not change the array between calls.
+ * `file` names the folds of the file that holds the line. The search then takes the close spellings that `lineFilter` found in that file.
  */
 export function findInLine(
     line: string,
     pieces: TextPiece[],
-    matching: MatchingOptions = DEFAULT_MATCHING
+    matching: MatchingOptions = DEFAULT_MATCHING,
+    file?: FileFolds
 ): LineTextMatch[] {
     const query = compiledQuery(pieces, matching)
     if (query.pieces.length === 0 || !containsRequiredTexts(line, query)) {
         return []
     }
 
-    const search = new LineSearch(line, query.pieces, matching)
+    const search = new LineSearch(line, query.pieces, matching, file)
     const matches: LineTextMatch[] = []
     let from = 0
     for (;;) {
@@ -60,105 +64,184 @@ export function findInLine(
     }
 }
 
-/** Tests one line for one piece, true if the line may hold an occurrence. */
-type LineTest = (line: string, folds: LineFolds) => boolean
-
 /**
  * Tests cheaply whether a line of `text` can hold a match of the pieces.
+ * The test takes a line by its index among the lines that `splitLines` splits `text` into.
  * A caller runs `findInLine` on the lines that pass.
  * A line that fails the test gets no match from `findInLine`. A line that passes may get none as well.
  * Returns undefined when no line of `text` can hold a match.
  */
 export function lineFilter(
-    text: string,
+    text: string | FileFolds,
     pieces: TextPiece[],
     matching: MatchingOptions = DEFAULT_MATCHING
-): ((line: string) => boolean) | undefined {
+): ((lineIndex: number) => boolean) | undefined {
     const query = compiledQuery(pieces, matching)
     if (query.pieces.length === 0) {
         return undefined
     }
-    const file = new FileFolds(text)
-    const tests: LineTest[] = []
+    const file = typeof text === "string" ? new FileFolds(text) : text
+    let passing: Uint8Array | undefined
     for (const piece of query.pieces) {
         if (piece.kind === "wildcard") {
             continue
         }
-        const test = lineTest(piece, file)
-        if (test === undefined) {
+        const marks = linesHolding(piece, file)
+        if (passing === undefined) {
+            passing = marks
+        } else {
+            for (let line = 0; line < passing.length; line++) {
+                passing[line]! &= marks[line]!
+            }
+        }
+        if (!passing.includes(1)) {
             return undefined
         }
-        tests.push(test)
     }
-    return (line) => {
-        const folds = new LineFolds(line)
-        return tests.every((test) => test(line, folds))
-    }
-}
-
-/** Returns undefined when no line of the file holds an occurrence of the piece. */
-function lineTest(
-    piece: Exclude<CompiledPiece, { kind: "wildcard" }>,
-    file: FileFolds
-): LineTest | undefined {
-    switch (piece.kind) {
-        case "exactWord":
-        case "exactLiteral":
-            if (!file.text.includes(piece.value)) {
-                return undefined
-            }
-            return (line) => line.includes(piece.value)
-        case "literal":
-            if (!file.mayHoldCaseFolded(piece.folded)) {
-                return undefined
-            }
-            return (_line, folds) => folds.caseFolded().includes(piece.folded)
-        case "word": {
-            const hitWords = piece.maxEdits === 0 ? [] : closeSpelledWords(piece, file)
-            if (hitWords.length === 0 && !file.mayHoldFullyFolded(piece.folded)) {
-                return undefined
-            }
-            if (hitWords.length > LINE_FILTER_MAX_HIT_WORDS) {
-                return () => true
-            }
-            return (line, folds) =>
-                folds.fullyFolded().includes(piece.folded) ||
-                hitWords.some((word) => line.includes(word))
-        }
-    }
-}
-
-/** The words of the file with a close spelling of the piece, as `fuzzyOccurrences` looks for them. */
-function closeSpelledWords(piece: FuzzyWordPiece, file: FileFolds): string[] {
-    const minSpanUnits = piece.foldedCodePoints.length - piece.maxEdits
-    const hitWords: string[] = []
-    const ascii = file.isAscii()
-    const words =
-        ascii && piece.runs.length > 0
-            ? wordsHoldingAQueryRun(piece, file.text, file.fullyFoldedText())
-            : new Set(file.text.match(WORD))
-    for (const word of words) {
-        // Folding keeps the length of ASCII text.
-        if ((ascii ? word.length : foldedString(word, true).length) < minSpanUnits) {
-            continue
-        }
-        if (cachedCloseSpellings(piece, word).length > 0) {
-            hitWords.push(word)
-        }
-    }
-    return hitWords
+    assert(passing !== undefined, "a compiled query holds a piece other than a wildcard")
+    const lines = passing
+    return (lineIndex) => lines[lineIndex] === 1
 }
 
 /**
- * The folds of a whole file, computed on first use.
- * A line folds to a run of the file's fold, since folding works per character and no character spans a line break.
+ * Marks with 1 each line of the file that may hold an occurrence of the piece.
+ * A file with a combining mark at the start of a line gets every line marked, since its folds join that mark to the line break before it.
+ */
+function linesHolding(
+    piece: Exclude<CompiledPiece, { kind: "wildcard" }>,
+    file: FileFolds
+): Uint8Array {
+    if (file.marksAfterLineBreaks) {
+        return new Uint8Array(file.lineCount()).fill(1)
+    }
+    switch (piece.kind) {
+        case "exactWord":
+        case "exactLiteral":
+            return file.linesHolding(piece.value, "none")
+        case "literal":
+            return file.linesHolding(piece.folded, "case")
+        case "word": {
+            const marks = file.linesHolding(piece.folded, "full")
+            if (piece.maxEdits > 0) {
+                const { lines } = file.words()
+                for (const word of closeSpelledWords(piece, file)) {
+                    for (const line of lines[word]!) {
+                        marks[line] = 1
+                    }
+                }
+            }
+            return marks
+        }
+    }
+}
+
+/**
+ * The indexes in `file.words()` of the words with a close spelling of the piece, as `fuzzyOccurrences` looks for them.
+ * Keeps their close spellings in `file`, see `FileFolds.closeSpellingsOf`.
+ */
+function closeSpelledWords(piece: FuzzyWordPiece, file: FileFolds): number[] {
+    const minSpanUnits = piece.foldedCodePoints.length - piece.maxEdits
+    const hitWords: number[] = []
+    const spellingsByWord = new Map<string, CloseSpelling[]>()
+    const { words, folded, foldedLengths, letters, ascii } = file.words()
+    for (let index = 0; index < words.length; index++) {
+        if (foldedLengths[index]! < minSpanUnits) {
+            continue
+        }
+        // A letter of the query word that the word lacks takes at least one edit, as in `lacksTooManyCharacters`.
+        if (bitCount(piece.letters & ~letters[index]!) > piece.maxEdits) {
+            continue
+        }
+        const asciiWord = ascii[index] === 1
+        const boundaries = file.partBoundariesOf(index)
+        // Each span covers a whole part. An ASCII part folds to as many code units as it holds.
+        if (
+            asciiWord &&
+            shortestPart(boundaries) > piece.foldedCodePoints.length + piece.maxEdits
+        ) {
+            continue
+        }
+        const spellings = closeSpellingsOfFolded(
+            piece,
+            words[index]!,
+            folded[index]!,
+            asciiWord,
+            boundaries
+        )
+        if (spellings.length > 0) {
+            hitWords.push(index)
+            spellingsByWord.set(words[index]!, spellings)
+        }
+    }
+    file.keepCloseSpellings(piece, spellingsByWord)
+    return hitWords
+}
+
+/** One bit per letter from `a` to `z` that `folded` holds. */
+function letterBits(folded: string): number {
+    let bits = 0
+    for (let index = 0; index < folded.length; index++) {
+        const letter = folded.charCodeAt(index) - 0x61
+        if (letter >= 0 && letter < 26) {
+            bits |= 1 << letter
+        }
+    }
+    return bits
+}
+
+function shortestPart(boundaries: readonly number[]): number {
+    let shortest = Infinity
+    for (let index = 1; index < boundaries.length; index++) {
+        shortest = Math.min(shortest, boundaries[index]! - boundaries[index - 1]!)
+    }
+    return shortest
+}
+
+function bitCount(bits: number): number {
+    let count = 0
+    for (let rest = bits; rest !== 0; rest &= rest - 1) {
+        count++
+    }
+    return count
+}
+
+/** The distinct words of a file, split as `lineWords` splits a line. */
+interface FileWords {
+    words: string[]
+    /** Per word: the word as `foldedString` folds it with umlauts spelled out. */
+    folded: string[]
+    /** Per word: its length in code units once folded. */
+    foldedLengths: number[]
+    /** Per word: the bits of `letterBits` for its fold. */
+    letters: Int32Array
+    /** Per word: 1 if it holds ASCII alone. */
+    ascii: Uint8Array
+    /** Per word: its `partBoundaries`, see `FileFolds.partBoundariesOf`. */
+    boundaries: (number[] | undefined)[]
+    /** Per word: the indexes of the lines that hold it, ascending. */
+    lines: number[][]
+}
+
+/** The ways of folding a file, as `linesHolding` reads them: none, case alone, or case and umlauts. */
+type Fold = "none" | "case" | "full"
+
+/**
+ * The folds of a whole file and the lines of its words, computed on first use.
+ * A line folds to a line of the file's fold, since folding works per character and no character spans a line break.
  * A combining mark at the start of a line breaks that: the file joins it to the line break before it.
  */
-class FileFolds {
+export class FileFolds {
+    readonly marksAfterLineBreaks: boolean
+    private distinctWords?: FileWords
     private caseFolded?: string
     private fullyFolded?: string
     private ascii?: boolean
-    private readonly marksAfterLineBreaks: boolean
+    private readonly lineStarts = new Map<Fold, number[]>()
+    /** The close spellings that `closeSpelledWords` found per piece, keyed by the compiled piece so they go once the search drops it. */
+    private readonly closeSpellings = new WeakMap<
+        FuzzyWordPiece,
+        ReadonlyMap<string, CloseSpelling[]>
+    >()
 
     constructor(readonly text: string) {
         this.marksAfterLineBreaks = LINE_BREAK_BEFORE_MARK.test(text)
@@ -169,90 +252,135 @@ class FileFolds {
         return this.ascii
     }
 
+    /** The number of lines that `splitLines` splits the text into, plus an empty last line after a final line break. */
+    lineCount(): number {
+        return this.lineStartsOf("none").length
+    }
+
+    words(): FileWords {
+        this.distinctWords ??= this.collectWords()
+        return this.distinctWords
+    }
+
+    /** The `partBoundaries` of the word at `index` in `words()`, computed on first use. */
+    partBoundariesOf(index: number): readonly number[] {
+        const { words, boundaries } = this.words()
+        let found = boundaries[index]
+        if (found === undefined) {
+            found = partBoundaries(words[index]!)
+            boundaries[index] = found
+        }
+        return found
+    }
+
+    /** Keeps the words of the file with a close spelling of `piece`, mapped to their close spellings. */
+    keepCloseSpellings(
+        piece: FuzzyWordPiece,
+        spellingsByWord: ReadonlyMap<string, CloseSpelling[]>
+    ): void {
+        this.closeSpellings.set(piece, spellingsByWord)
+    }
+
+    /** The map that `keepCloseSpellings` kept for `piece`. Undefined until then. */
+    closeSpellingsOf(piece: FuzzyWordPiece): ReadonlyMap<string, CloseSpelling[]> | undefined {
+        return this.closeSpellings.get(piece)
+    }
+
     fullyFoldedText(): string {
         this.fullyFolded ??= foldedString(this.text, true)
         return this.fullyFolded
     }
 
-    mayHoldCaseFolded(value: string): boolean {
-        this.caseFolded ??= foldedString(this.text, false)
-        return this.marksAfterLineBreaks || this.caseFolded.includes(value)
+    /** Marks with 1 each line whose fold holds `value`, which must hold no line break. */
+    linesHolding(value: string, fold: Fold): Uint8Array {
+        const text = this.foldedText(fold)
+        const starts = this.lineStartsOf(fold)
+        const marks = new Uint8Array(starts.length)
+        let line = 0
+        for (let at = text.indexOf(value); at !== -1;) {
+            line = lineHoldingOffset(starts, at, line)
+            marks[line] = 1
+            if (line + 1 === starts.length) {
+                break
+            }
+            at = text.indexOf(value, starts[line + 1])
+        }
+        return marks
     }
 
-    mayHoldFullyFolded(value: string): boolean {
-        return this.marksAfterLineBreaks || this.fullyFoldedText().includes(value)
-    }
-}
-
-/**
- * Collects the words of an ASCII text that hold one of the runs of the query word.
- * `folded` must be the fold of `text`, which keeps every offset of ASCII text.
- */
-function wordsHoldingAQueryRun(piece: FuzzyWordPiece, text: string, folded: string): Set<string> {
-    const words = new Set<string>()
-    const wordStarts = new Set<number>()
-    for (const run of piece.runs) {
-        for (let at = folded.indexOf(run); at !== -1; at = folded.indexOf(run, at + 1)) {
-            let start = at
-            while (start > 0 && isAsciiWordUnit(text.charCodeAt(start - 1))) {
-                start--
-            }
-            if (wordStarts.has(start)) {
-                continue
-            }
-            wordStarts.add(start)
-            let end = at
-            while (end < text.length && isAsciiWordUnit(text.charCodeAt(end))) {
-                end++
-            }
-            if (end > start) {
-                words.add(text.slice(start, end))
-            }
+    private foldedText(fold: Fold): string {
+        switch (fold) {
+            case "none":
+                return this.text
+            case "case":
+                this.caseFolded ??= foldedString(this.text, false)
+                return this.caseFolded
+            case "full":
+                return this.fullyFoldedText()
         }
     }
-    return words
-}
 
-/** Letters and digits, the ASCII characters that `WORD` matches. */
-function isAsciiWordUnit(code: number): boolean {
-    return (
-        (code >= 0x30 && code <= 0x39) ||
-        (code >= 0x41 && code <= 0x5a) ||
-        (code >= 0x61 && code <= 0x7a)
-    )
-}
-
-/**
- * Splits the folded query word into 2k + 1 runs, k the allowed edits.
- * A close spelling holds one of the runs as written, since each edit breaks at most two runs: a swap of two neighbors on a run border breaks both.
- */
-function queryRuns(foldedCodePoints: number[], maxEdits: number): string[] {
-    const count = 2 * maxEdits + 1
-    const runs: string[] = []
-    for (let index = 0; index < count; index++) {
-        const from = Math.floor((index * foldedCodePoints.length) / count)
-        const to = Math.floor(((index + 1) * foldedCodePoints.length) / count)
-        runs.push(String.fromCodePoint(...foldedCodePoints.slice(from, to)))
-    }
-    return runs
-}
-
-/** The folds of one line, computed on first use. */
-class LineFolds {
-    private caseFoldedLine?: string
-    private fullyFoldedLine?: string
-
-    constructor(private readonly line: string) {}
-
-    caseFolded(): string {
-        this.caseFoldedLine ??= foldedString(this.line, false)
-        return this.caseFoldedLine
+    /** Per line of the folded text, the offset where it starts. Folding keeps every offset of ASCII text. Its folds share the starts of the text. */
+    private lineStartsOf(fold: Fold): number[] {
+        const key = this.isAscii() ? "none" : fold
+        let starts = this.lineStarts.get(key)
+        if (starts === undefined) {
+            starts = [0]
+            for (const lineBreak of this.foldedText(key).matchAll(LINE_BREAK)) {
+                starts.push(lineBreak.index + lineBreak[0].length)
+            }
+            this.lineStarts.set(key, starts)
+        }
+        return starts
     }
 
-    fullyFolded(): string {
-        this.fullyFoldedLine ??= foldedString(this.line, true)
-        return this.fullyFoldedLine
+    private collectWords(): FileWords {
+        const indexes = new Map<string, number>()
+        const words: string[] = []
+        const lines: number[][] = []
+        const starts = this.lineStartsOf("none")
+        let line = 0
+        for (const match of this.text.matchAll(WORD)) {
+            while (line + 1 < starts.length && starts[line + 1]! <= match.index) {
+                line++
+            }
+            const index = indexes.get(match[0])
+            if (index === undefined) {
+                indexes.set(match[0], words.length)
+                words.push(match[0])
+                lines.push([line])
+            } else if (lines[index]!.at(-1) !== line) {
+                lines[index]!.push(line)
+            }
+        }
+        const asciiFile = this.isAscii()
+        const ascii = new Uint8Array(words.length)
+        const letters = new Int32Array(words.length)
+        const folded = words.map((word, index) => {
+            const asciiWord = asciiFile || ASCII_ONLY.test(word)
+            ascii[index] = asciiWord ? 1 : 0
+            const fold = asciiWord ? word.toLowerCase() : foldedString(word, true)
+            letters[index] = letterBits(fold)
+            return fold
+        })
+        const foldedLengths = folded.map((fold) => fold.length)
+        return { words, folded, foldedLengths, letters, ascii, boundaries: [], lines }
     }
+}
+
+/** The line that holds `offset`, searched from line `from` on. `starts` holds the offset where each line starts. */
+function lineHoldingOffset(starts: readonly number[], offset: number, from: number): number {
+    let low = from
+    let high = starts.length - 1
+    while (low < high) {
+        const middle = (low + high + 1) >> 1
+        if (starts[middle]! <= offset) {
+            low = middle
+        } else {
+            high = middle - 1
+        }
+    }
+    return low
 }
 
 interface FuzzyWordPiece {
@@ -265,13 +393,12 @@ interface FuzzyWordPiece {
     /** True when the options fold less than `foldCaseAndUmlauts` does, so each find gets checked against `normalized`. */
     strict: boolean
     maxEdits: number
-    /**
-     * Runs of `folded` of which every close spelling holds one, see `queryRuns`.
-     * Empty when a run would be empty, since the empty run rules out no word.
-     */
-    runs: string[]
     /** Per character of `folded`: how often it appears there. */
     characterCounts: Map<string, number>
+    /** Per ASCII code unit: how often `folded` holds it. */
+    asciiCounts: Int32Array
+    /** The bits of `letterBits` for `folded`. */
+    letters: number
     /** Maps a line word to its close spellings, at most `CLOSE_SPELLING_CACHE_MAX_WORDS` entries. */
     closeSpellingsByWord: Map<string, CloseSpelling[]>
 }
@@ -303,8 +430,6 @@ interface Tail {
 }
 
 const CLOSE_SPELLING_CACHE_MAX_WORDS = 50_000
-/** Above this many close-spelled words in a file, every line passes the test of a word piece, since the test would cost more than it saves. */
-const LINE_FILTER_MAX_HIT_WORDS = 64
 
 const WORD = /[\p{L}\p{N}][\p{L}\p{N}\p{M}]*/gu
 const ASCII_WITHOUT_LETTERS = /^[\x00-\x40\x5b-\x60\x7b-\x7f]*$/
@@ -384,17 +509,26 @@ function compilePiece(piece: TextPiece, matching: MatchingOptions): CompiledPiec
                 normalized: normalizeWord(piece.value, matching),
                 strict: matching.matchCase || !matching.umlautVariants,
                 maxEdits,
-                runs:
-                    foldedCodePoints.length > 2 * maxEdits
-                        ? queryRuns(foldedCodePoints, maxEdits)
-                        : [],
                 characterCounts: characterCounts(folded),
+                asciiCounts: asciiCounts(folded),
+                letters: letterBits(folded),
                 closeSpellingsByWord: new Map()
             }
         }
         default:
             return never(`unknown text piece ${JSON.stringify(piece)}`)
     }
+}
+
+function asciiCounts(text: string): Int32Array {
+    const counts = new Int32Array(128)
+    for (let index = 0; index < text.length; index++) {
+        const unit = text.charCodeAt(index)
+        if (unit < 128) {
+            counts[unit]!++
+        }
+    }
+    return counts
 }
 
 function characterCounts(text: string): Map<string, number> {
@@ -434,7 +568,8 @@ class LineSearch {
     constructor(
         private readonly line: string,
         private readonly pieces: CompiledPiece[],
-        private readonly matching: MatchingOptions
+        private readonly matching: MatchingOptions,
+        private readonly file: FileFolds | undefined
     ) {}
 
     firstMatchFrom(from: number): (Range & Tail) | undefined {
@@ -540,7 +675,14 @@ class LineSearch {
                 if (piece.maxEdits === 0) {
                     return found
                 }
-                const fuzzy = fuzzyOccurrences(this.line, folded, this.lineWords(), piece, found)
+                const fuzzy = fuzzyOccurrences(
+                    this.line,
+                    folded,
+                    this.lineWords(),
+                    piece,
+                    found,
+                    this.file?.closeSpellingsOf(piece)
+                )
                 return found.concat(this.wholeWordsOnly(this.allowedFinds(piece, fuzzy)))
             }
             case "wildcard":
@@ -679,7 +821,8 @@ function fuzzyOccurrences(
     folded: FoldedText,
     words: Range[],
     piece: FuzzyWordPiece,
-    foldedFinds: Occurrence[]
+    foldedFinds: Occurrence[],
+    fileSpellings: ReadonlyMap<string, CloseSpelling[]> | undefined
 ): Occurrence[] {
     const occurrences: Occurrence[] = []
     const minSpanUnits = piece.foldedCodePoints.length - piece.maxEdits
@@ -695,7 +838,12 @@ function fuzzyOccurrences(
             continue
         }
 
-        for (const span of cachedCloseSpellings(piece, line.slice(word.start, word.end))) {
+        const text = line.slice(word.start, word.end)
+        // The words of the file that the map leaves out hold no close spelling.
+        const spellings = fileSpellings
+            ? (fileSpellings.get(text) ?? NO_SPELLINGS)
+            : cachedCloseSpellings(piece, text)
+        for (const span of spellings) {
             const start = word.start + span.start
             const end = word.start + span.end
             const found = line.slice(start, end)
@@ -709,9 +857,20 @@ function fuzzyOccurrences(
     return occurrences
 }
 
+/** Holds the code points of the span that `closeSpellings` compares, reused to spare an array per span. */
+const spanPoints: number[] = []
+/**
+ * Per ASCII code unit: how often the span of an ASCII word that `closeSpellings` grows holds it.
+ * Every entry returns to 0 before the next span starts.
+ */
+const spanCounts = new Int32Array(128)
+
 interface CloseSpelling extends Range {
     edits: number
 }
+
+/** Shared by every word without a close spelling. A caller must not change it. */
+const NO_SPELLINGS: CloseSpelling[] = []
 
 // Identifiers repeat throughout a file, so most words of a line hit the cache.
 function cachedCloseSpellings(piece: FuzzyWordPiece, word: string): CloseSpelling[] {
@@ -728,35 +887,72 @@ function cachedCloseSpellings(piece: FuzzyWordPiece, word: string): CloseSpellin
 
 /** Returns the spans of `word` within the allowed edits of the query word, offsets relative to the word. */
 function closeSpellings(piece: FuzzyWordPiece, word: string): CloseSpelling[] {
-    if (lacksTooManyCharacters(piece, foldedString(word, true))) {
-        return []
+    const ascii = ASCII_ONLY.test(word)
+    const foldedWord = ascii ? word.toLowerCase() : foldedString(word, true)
+    return closeSpellingsOfFolded(piece, word, foldedWord, ascii, partBoundaries(word))
+}
+
+/** `closeSpellings` of a word that the caller folded with `foldedString(word, true)`. `ascii` must be true if the word holds ASCII alone. */
+function closeSpellingsOfFolded(
+    piece: FuzzyWordPiece,
+    word: string,
+    foldedWord: string,
+    ascii: boolean,
+    boundaries: readonly number[]
+): CloseSpelling[] {
+    if (lacksTooManyCharacters(piece, foldedWord)) {
+        return NO_SPELLINGS
     }
-    const folded = foldText(word, true)
+    // ASCII text folds unit by unit. Its folded offsets equal its own.
+    const foldedOffsets = ascii ? undefined : foldText(word, true).foldedOffsets
     const queryLength = piece.foldedCodePoints.length
     // Code points never outnumber code units and take at most two each, so code units bound the length of a span.
+    // An ASCII span holds one code point per code unit.
     const minSpanUnits = queryLength - piece.maxEdits
-    const maxSpanUnits = 2 * (queryLength + piece.maxEdits)
-    const spellings: CloseSpelling[] = []
-    const boundaries = partBoundaries(word)
+    const maxSpanUnits = ascii ? queryLength + piece.maxEdits : 2 * (queryLength + piece.maxEdits)
+    let spellings: CloseSpelling[] | undefined
     for (let from = 0; from < boundaries.length - 1; from++) {
-        const spanStart = folded.foldedOffsets[boundaries[from]!]!
+        const spanStart = foldedOffsets?.[boundaries[from]!] ?? boundaries[from]!
+        // Counts the characters of an ASCII span as it grows, see `spanCounts`.
+        let counted = spanStart
+        let shared = 0
         for (let to = from + 1; to < boundaries.length; to++) {
-            const spanEnd = folded.foldedOffsets[boundaries[to]!]!
+            const spanEnd = foldedOffsets?.[boundaries[to]!] ?? boundaries[to]!
             if (spanEnd - spanStart > maxSpanUnits) {
                 break
+            }
+            if (ascii) {
+                for (; counted < spanEnd; counted++) {
+                    const unit = foldedWord.charCodeAt(counted)
+                    if (spanCounts[unit]! < piece.asciiCounts[unit]!) {
+                        shared++
+                    }
+                    spanCounts[unit]!++
+                }
             }
             if (spanEnd - spanStart < minSpanUnits) {
                 continue
             }
-            const candidate = codePoints(folded.text, spanStart, spanEnd)
-            if (Math.abs(candidate.length - queryLength) > piece.maxEdits) {
+            // Each edit takes at most one character of the query word away, as in `lacksTooManyCharacters`.
+            if (ascii && shared < queryLength - piece.maxEdits) {
                 continue
             }
-            const edits = editDistance(piece.foldedCodePoints, candidate, piece.maxEdits)
+            const length = codePointsInto(spanPoints, foldedWord, spanStart, spanEnd)
+            if (Math.abs(length - queryLength) > piece.maxEdits) {
+                continue
+            }
+            const edits = editDistance(piece.foldedCodePoints, spanPoints, piece.maxEdits, length)
             if (edits <= piece.maxEdits) {
+                spellings ??= []
                 spellings.push({ start: boundaries[from]!, end: boundaries[to]!, edits })
             }
         }
+        for (let unit = spanStart; unit < counted; unit++) {
+            spanCounts[foldedWord.charCodeAt(unit)] = 0
+        }
+    }
+    if (spellings === undefined) {
+        return NO_SPELLINGS
     }
     const fewestEdits = Math.min(...spellings.map((spelling) => spelling.edits))
     return spellings.filter((spelling) => spelling.edits === fewestEdits)

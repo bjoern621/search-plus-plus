@@ -31,6 +31,9 @@ export interface FoldedText {
 }
 
 export function foldText(text: string, spellOutUmlauts: boolean): FoldedText {
+    if (ASCII_ONLY.test(text)) {
+        return foldAscii(text)
+    }
     let folded = ""
     const starts: number[] = []
     const ends: number[] = []
@@ -49,6 +52,20 @@ export function foldText(text: string, spellOutUmlauts: boolean): FoldedText {
     }
     foldedOffsets[text.length] = folded.length
     return { text: folded, starts, ends, foldedOffsets }
+}
+
+/** `foldText` for ASCII text, where each character folds to one code unit at its own offset. */
+function foldAscii(text: string): FoldedText {
+    const starts: number[] = []
+    const ends: number[] = []
+    const foldedOffsets = new Int32Array(text.length + 1)
+    for (let index = 0; index < text.length; index++) {
+        starts.push(index)
+        ends.push(index + 1)
+        foldedOffsets[index] = index
+    }
+    foldedOffsets[text.length] = text.length
+    return { text: text.toLowerCase(), starts, ends, foldedOffsets }
 }
 
 /**
@@ -72,11 +89,11 @@ export function foldedString(text: string, spellOutUmlauts: boolean): string {
 }
 
 export function foldCase(text: string): string {
-    return foldText(text, false).text
+    return foldedString(text, false)
 }
 
 export function foldCaseAndUmlauts(text: string): string {
-    return foldText(text, true).text
+    return foldedString(text, true)
 }
 
 /** Spells out each umlaut and keeps the case of every other character: `Größe` becomes `Groesse`. */
@@ -119,6 +136,18 @@ export function codePoints(text: string, start = 0, end = text.length): number[]
         index += point > 0xffff && index + 1 < end ? 2 : 1
     }
     return points
+}
+
+/** Writes the code points of `text` from `start` to `end` into `points` from index 0 and returns their count. Entries past the count stay as they were. */
+export function codePointsInto(points: number[], text: string, start: number, end: number): number {
+    let count = 0
+    let index = start
+    while (index < end) {
+        const point = text.codePointAt(index)!
+        points[count++] = point
+        index += point > 0xffff && index + 1 < end ? 2 : 1
+    }
+    return count
 }
 
 function characterEnd(text: string, start: number): number {

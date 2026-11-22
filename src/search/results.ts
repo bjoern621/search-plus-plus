@@ -1,6 +1,7 @@
 import type { FileResult, ResultLine } from "../messages"
 import { assert } from "./assert"
 import { LINE_EXCERPT_LEAD_CHARS, LINE_EXCERPT_LENGTH_CHARS } from "./config"
+import { mergeLineMatches } from "./merge"
 import type { LineMatch, Range } from "./types"
 
 export interface LineSpan {
@@ -31,9 +32,57 @@ export function splitLines(text: string): string[] {
     return lines
 }
 
+/** The lines of a file and the matches that the engines found in it, merged per line. */
+export interface FileMatches {
+    lines: string[]
+    /** In ascending order, at most one per line. */
+    matches: LineMatch[]
+}
+
+/** Merges the matches of each engine in `lists` into one per line, dropping the ones that point outside `lines`. */
+export function fileMatches(
+    lines: string[],
+    lists: readonly (readonly LineMatch[])[]
+): FileMatches {
+    return { lines, matches: mergeLineMatches(lists.map((list) => validMatches(list, lines))) }
+}
+
+/**
+ * Keeps the lines that a result of `matches` shows with `contextLines` around each match.
+ * The copy keeps the length of `lines` and holds no other line, so it crosses to another thread at the size of what it shows.
+ */
+export function shownLines(
+    lines: readonly string[],
+    matches: readonly LineMatch[],
+    contextLines: number
+): string[] {
+    const shown: string[] = new Array<string>(lines.length)
+    for (const span of contextSpans(
+        matches.map((match) => match.line),
+        lines.length,
+        contextLines
+    )) {
+        for (let line = span.start; line <= span.end; line++) shown[line] = lines[line]!
+    }
+    return shown
+}
+
+/** Drops matches that point outside the file and ranges that point outside their line, since engines from other extensions may send them. */
+function validMatches(matches: readonly LineMatch[], lines: readonly string[]): LineMatch[] {
+    return matches.flatMap((match) => {
+        const text = lines[match.line]
+        if (!Number.isInteger(match.line) || text === undefined) return []
+        const ranges = match.ranges.filter(
+            (range) => range.start >= 0 && range.start <= range.end && range.end <= text.length
+        )
+        return [{ ...match, ranges }]
+    })
+}
+
 /**
  * Builds the view model of one file: its matched lines framed by context lines.
  * Asserts that `matches` come in ascending order and lie inside the file.
+ * `lines` must hold each line that a span of context around a match covers. It may leave out every other line.
  */
 export function buildFileResult(
     place: ResultPlace,

@@ -1,6 +1,13 @@
-import { findInLine, lineFilter } from "../matching"
+import { FileFolds, findInLine, lineFilter } from "../matching"
 import { splitLines } from "../search/results"
-import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
+import type {
+    FileInfo,
+    LineMatch,
+    PreparedFile,
+    Query,
+    SearchEngine,
+    SearchFile
+} from "../search/types"
 
 /** Finds the pieces of a text query in every line of a file, under the matching defaults of `findInLine`. */
 export const textEngine = {
@@ -10,17 +17,19 @@ export const textEngine = {
         return query.kind === "text"
     },
 
-    search(file: SearchFile, query: Query, signal: AbortSignal): LineMatch[] {
+    search(file: SearchFile | PreparedFile, query: Query, signal: AbortSignal): LineMatch[] {
         if (query.kind !== "text") return []
-        const mayMatch = lineFilter(file.text, query.pieces, query.matching)
+        const prepared = "folds" in file ? file : undefined
+        const folds = prepared?.folds ?? new FileFolds(file.text)
+        const mayMatch = lineFilter(folds, query.pieces, query.matching)
         if (mayMatch === undefined) return []
         const matches: LineMatch[] = []
-        const lines = splitLines(file.text)
+        const lines = prepared?.lines() ?? splitLines(file.text)
         for (let line = 0; line < lines.length; line++) {
             if (signal.aborted) return []
             const text = lines[line] ?? ""
-            if (!mayMatch(text)) continue
-            const found = findInLine(text, query.pieces, query.matching)
+            if (!mayMatch(line)) continue
+            const found = findInLine(text, query.pieces, query.matching, folds)
             if (found.length === 0) continue
             matches.push({
                 line,

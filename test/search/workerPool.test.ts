@@ -64,6 +64,21 @@ describe("SearchWorkerPool", () => {
         expect(added).toHaveBeenCalled()
     })
 
+    it("finds the same again from the texts and key paths that the workers kept", async () => {
+        const dir = await folderWith(FILES)
+        const workers = poolOf(workerScript)
+        for (const query of QUERIES) {
+            const inHost = await runSearch(query, [rootAt(0, dir)], { structural: true })
+            for (let search = 0; search < 3; search++) {
+                const inWorkers = await runSearch(query, [rootAt(0, dir)], {
+                    structural: true,
+                    workers
+                })
+                expect(matchedLines(inWorkers.files), query).toEqual(matchedLines(inHost.files))
+            }
+        }
+    })
+
     it("searches in the extension host the files of a worker that failed", async () => {
         const dir = await folderWith(FILES)
         const failing = path.join(await mkdtemp(path.join(tmpdir(), "search-plus-plus-")), "w.js")
@@ -126,5 +141,46 @@ describe("SearchWorkerPool", () => {
         })
         expect(result.outcome).toEqual({ status: "capped", limit: 7 })
         expect(result.files.reduce((sum, file) => sum + file.matchCount, 0)).toBe(7)
+    })
+})
+
+describe("PoolSearch.takeChunk", () => {
+    const pool = { isIdle: () => false, isBroken: () => false, pump: () => {}, finish: () => {} }
+    const job = (index: number) => ({
+        fsPath: `/files/${index}`,
+        info: { uri: `file:///files/${index}`, relativePath: `${index}`, languageId: "" },
+        engineIds: []
+    })
+
+    function searchHolding(files: number): PoolSearch {
+        const search = new PoolSearch(
+            pool as unknown as SearchWorkerPool,
+            1,
+            { pieces: [] } as unknown as ConstructorParameters<typeof PoolSearch>[2],
+            0,
+            1,
+            new AbortController().signal
+        )
+        for (let index = 0; index < files; index++)
+            search.add(
+                job(index),
+                () => {},
+                () => {}
+            )
+        return search
+    }
+
+    it("holds back a short chunk from a busy worker while the listing goes on", () => {
+        expect(searchHolding(3).takeChunk(0, false)).toBeUndefined()
+    })
+
+    it("hands a short chunk to an idle worker", () => {
+        expect(searchHolding(3).takeChunk(0, true)).toHaveLength(3)
+    })
+
+    it("hands a short chunk to a busy worker once the listing ended", () => {
+        const search = searchHolding(3)
+        void search.drained()
+        expect(search.takeChunk(0, false)).toHaveLength(3)
     })
 })

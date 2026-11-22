@@ -2,11 +2,19 @@
 
 import type { FileInfo, LineMatch, Query } from "../types"
 
+/** What a worker gets at its start. */
+export interface WorkerData {
+    /** The most bytes on disk of the texts that the worker keeps between searches. */
+    textCacheBytes: number
+}
+
 /** Starts a search in a worker. The worker keeps the query until `EndSearch` arrives. */
 export interface StartSearch {
     type: "start"
     searchId: number
     query: Query
+    /** The lines of context that a result shows around each matched line. */
+    contextLines: number
     /** Holds 1 at index 0 once the search got cancelled. */
     aborted: Int32Array
 }
@@ -32,11 +40,12 @@ export interface SearchChunk {
 
 export type ToWorker = StartSearch | EndSearch | SearchChunk
 
-/** A file of a chunk in which an engine found a match, with its text and the matches of each engine in the order of `engineIds`. */
+/** A file of a chunk in which an engine found a match, with the matches of its engines merged per line. */
 export interface FoundFile {
     index: number
-    text: string
-    lists: LineMatch[][]
+    /** The lines that a result of `matches` shows, see `shownLines`. */
+    lines: string[]
+    matches: LineMatch[]
 }
 
 export interface ChunkDone {

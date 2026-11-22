@@ -2,6 +2,7 @@ import { availableParallelism } from "node:os"
 import { Worker } from "node:worker_threads"
 import { assert } from "../assert"
 import {
+    SEARCH_TEXT_CACHE_MAX_BYTES,
     SEARCH_WORKER_CHUNK_FILES,
     SEARCH_WORKER_CHUNKS_IN_FLIGHT,
     SEARCH_WORKER_COUNT_MAX,
@@ -9,15 +10,18 @@ import {
 } from "../config"
 import type { LineMatch, Query } from "../types"
 import { workerEngines } from "./engines"
-import type { FromWorker, ToWorker, WorkerFile } from "./protocol"
+import type { FromWorker, ToWorker, WorkerData, WorkerFile } from "./protocol"
 
 export type { WorkerFile } from "./protocol"
+
+/** Receives the merged matches of a file and the lines that its result shows, see `FoundFile`. */
+export type OnFound = (lines: string[], matches: LineMatch[]) => void
 
 /** A file handed to the pool and what to do with its outcome. */
 interface Job {
     file: WorkerFile
-    /** Receives the text and the matches of each engine, once an engine found a match. */
-    onFound: (text: string, lists: LineMatch[][]) => void
+    /** Runs once an engine found a match. */
+    onFound: OnFound
     /** Runs once a worker failed before it searched the file. The caller then searches the file in its own thread. */
     onLost: () => void
 }
@@ -32,6 +36,7 @@ interface PoolWorker {
 
 /**
  * Searches files on disk with the built-in engines in worker threads.
+ * Each file goes to the same worker in every search, since a worker keeps the texts that it read, see `TextCache`.
  * The workers start with the first search and quit after `SEARCH_WORKER_IDLE_DURATION_MS` without one.
  * Once a worker fails, the pool hands back every file that it holds and takes no further search.
  */
@@ -55,7 +60,7 @@ export class SearchWorkerPool {
     }
 
     /** Starts a search with `query`. Returns undefined once a worker failed. The caller then searches in its own thread. */
-    start(query: Query, signal: AbortSignal): PoolSearch | undefined {
+    start(query: Query, contextLines: number, signal: AbortSignal): PoolSearch | undefined {
         if (this.broken) return undefined
         clearTimeout(this.idleTimer)
         if (this.workers.length === 0) {
@@ -66,7 +71,14 @@ export class SearchWorkerPool {
                 return undefined
             }
         }
-        const search = new PoolSearch(this, this.nextSearchId++, query, signal)
+        const search = new PoolSearch(
+            this,
+            this.nextSearchId++,
+            query,
+            contextLines,
+            this.workers.length,
+            signal
+        )
         this.searches.add(search)
         return search
     }
@@ -79,13 +91,13 @@ export class SearchWorkerPool {
     /** Sends the ready chunks of the searches to the workers with room, oldest search first. */
     pump(): void {
         for (const search of this.searches) {
-            for (;;) {
-                const worker = this.roomiestWorker()
-                if (worker === undefined) return
-                const jobs = search.takeChunk(this.workers.length)
-                if (jobs === undefined) break
-                this.send(worker, search, jobs)
-            }
+            this.workers.forEach((worker, index) => {
+                while (worker.chunks.size < SEARCH_WORKER_CHUNKS_IN_FLIGHT) {
+                    const jobs = search.takeChunk(index, worker.chunks.size === 0)
+                    if (jobs === undefined) return
+                    this.send(worker, search, jobs)
+                }
+            })
         }
     }
 
@@ -101,6 +113,11 @@ export class SearchWorkerPool {
         }
     }
 
+    /** True if the worker at `workerIndex` holds no chunk. */
+    isIdle(workerIndex: number): boolean {
+        return this.workers[workerIndex]?.chunks.size === 0
+    }
+
     isBroken(): boolean {
         return this.broken
     }
@@ -108,7 +125,11 @@ export class SearchWorkerPool {
     private spawnWorkers(): void {
         for (let index = 0; index < this.workerCount; index++) {
             const worker: PoolWorker = {
-                worker: new Worker(this.scriptPath),
+                worker: new Worker(this.scriptPath, {
+                    workerData: {
+                        textCacheBytes: Math.floor(SEARCH_TEXT_CACHE_MAX_BYTES / this.workerCount)
+                    } satisfies WorkerData
+                }),
                 chunks: new Map(),
                 started: new Set()
             }
@@ -125,16 +146,6 @@ export class SearchWorkerPool {
         }
     }
 
-    private roomiestWorker(): PoolWorker | undefined {
-        let roomiest: PoolWorker | undefined
-        for (const worker of this.workers) {
-            if (worker.chunks.size >= SEARCH_WORKER_CHUNKS_IN_FLIGHT) continue
-            if (roomiest === undefined || worker.chunks.size < roomiest.chunks.size)
-                roomiest = worker
-        }
-        return roomiest
-    }
-
     private send(worker: PoolWorker, search: PoolSearch, jobs: Job[]): void {
         if (!worker.started.has(search.id)) {
             worker.started.add(search.id)
@@ -142,6 +153,7 @@ export class SearchWorkerPool {
                 type: "start",
                 searchId: search.id,
                 query: search.query,
+                contextLines: search.contextLines,
                 aborted: search.aborted
             })
         }
@@ -167,7 +179,7 @@ export class SearchWorkerPool {
         for (const found of message.found) {
             const job = chunk.jobs[found.index]
             assert(job !== undefined, "a found file names an index of its chunk")
-            job.onFound(found.text, found.lists)
+            job.onFound(found.lines, found.matches)
         }
         chunk.search.chunkReturned()
         this.pump()
@@ -204,9 +216,8 @@ export class SearchWorkerPool {
 export class PoolSearch {
     /** Holds 1 at index 0 once the search got cancelled. The workers read it between files and inside engines. */
     readonly aborted = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
-    private pending: Job[] = []
-    /** The index in `pending` of the file that goes out next. A splice per chunk would copy the rest of a long queue. */
-    private next = 0
+    /** The files that wait for each worker, by the index of the worker. */
+    private readonly queues: JobQueue[]
     private chunksOut = 0
     private closed = false
     private onDrained: (() => void) | undefined
@@ -215,34 +226,34 @@ export class PoolSearch {
         private readonly pool: SearchWorkerPool,
         readonly id: number,
         readonly query: Query,
+        readonly contextLines: number,
+        workerCount: number,
         private readonly signal: AbortSignal
     ) {
+        this.queues = Array.from({ length: workerCount }, () => new JobQueue())
         signal.addEventListener("abort", () => {
             Atomics.store(this.aborted, 0, 1)
-            this.pending = []
-            this.next = 0
+            for (const queue of this.queues) queue.clear()
             this.settle()
         })
     }
 
     /**
-     * Queues a file.
-     * `onFound` receives its text and the matches of each engine in the order of `file.engineIds`, once an engine found a match.
-     * `onLost` runs when a worker failed first.
+     * Queues a file for the worker that `workerIndexOf` picks for its path.
+     * `onFound` runs once an engine found a match. `onLost` runs when a worker failed first.
      */
-    add(
-        file: WorkerFile,
-        onFound: (text: string, lists: LineMatch[][]) => void,
-        onLost: () => void
-    ): void {
+    add(file: WorkerFile, onFound: OnFound, onLost: () => void): void {
         assert(!this.closed, "a search takes no file once drained() got called")
         if (this.signal.aborted) return
         if (this.pool.isBroken()) {
             onLost()
             return
         }
-        this.pending.push({ file, onFound, onLost })
-        if (this.waiting() >= SEARCH_WORKER_CHUNK_FILES) this.pool.pump()
+        const workerIndex = workerIndexOf(file.fsPath, this.queues.length)
+        const queue = this.queues[workerIndex]!
+        queue.push({ file, onFound, onLost })
+        if (queue.size() >= SEARCH_WORKER_CHUNK_FILES || this.pool.isIdle(workerIndex))
+            this.pool.pump()
     }
 
     /** Resolves once every queued file came back. The search then takes no further file. */
@@ -255,24 +266,17 @@ export class PoolSearch {
     }
 
     /**
-     * Returns the next chunk of files, or undefined when none is ready.
-     * A full chunk is ready at once. Once the search got closed, the rest gets split evenly over the workers.
+     * Returns the next chunk of files for the worker at `workerIndex`, or undefined when none is ready.
+     * A full chunk is ready at once. A shorter one is ready once the search got closed or the worker is `idle`.
+     * An idle worker would otherwise wait for files that the listing has yet to find.
      */
-    takeChunk(workerCount: number): Job[] | undefined {
-        const waiting = this.waiting()
-        if (waiting === 0) return undefined
-        if (!this.closed && waiting < SEARCH_WORKER_CHUNK_FILES) return undefined
-        const size = this.closed
-            ? Math.min(SEARCH_WORKER_CHUNK_FILES, Math.ceil(waiting / workerCount))
-            : SEARCH_WORKER_CHUNK_FILES
-        const chunk = this.pending.slice(this.next, this.next + size)
-        this.next += size
-        if (this.next === this.pending.length) {
-            this.pending = []
-            this.next = 0
-        }
+    takeChunk(workerIndex: number, idle: boolean): Job[] | undefined {
+        const queue = this.queues[workerIndex]
+        assert(queue !== undefined, "a search keeps a queue per worker of the pool")
+        if (queue.size() === 0) return undefined
+        if (!this.closed && !idle && queue.size() < SEARCH_WORKER_CHUNK_FILES) return undefined
         this.chunksOut++
-        return chunk
+        return queue.take(SEARCH_WORKER_CHUNK_FILES)
     }
 
     chunkReturned(): void {
@@ -283,15 +287,13 @@ export class PoolSearch {
 
     /** Hands every waiting file back to the caller, since the pool lost its workers. */
     handBack(): void {
-        const lost = this.pending.slice(this.next)
-        this.pending = []
-        this.next = 0
+        const lost = this.queues.flatMap((queue) => queue.take(queue.size()))
         for (const job of lost) job.onLost()
         this.settle()
     }
 
     private waiting(): number {
-        return this.pending.length - this.next
+        return this.queues.reduce((sum, queue) => sum + queue.size(), 0)
     }
 
     private settle(): void {
@@ -300,6 +302,41 @@ export class PoolSearch {
         this.onDrained?.()
         this.onDrained = undefined
     }
+}
+
+/** The files that wait for one worker, oldest first. */
+class JobQueue {
+    private jobs: Job[] = []
+    /** The index in `jobs` of the file that goes out next. A splice per chunk would copy the rest of a long queue. */
+    private next = 0
+
+    push(job: Job): void {
+        this.jobs.push(job)
+    }
+
+    size(): number {
+        return this.jobs.length - this.next
+    }
+
+    take(count: number): Job[] {
+        const taken = this.jobs.slice(this.next, this.next + count)
+        this.next += taken.length
+        if (this.next === this.jobs.length) this.clear()
+        return taken
+    }
+
+    clear(): void {
+        this.jobs = []
+        this.next = 0
+    }
+}
+
+/** Picks a worker by a hash (FNV-1a) of the path, so a file reaches the worker that keeps its text. */
+function workerIndexOf(fsPath: string, workerCount: number): number {
+    let hash = 0x811c9dc5
+    for (let index = 0; index < fsPath.length; index++)
+        hash = Math.imul(hash ^ fsPath.charCodeAt(index), 0x01000193)
+    return (hash >>> 0) % workerCount
 }
 
 function defaultWorkerCount(): number {
