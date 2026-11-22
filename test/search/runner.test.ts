@@ -94,6 +94,38 @@ describe("SearchRunner", () => {
         }
     })
 
+    it("searches the open files without a workspace folder, in the text of their editors", async () => {
+        const dir = await folderWith({ "a.md": "# needle\n", "b.md": "nothing\n" })
+        const openFiles = ["a.md", "b.md"].map((name) => ({
+            uri: Uri.file(path.join(dir, name)).toString(),
+            relativePath: path.join(dir, name).slice(1)
+        }))
+        workspace.textDocuments = [
+            { uri: Uri.file(path.join(dir, "b.md")), isDirty: true, getText: () => "x\nneedle\n" }
+        ]
+        try {
+            for (const query of ["needle", "/needle/"]) {
+                const result = await runSearch(query, [], { openFiles })
+                expect(result.outcome).toEqual({ status: "complete" })
+                expect(matchedLines(result.files)).toEqual([
+                    `${dir.slice(1)}/a.md:1: # needle`,
+                    `${dir.slice(1)}/b.md:2: needle`
+                ])
+            }
+        } finally {
+            workspace.textDocuments = []
+        }
+    })
+
+    it("searches an open file inside a workspace folder once", async () => {
+        const dir = await folderWith({ "a.txt": "needle\n" })
+        const openFiles = [
+            { uri: Uri.file(path.join(dir, "a.txt")).toString(), relativePath: "a.txt" }
+        ]
+        const result = await runSearch("needle", [rootAt(0, dir)], { openFiles })
+        expect(matchedLines(result.files)).toEqual(["a.txt:1: needle"])
+    })
+
     it("counts a lone carriage return as a line break, as the editor does", async () => {
         const dir = await folderWith({ "a.txt": "one\rneedle\r\nthree\n" })
         for (const query of ["needle", "/needle/"]) {

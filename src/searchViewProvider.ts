@@ -24,7 +24,7 @@ import { parseQuery } from "./query"
 import { SLIDERS_ICON, TRASH_ICON } from "./webview/filledIcons"
 import { readSearchText, unsavedTexts } from "./search/reader"
 import { splitLines } from "./search/results"
-import { searchRoots } from "./search/roots"
+import { openEditorFiles, searchRoots } from "./search/roots"
 import type { SearchRunner } from "./search/runner"
 import type { SearchRoot } from "./search/workspaceEngine"
 
@@ -103,12 +103,14 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 
         const roots = withExcludeField(searchRoots(), fields.exclude)
         if (raw === "") return this.finish(searchId, "empty")
-        if (roots.length === 0) return this.finish(searchId, "noFolder")
+        const openFiles = roots.length === 0 ? openEditorFiles() : []
+        if (roots.length === 0 && openFiles.length === 0) return this.finish(searchId, "noFolder")
         const outcome = await vscode.window
             .withProgress({ location: { viewId: SearchViewProvider.viewId } }, () =>
                 this.runner.run({
                     query: parseQuery(raw, matchingSettings()),
                     roots,
+                    openFiles,
                     contextLines: vscode.workspace
                         .getConfiguration("searchPlusPlus")
                         .get<number>("contextLines", 1),

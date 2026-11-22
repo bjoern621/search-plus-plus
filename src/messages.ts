@@ -89,6 +89,7 @@ export interface IconTable {
  * `capped`: the search stopped at `limit` matched lines.
  * `blocked`: the query ran no search, and a hint says why.
  * `failed`: the search stopped on an error that the output channel names. The results sent before it stay.
+ * `noFolder`: the window holds no workspace folder and no open file.
  */
 export type SearchStatus = "complete" | "capped" | "blocked" | "empty" | "noFolder" | "failed"
 

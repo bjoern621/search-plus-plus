@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- A window without a workspace folder searches the files that its editor tabs show, as the built-in Search view does (showed "Open a folder to search it." and searched nothing).
 - A divider inside a result block, where a blank line takes no row, separates the hover and selection outlines as well (both outlined the whole block).
 
 ## v0.1.2 (2026-11-20)

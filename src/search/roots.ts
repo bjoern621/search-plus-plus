@@ -1,4 +1,5 @@
 import * as vscode from "vscode"
+import type { OpenFile } from "./runner"
 import type { SearchRoot } from "./workspaceEngine"
 import { turnedOnGlobs } from "./globs"
 import type { WalkSettings } from "./walk"
@@ -12,6 +13,22 @@ export function searchRoots(): SearchRoot[] {
         uri: folder.uri.toString(),
         fsPath: folder.uri.scheme === "file" ? folder.uri.fsPath : undefined,
         walk: walkSettings(folder)
+    }))
+}
+
+/**
+ * Lists the files that the text editor tabs show, each once.
+ * A result shows its full path, since the file sits in no workspace folder.
+ */
+export function openEditorFiles(): OpenFile[] {
+    const uris = new Map<string, vscode.Uri>()
+    for (const tab of vscode.window.tabGroups.all.flatMap((group) => group.tabs)) {
+        if (tab.input instanceof vscode.TabInputText)
+            uris.set(tab.input.uri.toString(), tab.input.uri)
+    }
+    return [...uris].map(([uri, parsed]) => ({
+        uri,
+        relativePath: parsed.path.replace(/^\//, "")
     }))
 }
 

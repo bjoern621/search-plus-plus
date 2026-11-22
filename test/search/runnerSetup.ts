@@ -10,7 +10,7 @@ import { parseQuery } from "../../src/query"
 import { NO_FILE_FIELDS } from "../../src/search/globs"
 import { LanguageIndex } from "../../src/search/languages"
 import { EngineRegistry, searchPlusPlusApi } from "../../src/search/registry"
-import { SearchRunner, type SearchOutcome } from "../../src/search/runner"
+import { type OpenFile, SearchRunner, type SearchOutcome } from "../../src/search/runner"
 import type { SearchWorkerPool } from "../../src/search/worker/pool"
 import type { SearchRoot } from "../../src/search/workspaceEngine"
 import { structuralEngines } from "../../src/structural"
@@ -70,6 +70,7 @@ export async function runSearch(
         plugins?: (api: SearchPlusPlusApi) => void
         structural?: boolean
         workers?: SearchWorkerPool
+        openFiles?: OpenFile[]
     } = {}
 ): Promise<RunResult> {
     const rgPath = "rgPath" in options ? options.rgPath : ripgrepOnPath()
@@ -90,6 +91,7 @@ export async function runSearch(
     const outcome = await runner.run({
         query: parseQuery(raw),
         roots,
+        openFiles: options.openFiles,
         contextLines: 0,
         resultLineLimit: options.resultLineLimit,
         fields: NO_FILE_FIELDS,

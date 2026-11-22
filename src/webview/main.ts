@@ -516,7 +516,7 @@ function summaryFor(): string | undefined {
         case "blocked":
             return undefined
         case "noFolder":
-            return "Open a folder to search it."
+            return "Open a folder or a file to search it."
         case "failed":
             return "The search could not finish. Open the Search++ output for the reason."
         case "running":

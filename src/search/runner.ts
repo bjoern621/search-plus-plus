@@ -33,9 +33,18 @@ export interface SearchRunnerDeps {
     workers?: SearchWorkerPool
 }
 
+/** A file that an editor tab shows. */
+export interface OpenFile {
+    uri: string
+    /** The path that the results show, with `/` as separator. */
+    relativePath: string
+}
+
 export interface SearchRequest {
     query: Query
     roots: readonly SearchRoot[]
+    /** Files searched beside the roots, such as the open editors of a window without a workspace folder. Missing means none. */
+    openFiles?: readonly OpenFile[]
     contextLines: number
     /** The search stops once this many lines matched. Missing means `RESULT_LINE_LIMIT`. */
     resultLineLimit?: number
@@ -122,7 +131,9 @@ class RunningSearch {
     }
 
     async run(): Promise<void> {
-        await this.searchDisk()
+        const takenUris = new Set<string>()
+        await this.searchDisk(takenUris)
+        await this.searchOpenFiles(takenUris)
         this.sender.flush()
     }
 
@@ -132,12 +143,12 @@ class RunningSearch {
      * The other listed files follow once the workspace engine ends.
      * The workspace engine reads a file with unsaved changes from disk, so its text in the editor gets searched in place of what the engine reports.
      */
-    private async searchDisk(): Promise<void> {
+    private async searchDisk(takenUris: Set<string>): Promise<void> {
+        if (this.request.roots.length === 0) return
         const fieldFilter = new PathFilter(this.request.fields)
         const queue = new WorkQueue(FILE_READ_CONCURRENCY, this.signal)
         const workers = this.deps.workers?.start(this.request.query, this.signal)
         // Nested workspace folders list a file twice.
-        const takenUris = new Set<string>()
         const take = (item: PendingFile) => {
             if (!fieldFilter.accepts(item.relativePath)) return
             const uri = this.fileUri(item.root, item.relativePath)
@@ -150,6 +161,41 @@ class RunningSearch {
         } finally {
             await workers?.drained()
             await queue.drained()
+        }
+    }
+
+    /** Searches the open files that the roots left out, in the text that their editors hold. */
+    private async searchOpenFiles(takenUris: ReadonlySet<string>): Promise<void> {
+        const fieldFilter = new PathFilter(this.request.fields)
+        const files = (this.request.openFiles ?? []).filter(
+            (file) => !takenUris.has(file.uri) && fieldFilter.accepts(file.relativePath)
+        )
+        const read = await Promise.all(
+            files.map(async (file) => ({
+                file,
+                text: await readSearchText(vscode.Uri.parse(file.uri), this.unsaved)
+            }))
+        )
+        const readable = read.flatMap(({ file, text }) =>
+            text === undefined ? [] : [{ file, text }]
+        )
+        if (readable.length === 0 || this.signal.aborted) return
+        const found = await this.searchTextsWithWorkspaceEngines(readable.map((item) => item.text))
+        for (const [index, { file, text }] of readable.entries()) {
+            const info: FileInfo = {
+                uri: file.uri,
+                relativePath: file.relativePath,
+                languageId: this.languageOf(file.relativePath)
+            }
+            const lists = workspaceEditorLines(
+                text,
+                found.map((engineLists) => engineLists[index] ?? [])
+            )
+            for (const engine of this.fileEngines.filter((engine) => this.accepts(engine, info))) {
+                const matches = await this.searchWith(engine, { ...info, text })
+                if (matches) lists.push(matches)
+            }
+            this.emitFound(OPEN_FILES_ROOT, info, text, lists)
         }
     }
 
@@ -295,7 +341,7 @@ class RunningSearch {
     }
 
     private emitFound(
-        root: SearchRoot,
+        root: ResultRoot,
         file: FileInfo,
         text: string,
         lists: readonly LineMatch[][]
@@ -310,7 +356,7 @@ class RunningSearch {
         return this.languages.languageOf(relativePath.slice(relativePath.lastIndexOf("/") + 1))
     }
 
-    private emit(root: SearchRoot, file: FileInfo, lines: string[], merged: LineMatch[]): void {
+    private emit(root: ResultRoot, file: FileInfo, lines: string[], merged: LineMatch[]): void {
         const limit = this.request.resultLineLimit ?? RESULT_LINE_LIMIT
         const room = limit - this.matchedLines
         if (merged.length === 0 || room <= 0 || this.signal.aborted) return
@@ -360,6 +406,12 @@ class RunningSearch {
         return vscode.Uri.joinPath(vscode.Uri.parse(root.uri), relativePath).toString()
     }
 }
+
+/** The workspace folder that a result names. */
+type ResultRoot = Pick<SearchRoot, "index" | "name">
+
+/** Open files belong to no workspace folder. They show as files of one unnamed root. */
+const OPEN_FILES_ROOT: ResultRoot = { index: 0, name: "" }
 
 /** Moves the matches of workspace engines, which count lines as ripgrep does, to the lines of the editor. */
 function workspaceEditorLines(text: string, lists: readonly LineMatch[][]): LineMatch[][] {
