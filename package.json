@@ -337,6 +337,7 @@
         "typecheck": "tsc --noEmit",
         "test": "vitest run --passWithNoTests",
         "bench": "node scripts/bench.mjs",
+        "timing:engine": "node scripts/timing-engine.mjs",
         "sbom": "cyclonedx-npm --omit dev --output-reproducible --output-format JSON --output-file sbom.cdx.json",
         "sbom:check": "node scripts/check-sbom.mjs",
         "format": "prettier --write .",
