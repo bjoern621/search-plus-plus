@@ -1,17 +1,9 @@
 import { createHash } from "node:crypto"
 import { parseArgs } from "node:util"
-import { RegexEngine } from "../../src/engines/regex"
-import { textEngine } from "../../src/engines/text"
 import type { FileResult } from "../../src/messages"
-import { parseQuery } from "../../src/query"
-import { NO_FILE_FIELDS } from "../../src/search/globs"
-import { LanguageIndex } from "../../src/search/languages"
-import { EngineRegistry } from "../../src/search/registry"
-import { SearchRunner } from "../../src/search/runner"
 import { DEFAULT_MATCHING } from "../../src/search/types"
 import { SearchWorkerPool } from "../../src/search/worker/pool"
-import type { SearchRoot } from "../../src/search/workspaceEngine"
-import { structuralEngines } from "../../src/structural"
+import { benchRoots, type Measurement, measureSearch, median, newBenchRunner } from "./setup"
 
 const DEFAULT_QUERIES = [
     "configuration",
@@ -50,58 +42,10 @@ const workers =
         ? undefined
         : new SearchWorkerPool(values.worker, (message) => console.error(message))
 
-const roots: SearchRoot[] = folders.map((fsPath, index) => ({
-    index,
-    name: folders.length > 1 ? String(index) : "",
-    uri: `file://${fsPath}`,
-    fsPath,
-    walk: {
-        excludeGlobs: ["**/.git"],
-        useIgnoreFiles: !values["all-files"],
-        useParentIgnoreFiles: false,
-        useGlobalIgnoreFiles: false,
-        followSymlinks: true
-    }
-}))
-
-function newRunner(): SearchRunner {
-    const registry = new EngineRegistry()
-    registry.register(textEngine)
-    for (const engine of structuralEngines()) registry.register(engine)
-    return new SearchRunner({
-        registry,
-        workspaceEngines: [new RegexEngine(rgPath, () => {})],
-        rgPath,
-        languages: () => new LanguageIndex([]),
-        log: (message) => console.error(message),
-        workers
-    })
-}
-
-interface Measurement {
-    ms: number
-    firstBatchMs: number
-    files: FileResult[]
-}
-
-async function measure(runner: SearchRunner, raw: string): Promise<Measurement> {
-    const files: FileResult[] = []
-    let firstBatchMs = -1
-    const started = performance.now()
-    await runner.run({
-        query: parseQuery(raw, matching),
-        roots,
-        contextLines: 1,
-        resultLineLimit: Number.MAX_SAFE_INTEGER,
-        fields: NO_FILE_FIELDS,
-        signal: new AbortController().signal,
-        onBatch: (batch) => {
-            if (firstBatchMs < 0) firstBatchMs = performance.now() - started
-            files.push(...batch)
-        }
-    })
-    return { ms: performance.now() - started, firstBatchMs, files }
-}
+const roots = benchRoots(folders, {
+    excludeGlobs: ["**/.git"],
+    useIgnoreFiles: !values["all-files"]
+})
 
 /** Hashes the matched lines with their ranges, reasons and key paths, so two builds can be compared for equal results. */
 function resultHash(files: readonly FileResult[]): string {
@@ -122,15 +66,12 @@ function resultHash(files: readonly FileResult[]): string {
     return createHash("sha256").update(entries.sort().join("\n")).digest("hex").slice(0, 12)
 }
 
-function median(numbers: number[]): number {
-    const sorted = [...numbers].sort((a, b) => a - b)
-    return sorted[Math.floor(sorted.length / 2)] ?? 0
-}
-
 const rows = []
 for (const raw of values.query ?? DEFAULT_QUERIES) {
     const samples: Measurement[] = []
-    for (let run = 0; run < runs; run++) samples.push(await measure(newRunner(), raw))
+    for (let run = 0; run < runs; run++) {
+        samples.push(await measureSearch(newBenchRunner(rgPath, workers), raw, matching, roots))
+    }
     const last = samples.at(-1)!
     rows.push({
         query: raw,
