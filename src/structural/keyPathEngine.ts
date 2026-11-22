@@ -1,13 +1,23 @@
 import type { KeyPathFiles } from "../api"
-import type { FileInfo, LineMatch, Query, SearchEngine, SearchFile } from "../search/types"
+import type {
+    FileInfo,
+    LineMatch,
+    PreparedFile,
+    Query,
+    SearchEngine,
+    SearchFile
+} from "../search/types"
 import { compareKeyFor } from "./compareKeyDefault"
 import { type FileKind, isFileOfKind, keyPathOf } from "./fileKinds"
 import { KeyPathCollector, SearchAborted } from "./keyPathCollector"
+import { recordKeyVisits, replayKeyVisits } from "./keyVisits"
 
 /**
  * Turns a file type that reads its own keys into a search engine.
  * Throws if `files` breaks a rule that `registerKeyPathFiles` documents.
  * Copies the language IDs and extensions, so a later change to `files` leaves the engine alone.
+ * A file from a search worker keeps the nodes that `files.readKeys` visited.
+ * The next search of that file replays them and skips the parse.
  */
 export function keyPathEngine(files: KeyPathFiles): SearchEngine {
     const kind = fileKindOf(files)
@@ -18,18 +28,25 @@ export function keyPathEngine(files: KeyPathFiles): SearchEngine {
             return keyPathOf(query) !== undefined && isFileOfKind(file, kind)
         },
 
-        search(file: SearchFile, query: Query, signal: AbortSignal): LineMatch[] {
+        search(file: SearchFile | PreparedFile, query: Query, signal: AbortSignal): LineMatch[] {
             const pattern = keyPathOf(query)
             if (pattern === undefined) {
                 return []
             }
             const collector = new KeyPathCollector(file.text, pattern, compareKeyFor(query), signal)
             try {
-                files.readKeys(
-                    file.text,
-                    (path, start, end) => collector.visit(path, start, end),
-                    signal
-                )
+                if ("memo" in file) {
+                    const visits = file.memo(files.id, () =>
+                        recordKeyVisits(files.readKeys, file.text, signal)
+                    )
+                    replayKeyVisits(visits, (path, start, end) => collector.visit(path, start, end))
+                } else {
+                    files.readKeys(
+                        file.text,
+                        (path, start, end) => collector.visit(path, start, end),
+                        signal
+                    )
+                }
             } catch (error) {
                 if (error instanceof SearchAborted) {
                     return []

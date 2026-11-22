@@ -60,7 +60,13 @@ function searchChunk(chunk: SearchChunk): ChunkDone {
             ...file.info,
             text,
             folds: cached.folds,
-            lines: () => (lines ??= splitLines(text))
+            lines: () => (lines ??= splitLines(text)),
+            memo: <T>(key: string, build: () => T): T => {
+                if (cached.memos.has(key)) return cached.memos.get(key) as T
+                const value = build()
+                cached.memos.set(key, value)
+                return value
+            }
         }
         const lists = file.engineIds.map((id) => {
             const engine = engines.get(id)

@@ -9,6 +9,8 @@ export interface CachedFile {
     text: string | undefined
     /** The folds of `text`, kept with it since a fuzzy search derives them anew per file otherwise. */
     folds: FileFolds | undefined
+    /** What the engines derived from `text`, by the key of `PreparedFile.memo`. */
+    memos: Map<string, unknown>
 }
 
 interface Entry {
@@ -22,7 +24,7 @@ interface Entry {
  * A file whose size or modification time changed reads again.
  * A full cache makes room by dropping the files that no search since the last `startSearch` read, the least recently read first.
  * It keeps the files of the running search, since a search that reads more than fits would otherwise drop each file before the next search reads it again.
- * The texts and their folds take a few times their size on disk in memory.
+ * The texts, their folds and what the engines derived from them take a few times their size on disk in memory.
  */
 export class TextCache {
     /** In the order of the last read, oldest first. */
@@ -73,5 +75,11 @@ export class TextCache {
 
 /** Builds the cache entry of a file read from disk. */
 export function cachedFile(mtimeMs: number, size: number, text: string | undefined): CachedFile {
-    return { mtimeMs, size, text, folds: text === undefined ? undefined : new FileFolds(text) }
+    return {
+        mtimeMs,
+        size,
+        text,
+        folds: text === undefined ? undefined : new FileFolds(text),
+        memos: new Map()
+    }
 }

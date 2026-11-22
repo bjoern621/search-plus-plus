@@ -51,4 +51,10 @@ export interface PreparedFile extends api.SearchFile {
     folds: FileFolds
     /** The lines of `text` as `splitLines` splits them, split once per search. */
     lines(): string[]
+    /**
+     * Returns what `build` derived from `text` under `key`, kept with the text until the file changes.
+     * `build` must read `text` alone. Two engines must not share a key.
+     * A `build` that throws keeps nothing.
+     */
+    memo<T>(key: string, build: () => T): T
 }

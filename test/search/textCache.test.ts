@@ -47,5 +47,6 @@ describe("TextCache", () => {
     it("keeps a binary file without folds", () => {
         const binary = cachedFile(1, 4, undefined)
         expect(binary.folds).toBeUndefined()
+        expect(binary.memos.size).toBe(0)
     })
 })
