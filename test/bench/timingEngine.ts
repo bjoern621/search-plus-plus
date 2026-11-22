@@ -1,7 +1,9 @@
 import { spawn, spawnSync } from "node:child_process"
+import { watch } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { parseArgs } from "node:util"
+import { forgetListings, isIgnoreFile, trustListings } from "../../src/search/files"
 import { DEFAULT_MATCHING } from "../../src/search/types"
 import { SearchWorkerPool } from "../../src/search/worker/pool"
 import { benchRoots, measureSearch, median, newBenchRunner } from "./setup"
@@ -39,6 +41,11 @@ const folder = values.folder
 const rgPath = values.rg
 const runs = Number(values.runs)
 const workers = new SearchWorkerPool(values.worker, (message) => console.error(message))
+// Stands in for the file watcher of the extension.
+watch(folder, { recursive: true }, (event, filename) => {
+    if (event === "rename" || (filename !== null && isIgnoreFile(filename))) forgetListings()
+}).unref()
+trustListings()
 const roots = benchRoots([folder], { excludeGlobs: FILES_EXCLUDE_DEFAULTS, useIgnoreFiles: true })
 
 /**

@@ -4,6 +4,7 @@ import type { SearchPlusPlusApi } from "./api"
 import { textEngine } from "./engines/text"
 import { RegexEngine } from "./engines/regex"
 import { LanguageIndex, languageContributions } from "./search/languages"
+import { forgetListings, isIgnoreFile, trustListings } from "./search/files"
 import { EngineRegistry, searchPlusPlusApi } from "./search/registry"
 import { findRipgrep } from "./search/ripgrep"
 import { SearchRunner } from "./search/runner"
@@ -60,6 +61,13 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
         log: (message) => log.warn(message),
         workers
     })
+    const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*")
+    fileWatcher.onDidCreate(forgetListings)
+    fileWatcher.onDidDelete(forgetListings)
+    fileWatcher.onDidChange((uri) => {
+        if (isIgnoreFile(uri.path)) forgetListings()
+    })
+    trustListings()
     const provider = new SearchViewProvider(
         context.extensionUri,
         runner,
@@ -69,6 +77,7 @@ export function activate(context: vscode.ExtensionContext): SearchPlusPlusApi {
 
     context.subscriptions.push(
         log,
+        fileWatcher,
         { dispose: () => workers.dispose() },
         vscode.extensions.onDidChange(() => {
             languages = undefined

@@ -5,7 +5,7 @@ import type { Hint } from "../query/types"
 import { assert } from "./assert"
 import { BatchSender } from "./batch"
 import { BATCH_INTERVAL_DURATION_MS, FILE_READ_CONCURRENCY, RESULT_LINE_LIMIT } from "./config"
-import { collectFiles } from "./files"
+import { collectFiles, relistReused } from "./files"
 import { type FileFields, PathFilter } from "./globs"
 import type { LanguageIndex } from "./languages"
 import { LineFeedLineMap } from "./lineFeedLines"
@@ -134,6 +134,7 @@ class RunningSearch {
         await this.searchDisk(takenUris)
         await this.searchOpenFiles(takenUris)
         this.sender.flush()
+        relistReused(this.deps.rgPath, this.deps.log)
     }
 
     /**

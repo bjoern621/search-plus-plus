@@ -33,5 +33,11 @@ export const SEARCH_WORKER_CHUNKS_IN_FLIGHT = 2
 /** The workers keep the texts of at most this many bytes on disk between searches, shared out evenly among them. */
 export const SEARCH_TEXT_CACHE_MAX_BYTES = 128 * 1024 * 1024
 
+/**
+ * The last listing of a root gets replaced in the background once no search took it for this long.
+ * A search per keystroke would otherwise start ripgrep per keystroke.
+ */
+export const LISTING_RELIST_DELAY_DURATION_MS = 2_000
+
 /** The workers quit after this long without a search, to give back their memory. */
 export const SEARCH_WORKER_IDLE_DURATION_MS = 60_000
