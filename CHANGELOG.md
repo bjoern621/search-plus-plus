@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.2.0 (2026-11-22)
+
 ### Changed
 
 - A search after the first one returns faster.
