@@ -12,12 +12,12 @@ interface QueryWord {
 }
 
 /**
- * Narrows a text query to each file by the words that match the path of the file.
+ * Adds a narrowed query for each file whose path matches some words of a text query.
  * The query splits into words at white space outside double quotes.
  * A word matches a path when the path holds it at the start of a word, in any case: `staging` and `apps/stag` match `deploy-apps/staging/web.yaml`.
- * The words that the path holds leave the query.
- * The other words search the lines of the file.
- * A file whose path holds none or all of the words gets the whole query.
+ * The narrowed query leaves out the words that the path holds and searches the lines of the file with the other words.
+ * The whole query searches the lines of every file as well.
+ * A file whose path holds none or all of the words gets the whole query alone.
  * A quoted word and a word with `*` or `\` search lines alone.
  */
 export class PathWords {
@@ -29,14 +29,14 @@ export class PathWords {
         this.words = query.kind === "text" ? splitWords(query.raw) : []
     }
 
-    /** Returns the query that searches the lines of the file at `relativePath`, a path with `/` as separator. */
-    queryFor(relativePath: string): Query {
-        if (this.words.length < 2) return this.query
+    /** Returns the queries that search the lines of the file at `relativePath`, a path with `/` as separator: the whole query first. */
+    queriesFor(relativePath: string): Query[] {
+        if (this.words.length < 2) return [this.query]
         const path = foldCase(relativePath)
         const inPath = this.words.flatMap((word, index) =>
             word.pathText !== undefined && holdsWordStart(path, word.pathText) ? [index] : []
         )
-        if (inPath.length === 0 || inPath.length === this.words.length) return this.query
+        if (inPath.length === 0 || inPath.length === this.words.length) return [this.query]
         const key = inPath.join(",")
         let query = this.narrowed.get(key)
         if (query === undefined) {
@@ -47,7 +47,7 @@ export class PathWords {
             )
             this.narrowed.set(key, query)
         }
-        return query
+        return [this.query, query]
     }
 }
 

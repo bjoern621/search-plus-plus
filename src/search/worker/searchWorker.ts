@@ -71,11 +71,13 @@ function searchChunk(chunk: SearchChunk): ChunkDone {
                 return value
             }
         }
-        const query = search.pathWords.queryFor(file.info.relativePath)
-        const lists = file.engineIds.map((id) => {
+        const queries = search.pathWords.queriesFor(file.info.relativePath)
+        const lists = file.engineIds.flatMap((id) => {
             const engine = engines.get(id)
             assert(engine !== undefined, "a chunk names only the engines of workerEngines")
-            return runEngine(engine, prepared, query, search, done.errors)
+            return queries
+                .filter((query) => queries.length === 1 || accepts(engine, prepared, query))
+                .map((query) => runEngine(engine, prepared, query, search, done.errors))
         })
         if (lists.every((list) => list.length === 0)) return
         const { matches } = fileMatches(prepared.lines(), lists)
@@ -87,6 +89,15 @@ function searchChunk(chunk: SearchChunk): ChunkDone {
         })
     })
     return done
+}
+
+/** The runner picked each engine of a chunk for at least one query of the file. A file with several queries asks again for each. */
+function accepts(engine: SearchEngine, file: PreparedFile, query: Query): boolean {
+    try {
+        return engine.accepts(file, query)
+    } catch {
+        return false
+    }
 }
 
 function runEngine(

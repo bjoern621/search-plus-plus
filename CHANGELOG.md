@@ -4,8 +4,8 @@
 
 ### Added
 
-- A word of the query that starts a word of a file path narrows the search to such files.
-  The other words search their lines: `staging namespace` finds `namespace` in the files under `staging/`.
+- A word of the query that starts a word of a file path counts as found in that file.
+  The other words search its lines, on top of the whole query: `staging namespace` finds `namespace` alone in the files under `staging/`.
   A word may hold slashes, as `apps/staging` does.
 - A result line with matches past the edge of its row shows their count, such as `+1`.
 - Clicking a result line again, or pressing Enter on it again, opens its next match.

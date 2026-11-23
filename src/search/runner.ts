@@ -198,12 +198,13 @@ class RunningSearch {
                 text,
                 found.map((engineLists) => engineLists[index] ?? [])
             )
-            const query = this.pathWords.queryFor(file.relativePath)
-            for (const engine of this.fileEngines.filter((engine) =>
-                this.accepts(engine, info, query)
-            )) {
-                const matches = await this.searchWith(engine, { ...info, text }, query)
-                if (matches) lists.push(matches)
+            const queries = this.pathWords.queriesFor(file.relativePath)
+            for (const engine of this.fileEngines) {
+                for (const query of queries) {
+                    if (!this.accepts(engine, info, query)) continue
+                    const matches = await this.searchWith(engine, { ...info, text }, query)
+                    if (matches) lists.push(matches)
+                }
             }
             this.emitFound(OPEN_FILES_ROOT, info, text, lists)
         }
@@ -265,12 +266,14 @@ class RunningSearch {
             relativePath: item.relativePath,
             languageId: this.languageOf(item.relativePath)
         }
-        const query = this.pathWords.queryFor(item.relativePath)
-        const engines = this.fileEngines.filter((engine) => this.accepts(engine, file, query))
+        const queries = this.pathWords.queriesFor(item.relativePath)
+        const engines = this.fileEngines.filter((engine) =>
+            queries.some((query) => this.accepts(engine, file, query))
+        )
         if (engines.length === 0 && item.lists.length === 0) return
         const inThread = () =>
             queue.add(() =>
-                this.searchFile(item, file, engines, query).catch((error: unknown) =>
+                this.searchFile(item, file, engines, queries).catch((error: unknown) =>
                     this.deps.log(`Could not search ${item.relativePath}: ${String(error)}`)
                 )
             )
@@ -339,15 +342,18 @@ class RunningSearch {
         item: PendingFile,
         file: FileInfo,
         engines: readonly SearchEngine[],
-        query: Query
+        queries: readonly Query[]
     ): Promise<void> {
         const text = await readSearchText(vscode.Uri.parse(file.uri), this.unsaved)
         if (text === undefined || this.signal.aborted) return
 
         const lists = workspaceEditorLines(text, item.lists)
         for (const engine of engines) {
-            const found = await this.searchWith(engine, { ...file, text }, query)
-            if (found) lists.push(found)
+            for (const query of queries) {
+                if (!this.accepts(engine, file, query)) continue
+                const found = await this.searchWith(engine, { ...file, text }, query)
+                if (found) lists.push(found)
+            }
         }
         this.emitFound(item.root, file, text, lists)
     }
