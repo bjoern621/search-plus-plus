@@ -568,8 +568,7 @@ function rowElement(row: Row, index: number): HTMLElement {
             if (!row.leaf) element.setAttribute("aria-expanded", String(!row.collapsed))
             element.style.setProperty("--depth", String(row.depth))
             element.title = [row.parent ?? "", row.label].filter((part) => part !== "").join("/")
-            const icon =
-                iconTheme.folderElement(row.icon) ?? (row.leaf ? leafFolderIcon() : undefined)
+            const icon = iconTheme.folderElement(row.icon)
             element.append(
                 row.leaf ? span("twisty", "") : twisty(row.collapsed),
                 ...(icon ? [icon] : [])
@@ -780,16 +779,6 @@ function twisty(collapsed: boolean): HTMLElement {
     const element = codicon(collapsed ? "chevron-right" : "chevron-down")
     element.classList.add("twisty")
     return element
-}
-
-/**
- * A folder row without children sits among file rows without a twisty to tell it apart.
- * Under a theme without folder icons, it takes a folder codicon in the icon slot of a file, so its name lines up with theirs.
- */
-function leafFolderIcon(): HTMLElement {
-    const slot = iconTheme.element(undefined)
-    slot.append(codicon("folder"))
-    return slot
 }
 
 function codicon(name: string): HTMLElement {

@@ -609,7 +609,3 @@ button {
     color: var(--vscode-list-highlightForeground);
     font-weight: bold;
 }
-
-.file-icon > .codicon {
-    vertical-align: middle;
-}
