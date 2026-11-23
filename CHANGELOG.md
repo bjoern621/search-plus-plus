@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- A result line with matches past the edge of its row shows their count, such as `+1`.
+- Clicking a result line again, or pressing Enter on it again, opens its next match.
+  The row scrolls to that match and marks it in the colors of the editor's current find match.
+  A double-click keeps the match that its first click opened.
+
 ## v0.2.0 (2026-11-22)
 
 ### Changed

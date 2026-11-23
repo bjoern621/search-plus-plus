@@ -504,6 +504,34 @@ button {
     background: none;
 }
 
+/* The match that the editor selected last takes the colors of the current match in the editor's find widget. */
+.mark.opened {
+    outline-color: var(--vscode-editor-findMatchBorder, transparent);
+    background: var(--vscode-editor-findMatchBackground);
+}
+
+.vscode-high-contrast .mark.opened {
+    outline-style: solid;
+}
+
+.more-matches {
+    flex: none;
+    margin-left: 4px;
+    padding: 0 4px;
+    border-radius: 2px;
+    line-height: 16px;
+    background: var(--vscode-editor-findMatchHighlightBackground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--small-font-size);
+    font-feature-settings: normal;
+}
+
+.vscode-high-contrast .more-matches {
+    outline: 1px dashed var(--vscode-editor-findMatchHighlightBorder, transparent);
+    outline-offset: -1px;
+    background: none;
+}
+
 .results:focus {
     outline: none;
 }

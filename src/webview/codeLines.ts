@@ -97,17 +97,17 @@ export function dedent(line: ResultLine, columns: number): ResultLine {
 }
 
 /**
- * Cuts the start of a match line whose first match would end past the right edge of its row.
+ * Cuts the start of a match line whose range at index `match` would end past the right edge of its row.
  * The line keeps its indentation, then the text from a word boundary about a third of the row before the match.
  * The indentation always stays, so the line lines up with the other lines of its group. The caller marks the cut outside the text.
- * Returns undefined for a line whose match fits in `fitsChars` characters.
+ * Returns undefined for a line whose match fits in `fitsChars` characters and for a line without that range.
  */
-export function cutToMatch(line: ResultLine, fitsChars: number): ResultLine | undefined {
-    const first = line.ranges[0]
-    if (!first) return undefined
-    const matchStart = first.start - line.offset
-    const matchEnd = first.end - line.offset
-    if (matchEnd <= fitsChars || matchStart <= 0) return undefined
+export function cutToMatch(line: ResultLine, fitsChars: number, match = 0): ResultLine | undefined {
+    const range = line.ranges[match]
+    if (!range) return undefined
+    const matchStart = range.start - line.offset
+    const matchEnd = range.end - line.offset
+    if (matchEnd <= fitsChars || matchStart <= 0 || matchStart >= line.text.length) return undefined
     const indent = /^ */.exec(line.text)?.[0].length ?? 0
     const from = cutAt(line.text, matchStart, indent, fitsChars)
     if (from <= indent) return undefined

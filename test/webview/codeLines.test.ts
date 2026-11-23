@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { FileResult, ResultLine } from "../../src/messages"
-import { groupAround, groupDedents, targetLine } from "../../src/webview/codeLines"
-import type { Row } from "../../src/webview/tree"
+import { cutToMatch, groupAround, groupDedents, targetLine } from "../../src/webview/codeLines"
+import { highlightParts, type Row } from "../../src/webview/tree"
 
 const line = (number: number, match: boolean, text = `line ${number}`): ResultLine => ({
     line: number,
@@ -68,5 +68,51 @@ describe("groupDedents", () => {
             ]
         ])
         expect(groupDedents(rows)).toEqual([4, 4, 2])
+    })
+})
+
+describe("cutToMatch", () => {
+    const twoMatches: ResultLine = {
+        line: 43,
+        text: '  namespace: {{ include "instance.namespace" . }}',
+        offset: 0,
+        match: true,
+        ranges: [
+            { start: 2, end: 11 },
+            { start: 34, end: 43 }
+        ]
+    }
+
+    it("leaves a line whose first match fits", () => {
+        expect(cutToMatch(twoMatches, 20)).toBeUndefined()
+    })
+
+    it("cuts the line to show the second match", () => {
+        const cut = cutToMatch(twoMatches, 20, 1)
+        expect(cut?.text.startsWith("  ")).toBe(true)
+        const [, second] = twoMatches.ranges
+        const start = (second?.start ?? 0) - (cut?.offset ?? 0)
+        expect(cut?.text.slice(start, start + 9)).toBe("namespace")
+        expect(start + 9).toBeLessThanOrEqual(20)
+    })
+
+    it("leaves a line without the range", () => {
+        expect(cutToMatch(twoMatches, 20, 2)).toBeUndefined()
+    })
+})
+
+describe("highlightParts", () => {
+    it("gives each marked part the index of its range", () => {
+        const parts = highlightParts({
+            line: 0,
+            text: "a b a",
+            offset: 0,
+            match: true,
+            ranges: [
+                { start: 0, end: 1 },
+                { start: 4, end: 5 }
+            ]
+        })
+        expect(parts).toEqual([{ text: "a", match: 0 }, { text: " b " }, { text: "a", match: 1 }])
     })
 })

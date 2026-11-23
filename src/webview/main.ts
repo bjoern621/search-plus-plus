@@ -95,6 +95,8 @@ let historyTimer = 0
 let focusedIndex = -1
 /** Index of the row under the pointer, -1 without one. */
 let hoveredIndex = -1
+/** The line that a click or Enter opened last and the index of the range that the editor selected. Another activation of it opens the next range. */
+let openedMatch: { line: ResultLine; match: number } | undefined
 /** The line whose context menu shows. */
 let menuRow: Extract<Row, { kind: "line" }> | undefined
 /** The scroll position at which the context menu opened. A scroll event that leaves it unchanged keeps the menu open. */
@@ -165,7 +167,8 @@ rowsElement.addEventListener("click", (event) => {
     const index = rowIndexFromEvent(event)
     if (!rows[index]) return
     focusRow(index)
-    activate(index, { preview: true, preserveFocus: false })
+    // The second click of a double-click keeps the match that the first one opened.
+    activate(index, { preview: true, preserveFocus: false }, event.detail <= 1)
 })
 
 // The class "keyboard-focus" shows the selection outline after a key press in the results and hides it on a click.
@@ -203,7 +206,8 @@ results.addEventListener("keydown", (event) => {
 
 rowsElement.addEventListener("dblclick", (event) => {
     const index = rowIndexFromEvent(event)
-    if (rows[index]?.kind === "line") activate(index, { preview: false, preserveFocus: false })
+    if (rows[index]?.kind === "line")
+        activate(index, { preview: false, preserveFocus: false }, false)
 })
 
 rowsElement.addEventListener("contextmenu", (event) => {
@@ -547,7 +551,7 @@ function render(): void {
     rowsElement.replaceChildren(...elements, hoveredOutline, focusedOutline)
     placeOutline(hoveredOutline, hoveredIndex)
     placeOutline(focusedOutline, focusedIndex)
-    cutMatchLines()
+    fitMatchLines()
     fitPaths(rowsElement.querySelectorAll<HTMLElement>(".key-path, .folder-path"))
 }
 
@@ -599,12 +603,15 @@ function rowElement(row: Row, index: number): HTMLElement {
             if (row.line.match) element.classList.add("match")
             if (skipsLines(index)) element.classList.add("after-gap")
             const text = span("text", "")
-            fillLineText(text, dedent(row.line, dedents[index] ?? 0))
+            fillLineText(text, dedent(row.line, dedents[index] ?? 0), openedMatchOf(row.line))
             element.append(
                 span("number", String(row.line.line + 1)),
                 span("cut-mark", row.line.offset > 0 ? "…" : ""),
                 text
             )
+            // The count starts at its widest, so the text that `fitMatchLines` measures never grows back over it.
+            if (row.line.ranges.length > 1)
+                element.append(span("more-matches", `+${row.line.ranges.length - 1}`))
             const keys = shownKeys(row.line)
             if (keys) element.append(keyPathElement(keys))
             return element
@@ -612,35 +619,89 @@ function rowElement(row: Row, index: number): HTMLElement {
     }
 }
 
-function fillLineText(text: HTMLElement, line: ResultLine): void {
+/** Fills `text` with the line and marks its ranges. The range at index `opened` gets the look of the selected match in the editor. */
+function fillLineText(text: HTMLElement, line: ResultLine, opened: number | undefined): void {
     text.replaceChildren()
     for (const part of highlightParts(line)) {
-        if (part.marked) text.append(span("mark", part.text, "mark"))
-        else text.append(part.text)
+        if (part.match === undefined) {
+            text.append(part.text)
+            continue
+        }
+        const mark = span(part.match === opened ? "mark opened" : "mark", part.text, "mark")
+        mark.dataset.match = String(part.match)
+        text.append(mark)
     }
 }
 
-/** Cuts the start of each match line in view whose first match ends past the edge of its row, so the match shows. A resize renders again and cuts anew. */
-function cutMatchLines(): void {
+/** The index of the range that the editor selected last in `line`, undefined for any other line. */
+function openedMatchOf(line: ResultLine): number | undefined {
+    return openedMatch?.line === line ? openedMatch.match : undefined
+}
+
+/**
+ * Fits each match line in view to its row: the line shows the range that the editor selected last, else its first one.
+ * A count after the text gives the number of matches that stay out of view. A line that shows every match loses the count.
+ * A resize renders again and fits anew.
+ */
+function fitMatchLines(): void {
     for (const element of rowsElement.querySelectorAll<HTMLElement>(".line.match")) {
         const text = element.querySelector<HTMLElement>(".text")
-        const mark = text?.querySelector<HTMLElement>(".mark")
-        if (!text || !mark?.textContent) continue
-        const markBox = mark.getBoundingClientRect()
-        if (markBox.right <= text.getBoundingClientRect().right + 0.5) continue
         const index = Number(element.dataset.index)
         const row = rows[index]
-        if (row?.kind !== "line") continue
-        const charWidth = markBox.width / mark.textContent.length
-        const cut = cutToMatch(
-            dedent(row.line, dedents[index] ?? 0),
-            Math.floor(text.clientWidth / charWidth)
-        )
-        if (!cut) continue
-        fillLineText(text, cut)
-        const cutMark = element.querySelector<HTMLElement>(".cut-mark")
-        if (cutMark) cutMark.textContent = "…"
+        if (!text || row?.kind !== "line") continue
+        const opened = openedMatchOf(row.line)
+        cutToShownMatch(element, text, row.line, dedents[index] ?? 0, opened)
+        countHiddenMatches(element, text, row.line)
     }
+}
+
+/** Cuts the start of the line when the range it shows ends past the edge of the row. */
+function cutToShownMatch(
+    element: HTMLElement,
+    text: HTMLElement,
+    line: ResultLine,
+    dedentColumns: number,
+    opened: number | undefined
+): void {
+    const shown = opened ?? 0
+    const mark = text.querySelector<HTMLElement>(`.mark[data-match="${shown}"]`)
+    const anyMark = mark ?? text.querySelector<HTMLElement>(".mark")
+    if (!anyMark?.textContent) return
+    if (mark && mark.getBoundingClientRect().right <= text.getBoundingClientRect().right + 0.5)
+        return
+    const markBox = anyMark.getBoundingClientRect()
+    const charWidth = markBox.width / anyMark.textContent.length
+    const cut = cutToMatch(
+        dedent(line, dedentColumns),
+        Math.floor(text.clientWidth / charWidth),
+        shown
+    )
+    if (!cut) return
+    fillLineText(text, cut, opened)
+    const cutMark = element.querySelector<HTMLElement>(".cut-mark")
+    if (cutMark) cutMark.textContent = "…"
+}
+
+/** Writes the number of ranges that the row leaves out of view or cuts at an edge into the count, or removes the count when every range shows. */
+function countHiddenMatches(element: HTMLElement, text: HTMLElement, line: ResultLine): void {
+    const count = element.querySelector<HTMLElement>(".more-matches")
+    if (!count) return
+    const box = text.getBoundingClientRect()
+    let shown = 0
+    for (const mark of text.querySelectorAll<HTMLElement>(".mark")) {
+        const markBox = mark.getBoundingClientRect()
+        if (markBox.left >= box.left - 0.5 && markBox.right <= box.right + 0.5) shown++
+    }
+    const hidden = line.ranges.length - shown
+    if (hidden === 0) {
+        count.remove()
+        return
+    }
+    count.textContent = `+${hidden}`
+    count.title =
+        hidden === 1
+            ? "1 more match in this line. Click the line again to open the next match."
+            : `${hidden} more matches in this line. Click the line again to open the next match.`
 }
 
 /** True for a code line that starts a group below another code line of the same file. */
@@ -823,8 +884,12 @@ function runMenuAction(action: MenuAction): void {
     }
 }
 
-/** A line opens its file at the match. A folder or file row collapses or expands. */
-function activate(index: number, open: OpenOptions): void {
+/**
+ * A line opens its file at the match. A folder or file row collapses or expands.
+ * With `nextMatch`, activating the line that opened last opens its next match, and after the last match its first one again.
+ * Without it, that line opens the same match again.
+ */
+function activate(index: number, open: OpenOptions, nextMatch = true): void {
     const row = rows[index]
     switch (row?.kind) {
         case undefined:
@@ -835,18 +900,29 @@ function activate(index: number, open: OpenOptions): void {
             else collapsed.add(row.key)
             invalidateLayout()
             return
-        case "line":
-            openLine(row.file, targetLine(rows, index) ?? row.line, open)
+        case "line": {
+            const line = targetLine(rows, index) ?? row.line
+            const previous = openedMatchOf(line)
+            const match =
+                previous === undefined
+                    ? 0
+                    : nextMatch
+                      ? (previous + 1) % Math.max(1, line.ranges.length)
+                      : previous
+            openedMatch = { line, match }
+            openLine(row.file, line, match, open)
+            scheduleRender()
             return
+        }
     }
 }
 
-function openLine(file: FileResult, line: ResultLine, open: OpenOptions): void {
+function openLine(file: FileResult, line: ResultLine, match: number, open: OpenOptions): void {
     vscode.postMessage({
         type: "open",
         uri: file.uri,
         line: line.line,
-        range: line.ranges[0],
+        range: line.ranges[match],
         ...open
     })
 }

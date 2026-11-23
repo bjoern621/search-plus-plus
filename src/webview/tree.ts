@@ -380,18 +380,21 @@ export function rowAt(offsets: readonly number[], top: number): number {
     return Math.max(0, low)
 }
 
-/** Splits an excerpt into plain and marked parts. Ranges count offsets of the whole line, so they shift by the excerpt offset. */
-export function highlightParts(line: ResultLine): { text: string; marked: boolean }[] {
-    const parts: { text: string; marked: boolean }[] = []
+/**
+ * Splits an excerpt into plain and marked parts. Ranges count offsets of the whole line, so they shift by the excerpt offset.
+ * A marked part carries the index of its range in `match`. A range outside the excerpt gives no part.
+ */
+export function highlightParts(line: ResultLine): { text: string; match?: number }[] {
+    const parts: { text: string; match?: number }[] = []
     let cursor = 0
-    for (const range of line.ranges) {
+    line.ranges.forEach((range, match) => {
         const start = Math.min(Math.max(range.start - line.offset, cursor), line.text.length)
         const end = Math.min(Math.max(range.end - line.offset, start), line.text.length)
-        if (start > cursor) parts.push({ text: line.text.slice(cursor, start), marked: false })
-        if (end > start) parts.push({ text: line.text.slice(start, end), marked: true })
+        if (start > cursor) parts.push({ text: line.text.slice(cursor, start) })
+        if (end > start) parts.push({ text: line.text.slice(start, end), match })
         cursor = end
-    }
-    if (cursor < line.text.length) parts.push({ text: line.text.slice(cursor), marked: false })
+    })
+    if (cursor < line.text.length) parts.push({ text: line.text.slice(cursor) })
     return parts
 }
 
