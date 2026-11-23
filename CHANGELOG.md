@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.3.0 (2026-11-23)
+
 ### Added
 
 - The search finds files and folders whose name matches the query, with the typos and umlaut spellings of the line search.
