@@ -8,6 +8,7 @@ export type MenuAction =
     | { kind: "exclude"; entry: string }
     | { kind: "copyLine" }
     | { kind: "copy"; text: string }
+    | { kind: "reveal"; uri: string }
 
 export interface MenuItem {
     label: string
@@ -46,6 +47,41 @@ export function matchMenu(file: FileResult, line: ResultLine, query: string): Me
     groups.push(copies)
 
     return { reasons: reasonLines(reasons, line.keyPath ?? []), groups }
+}
+
+/** Lays out the context menu of a file row. */
+export function fileMenu(file: FileResult): MenuContent {
+    const exclusions: MenuItem[] = [
+        { label: `Exclude ${file.name}`, action: { kind: "exclude", entry: fileEntry(file) } }
+    ]
+    if (file.folder !== "")
+        exclusions.push({
+            label: `Exclude folder ${file.folder}`,
+            action: { kind: "exclude", entry: folderEntry(file.folder) }
+        })
+    return {
+        reasons: [],
+        groups: [
+            [{ label: "Reveal in Explorer", action: { kind: "reveal", uri: file.uri } }],
+            exclusions
+        ]
+    }
+}
+
+/** Lays out the context menu of the folder at `uri`, whose path relative to its workspace folder reads `folder`. */
+export function folderMenu(uri: string, folder: string): MenuContent {
+    return {
+        reasons: [],
+        groups: [
+            [{ label: "Reveal in Explorer", action: { kind: "reveal", uri } }],
+            [
+                {
+                    label: `Exclude folder ${folder}`,
+                    action: { kind: "exclude", entry: folderEntry(folder) }
+                }
+            ]
+        ]
+    }
 }
 
 /** Searches again with the first word that a matching default stretched in quotes, so it matches exactly. */

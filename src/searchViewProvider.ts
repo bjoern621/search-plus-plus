@@ -10,6 +10,7 @@ import {
 import type {
     FileIcons,
     FileResult,
+    FolderResult,
     HostMessage,
     IconTable,
     ResultsLayout,
@@ -50,6 +51,8 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     private iconThemeLoads = 0
     /** Maps a file URI to a result of the current search, so a theme change can resolve its icons again. */
     private readonly shownFiles = new Map<string, FileResult>()
+    /** Maps a folder URI to a folder result of the current search, as `shownFiles` does. */
+    private readonly shownFolders = new Map<string, FolderResult>()
 
     constructor(
         private readonly extensionUri: vscode.Uri,
@@ -99,6 +102,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         this.running = controller
         const searchId = ++this.searchId
         this.shownFiles.clear()
+        this.shownFolders.clear()
         this.post({ type: "searchStarted", searchId })
 
         const roots = withExcludeField(searchRoots(), fields.exclude)
@@ -119,11 +123,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
                         .get<number>("maxResults", RESULT_LINE_LIMIT),
                     fields,
                     signal: controller.signal,
-                    onBatch: (files) =>
+                    onBatch: (files, folders) =>
                         this.post({
                             type: "results",
                             searchId,
-                            files: files.map((file) => this.withIcons(file))
+                            files: files.map((file) => this.withIcons(file)),
+                            folders: folders.map((folder) => this.folderWithIcons(folder))
                         })
                 })
             )
@@ -251,6 +256,12 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
             case "copyLine":
                 void this.copyLine(message.uri, message.line)
                 return
+            case "reveal":
+                void vscode.commands.executeCommand(
+                    "revealInExplorer",
+                    vscode.Uri.parse(message.uri)
+                )
+                return
             default:
                 assertNever(message)
         }
@@ -280,9 +291,23 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 
     private iconsOf(file: FileResult): FileIcons {
         if (!this.iconResolver) return {}
-        const root = vscode.workspace.workspaceFolders?.[file.rootIndex]
-        const rootFolderName = root ? (root.uri.path.split("/").at(-1) ?? file.root) : file.root
-        return fileIcons(this.iconResolver, file, rootFolderName)
+        return fileIcons(this.iconResolver, file, rootFolderName(file))
+    }
+
+    private folderWithIcons(folder: FolderResult): FolderResult {
+        this.shownFolders.set(folder.uri, folder)
+        return { ...folder, icons: this.folderIconsOf(folder) }
+    }
+
+    /** The icons of the folder rows down to `folder`, without a file icon. */
+    private folderIconsOf(folder: FolderResult): FileIcons {
+        if (!this.iconResolver) return {}
+        const { file: _file, ...icons } = fileIcons(
+            this.iconResolver,
+            { name: "", languageId: "", folder: folder.folder, root: folder.root },
+            rootFolderName(folder)
+        )
+        return icons
     }
 
     /** Sends the icon table and the icons of every shown file. */
@@ -298,7 +323,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         }
         const files: Record<string, FileIcons> = {}
         for (const [uri, file] of this.shownFiles) files[uri] = this.iconsOf(file)
-        this.post({ type: "icons", theme: this.iconTable(view.webview), files })
+        const folders: Record<string, FileIcons> = {}
+        for (const [uri, folder] of this.shownFolders) folders[uri] = this.folderIconsOf(folder)
+        this.post({ type: "icons", theme: this.iconTable(view.webview), files, folders })
     }
 
     private iconTable(webview: vscode.Webview): IconTable | undefined {
@@ -399,4 +426,10 @@ function createNonce(): string {
     const bytes = new Uint8Array(16)
     crypto.getRandomValues(bytes)
     return Buffer.from(bytes).toString("base64")
+}
+
+/** The name of the workspace folder of a result, as its path on disk spells it. */
+function rootFolderName(result: Pick<FileResult, "rootIndex" | "root">): string {
+    const root = vscode.workspace.workspaceFolders?.[result.rootIndex]
+    return root ? (root.uri.path.split("/").at(-1) ?? result.root) : result.root
 }

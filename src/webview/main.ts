@@ -10,15 +10,16 @@ import type {
 } from "../messages"
 import { hintFor, parseQuery, type Hint } from "../query"
 import { type FileFields, PathFilter } from "../search/globs"
+import type { Range } from "../search/types"
 import { appendEntry, fileEntry, folderEntry, onlyAdded } from "./exclusions"
 import { ContextMenu } from "./contextMenu"
 import { firstFocusableRow, type KeyPress, rowCommand } from "./keyboard"
-import { matchMenu, type MenuAction } from "./menu"
+import { fileMenu, folderMenu, matchMenu, type MenuAction } from "./menu"
 import { FileIconTheme } from "./fileIcons"
 import { QueryHighlight, renderHint } from "./queryInput"
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree"
 import { keyPathElement, shownKeys } from "./keyPath"
-import { fitPaths, folderCuts, pathElement } from "./fitPaths"
+import { fillMarked, fitPaths, folderCuts, pathElement } from "./fitPaths"
 import { EXCLUDE_ICON } from "./filledIcons"
 import {
     continuesGroup,
@@ -255,6 +256,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
         case "results":
             if (message.searchId !== searchId) return
             tree.add(message.files)
+            tree.addFolders(message.folders)
             invalidateLayout()
             return
         case "hint":
@@ -264,7 +266,7 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
             return
         case "icons":
             iconTheme.set(message.theme)
-            tree.setIcons(message.files)
+            tree.setIcons(message.files, message.folders)
             invalidateLayout()
             return
         case "searchDone":
@@ -525,11 +527,11 @@ function summaryFor(): string | undefined {
         case "running":
             return tree.matchCount === 0
                 ? undefined
-                : resultSummary(tree.matchCount, tree.fileCount)
+                : resultSummary(tree.matchCount, tree.fileCount, undefined, tree.folderCount)
         case "complete":
-            return resultSummary(tree.matchCount, tree.fileCount)
+            return resultSummary(tree.matchCount, tree.fileCount, undefined, tree.folderCount)
         case "capped":
-            return resultSummary(tree.matchCount, tree.fileCount, cappedAt)
+            return resultSummary(tree.matchCount, tree.fileCount, cappedAt, tree.folderCount)
     }
 }
 
@@ -563,11 +565,20 @@ function rowElement(row: Row, index: number): HTMLElement {
     switch (row.kind) {
         case "folder":
             element.classList.add("row")
-            element.setAttribute("aria-expanded", String(!row.collapsed))
+            if (!row.leaf) element.setAttribute("aria-expanded", String(!row.collapsed))
             element.style.setProperty("--depth", String(row.depth))
-            element.title = row.label
-            const icon = iconTheme.folderElement(row.icon)
-            element.append(twisty(row.collapsed), ...(icon ? [icon] : []), span("label", row.label))
+            element.title = [row.parent ?? "", row.label].filter((part) => part !== "").join("/")
+            const icon =
+                iconTheme.folderElement(row.icon) ?? (row.leaf ? leafFolderIcon() : undefined)
+            element.append(
+                row.leaf ? span("twisty", "") : twisty(row.collapsed),
+                ...(icon ? [icon] : [])
+            )
+            if (row.parent)
+                element.append(
+                    pathElement("folder-path dimmed", folderCuts(row.parent, [], row.parentRanges))
+                )
+            element.append(markedSpan("label", row.label, row.labelRanges))
             if (row.folder !== "")
                 element.append(
                     excludeButton(`Exclude folder ${row.folder}`, folderEntry(row.folder))
@@ -575,17 +586,24 @@ function rowElement(row: Row, index: number): HTMLElement {
             return element
         case "file": {
             element.classList.add("row")
-            element.setAttribute("aria-expanded", String(!row.collapsed))
+            const lineless = row.file.blocks.length === 0
+            if (!lineless) element.setAttribute("aria-expanded", String(!row.collapsed))
             element.style.setProperty("--depth", String(row.depth))
             element.title = [row.file.root, row.file.folder, row.file.name]
                 .filter((part) => part !== "")
                 .join("/")
-            element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file))
+            element.append(
+                lineless ? span("twisty", "") : twisty(row.collapsed),
+                iconTheme.element(row.file.icons?.file)
+            )
             if (row.folders !== "")
                 element.append(
-                    pathElement("folder-path dimmed", folderCuts(row.folders, row.distinctFolders))
+                    pathElement(
+                        "folder-path dimmed",
+                        folderCuts(row.folders, row.distinctFolders, row.folderRanges)
+                    )
                 )
-            element.append(span("label", row.file.name))
+            element.append(markedSpan("label", row.file.name, row.nameRanges))
             element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)))
             return element
         }
@@ -764,6 +782,16 @@ function twisty(collapsed: boolean): HTMLElement {
     return element
 }
 
+/**
+ * A folder row without children sits among file rows without a twisty to tell it apart.
+ * Under a theme without folder icons, it takes a folder codicon in the icon slot of a file, so its name lines up with theirs.
+ */
+function leafFolderIcon(): HTMLElement {
+    const slot = iconTheme.element(undefined)
+    slot.append(codicon("folder"))
+    return slot
+}
+
 function codicon(name: string): HTMLElement {
     const element = document.createElement("span")
     element.className = `codicon codicon-${name}`
@@ -775,6 +803,13 @@ function span(className: string, text: string, tag: "span" | "mark" = "span"): H
     const element = document.createElement(tag)
     element.className = className
     element.textContent = text
+    return element
+}
+
+/** A span with `text` whose `ranges` show as matched names. */
+function markedSpan(className: string, text: string, ranges: readonly Range[]): HTMLElement {
+    const element = span(className, "")
+    fillMarked(element, { text, ranges })
     return element
 }
 
@@ -822,23 +857,39 @@ function scrollRowIntoView(index: number): void {
         results.scrollTop = bottom - results.clientHeight
 }
 
-/** Opens the context menu of the matched line at `index`. Returns false for any other row. */
-/** A context line opens the menu of the matched line of its group, as a click on it opens that match. */
+/**
+ * Opens the context menu of the row at `index`. Returns false for a row without a menu, such as a workspace folder.
+ * A context line opens the menu of the matched line of its group, as a click on it opens that match.
+ */
 function openMenu(clickedIndex: number, fromKeyboard: boolean): boolean {
     const index = targetRowIndex(clickedIndex)
     const row = rows[index]
-    if (row?.kind !== "line" || !row.line.match) return false
+    const content = menuOf(row)
+    if (!content) return false
     focusRow(index)
     const element = rowsElement.querySelector<HTMLElement>(`[data-index="${index}"]`)
     if (!element) return false
-    menuRow = row
+    menuRow = row?.kind === "line" ? row : undefined
     menuScrollTop = results.scrollTop
-    contextMenu.open(
-        matchMenu(row.file, row.line, searched?.query ?? input.value),
-        element.getBoundingClientRect(),
-        fromKeyboard
-    )
+    contextMenu.open(content, element.getBoundingClientRect(), fromKeyboard)
     return true
+}
+
+function menuOf(row: Row | undefined): ReturnType<typeof matchMenu> | undefined {
+    switch (row?.kind) {
+        case undefined:
+            return undefined
+        case "folder":
+            return row.uri === undefined || row.folder === ""
+                ? undefined
+                : folderMenu(row.uri, row.folder)
+        case "file":
+            return fileMenu(row.file)
+        case "line":
+            return row.line.match
+                ? matchMenu(row.file, row.line, searched?.query ?? input.value)
+                : undefined
+    }
 }
 
 function targetRowIndex(index: number): number {
@@ -872,6 +923,9 @@ function runMenuAction(action: MenuAction): void {
         case "copy":
             vscode.postMessage({ type: "copy", text: action.text })
             return
+        case "reveal":
+            vscode.postMessage({ type: "reveal", uri: action.uri })
+            return
     }
 }
 
@@ -886,7 +940,20 @@ function activate(index: number, open: OpenOptions, nextMatch = true): void {
         case undefined:
             return
         case "folder":
+            if (row.leaf && row.uri !== undefined) {
+                vscode.postMessage({ type: "reveal", uri: row.uri })
+                return
+            }
+            if (collapsed.has(row.key)) collapsed.delete(row.key)
+            else collapsed.add(row.key)
+            invalidateLayout()
+            return
         case "file":
+            // A file found by its name alone holds no line to fold.
+            if (row.file.blocks.length === 0) {
+                vscode.postMessage({ type: "open", uri: row.file.uri, line: 0, ...open })
+                return
+            }
             if (collapsed.has(row.key)) collapsed.delete(row.key)
             else collapsed.add(row.key)
             invalidateLayout()

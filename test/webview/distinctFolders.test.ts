@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { distinctFolderIndices } from "../../src/webview/distinctFolders"
-import { folderCuts } from "../../src/webview/fitPaths"
+import { folderCuts as cutsOf } from "../../src/webview/fitPaths"
+
+const folderCuts = (folders: string, kept?: readonly number[]) =>
+    cutsOf(folders, kept).map((cut) => cut.text)
 
 const split = (...paths: string[]) => paths.map((path) => (path === "" ? [] : path.split("/")))
 
@@ -57,6 +60,16 @@ describe("folderCuts", () => {
             "…/x/…/c/",
             "…/x/…/",
             "…/"
+        ])
+    })
+
+    it("keeps the marks of the folders that a cut shows", () => {
+        const cuts = cutsOf("deploy/web-staging/config", [], [{ start: 11, end: 18 }])
+        expect(cuts.map((cut) => [cut.text, cut.ranges])).toEqual([
+            ["deploy/web-staging/config/", [{ start: 11, end: 18 }]],
+            ["…/web-staging/config/", [{ start: 6, end: 13 }]],
+            ["…/config/", []],
+            ["…/", []]
         ])
     })
 })

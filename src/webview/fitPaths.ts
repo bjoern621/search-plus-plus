@@ -1,15 +1,40 @@
+import type { Range } from "../search/types"
+
+/** A text that a path may show, with the ranges of `text` that the query matched. */
+export interface PathCut {
+    text: string
+    ranges: readonly Range[]
+}
+
 /** Maps a path element to the texts that it may show, the whole path first. */
-const cutsOfElement = new WeakMap<Element, readonly string[]>()
+const cutsOfElement = new WeakMap<Element, readonly PathCut[]>()
 
 /** A path that shows whole until `fitPaths` cuts it. `cuts` lists the texts that it may show, the whole path first. */
-export function pathElement(className: string, cuts: readonly string[]): HTMLElement {
+export function pathElement(className: string, cuts: readonly PathCut[]): HTMLElement {
     const element = document.createElement("span")
     element.className = className
     const isolated = document.createElement("bdi")
-    isolated.textContent = cuts[0] ?? ""
+    fillMarked(isolated, cuts[0] ?? { text: "", ranges: [] })
     element.append(isolated)
     cutsOfElement.set(element, cuts)
     return element
+}
+
+/** Fills `element` with `cut.text` and marks its ranges as matched names. */
+export function fillMarked(element: Element, cut: PathCut): void {
+    element.replaceChildren()
+    let cursor = 0
+    for (const range of [...cut.ranges].sort((a, b) => a.start - b.start)) {
+        const start = Math.max(range.start, cursor)
+        if (range.end <= start) continue
+        if (start > cursor) element.append(cut.text.slice(cursor, start))
+        const mark = document.createElement("span")
+        mark.className = "name-mark"
+        mark.textContent = cut.text.slice(start, range.end)
+        element.append(mark)
+        cursor = range.end
+    }
+    if (cursor < cut.text.length) element.append(cut.text.slice(cursor))
 }
 
 /**
@@ -32,13 +57,13 @@ export function fitPaths(elements: Iterable<HTMLElement>): void {
             {
                 element,
                 text,
-                cut: cuts.find((candidate) => textWidth(candidate, style.font) <= width)
+                cut: cuts.find((candidate) => textWidth(candidate.text, style.font) <= width)
             }
         ]
     })
     for (const { element, text, cut } of fitted) {
         if (cut === undefined) element.remove()
-        else text.textContent = cut
+        else fillMarked(text, cut)
     }
 }
 
@@ -46,27 +71,48 @@ export function fitPaths(elements: Iterable<HTMLElement>): void {
  * Lists the ways to write the folders before a file name, such as `charts/apim/`, the whole path first.
  * Each cut drops one more folder, and a run of dropped folders shows as one `…`.
  * The folders that `kept` indexes drop last. The others drop from the front: `a/x/b/c/` keeping `x` cuts to `…/x/b/c/`, `…/x/…/c/`, `…/x/…/` and `…/`.
+ * `ranges` mark matched names in `folders`. Each cut keeps the marks of the folders that it shows.
  */
-export function folderCuts(folders: string, kept: readonly number[] = []): string[] {
+export function folderCuts(
+    folders: string,
+    kept: readonly number[] = [],
+    ranges: readonly Range[] = []
+): PathCut[] {
     const names = folders.split("/")
     const order = names
         .map((_, index) => index)
         .sort((a, b) => Number(kept.includes(a)) - Number(kept.includes(b)) || a - b)
     const dropped = new Set<number>()
-    const cuts = [`${folders}/`]
+    const cuts = [writeCut(names, dropped, ranges)]
     for (const index of order) {
         dropped.add(index)
-        cuts.push(writeCut(names, dropped))
+        cuts.push(writeCut(names, dropped, ranges))
     }
     return cuts
 }
 
-function writeCut(names: readonly string[], dropped: ReadonlySet<number>): string {
-    const parts = names.flatMap((name, index) => {
-        if (!dropped.has(index)) return [name]
-        return dropped.has(index - 1) ? [] : ["…"]
+function writeCut(
+    names: readonly string[],
+    dropped: ReadonlySet<number>,
+    ranges: readonly Range[]
+): PathCut {
+    let text = ""
+    let nameStart = 0
+    const marks: Range[] = []
+    names.forEach((name, index) => {
+        const nameEnd = nameStart + name.length
+        if (!dropped.has(index)) {
+            const shift = text.length - nameStart
+            for (const range of ranges) {
+                const start = Math.max(range.start, nameStart)
+                const end = Math.min(range.end, nameEnd)
+                if (end > start) marks.push({ start: start + shift, end: end + shift })
+            }
+            text += `${name}/`
+        } else if (!dropped.has(index - 1)) text += "…/"
+        nameStart = nameEnd + 1
     })
-    return `${parts.join("/")}/`
+    return { text, ranges: marks }
 }
 
 let canvas: CanvasRenderingContext2D | undefined

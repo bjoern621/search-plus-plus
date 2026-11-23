@@ -1,5 +1,6 @@
-import type { FileIcons, FileResult, ResultLine, ResultsLayout } from "../messages"
+import type { FileIcons, FileResult, FolderResult, ResultLine, ResultsLayout } from "../messages"
 import type { PathFilter } from "../search/globs"
+import type { Range } from "../search/types"
 import { distinctFolderIndices } from "./distinctFolders"
 
 /** `depth` counts the tree rows that a row hangs from: 0 at the top, 1 below a row at the top, and so on. */
@@ -7,6 +8,9 @@ export type Row =
     /**
      * `label` joins the names of a compacted chain of folders, such as `charts/apim`.
      * `folder` holds the path relative to the workspace folder, empty for a workspace folder of a multi-root workspace. `icon` follows the collapsed state.
+     * `parent` holds the folders that the list layout shows before the label, undefined in the tree.
+     * `parentRanges` and `labelRanges` mark the matched names in `parent` and `label`.
+     * `uri` stays missing for a workspace folder. A row without children (`leaf`) shows a folder that the query matched and no result below it.
      */
     | {
           kind: "folder"
@@ -16,6 +20,11 @@ export type Row =
           folder: string
           collapsed: boolean
           icon: string | undefined
+          parent: string | undefined
+          parentRanges: Range[]
+          labelRanges: Range[]
+          uri: string | undefined
+          leaf: boolean
       }
     /**
      * `folders` holds the folders that the row shows before the file name.
@@ -23,6 +32,7 @@ export type Row =
      * It stays empty there for a file that shares its folder row with other results.
      * In the flat layouts, it holds the folder of the file, after the name of its workspace folder in a multi-root workspace.
      * `distinctFolders` indexes the folders that tell the file apart from other files of its name, which a cut path keeps longest.
+     * `folderRanges` and `nameRanges` mark the matched names in `folders` and in the file name.
      */
     | {
           kind: "file"
@@ -32,6 +42,8 @@ export type Row =
           folders: string
           distinctFolders: readonly number[]
           collapsed: boolean
+          folderRanges: Range[]
+          nameRanges: Range[]
       }
     | { kind: "line"; depth: number; file: FileResult; line: ResultLine }
 
@@ -43,6 +55,15 @@ interface FolderNode {
     /** Maps a folder name to its node. */
     folders: Map<string, FolderNode>
     files: FileResult[]
+    /** Set when the query matched the name of this folder. */
+    match?: FolderResult
+}
+
+/** What the layout of rows reads besides the folder tree. */
+interface LayoutContext {
+    collapsed: ReadonlySet<string>
+    /** The matched ranges of the folders down to `folder` in the workspace folder at `rootIndex`, in offsets of `folder`. */
+    folderRanges(rootIndex: number, folder: string): Range[]
 }
 
 /** The height of every row, code lines included, as in the explorer and the Search view. */
@@ -69,15 +90,22 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "bas
 export class ResultTree {
     /** Maps a folder key to its group. */
     private readonly groups = new Map<string, FolderGroup>()
+    /** Maps a folder key to the result of a folder whose name the query matched. */
+    private readonly folderResults = new Map<string, FolderResult>()
     private matches = 0
     private files = 0
     /** Hides the files that it rejects, so an exclusion drops results without a new search. */
     private filter: PathFilter | undefined
 
-    /** Counts the matches of the files that the filter lets pass. */
+    /** Counts the matches of the files and the folders that the filter lets pass. A matched file name counts as one match. */
     get matchCount(): number {
-        if (!this.filter) return this.matches
-        return this.shownFiles().reduce((sum, file) => sum + file.matchCount, 0)
+        const folders = this.shownFolderResults().length
+        if (!this.filter) return this.matches + folders
+        return this.shownFiles().reduce((sum, file) => sum + fileMatches(file), folders)
+    }
+
+    get folderCount(): number {
+        return this.shownFolderResults().length
     }
 
     get fileCount(): number {
@@ -106,17 +134,30 @@ export class ResultTree {
             }
             const replaced = group.files.get(file.uri)
             if (replaced) {
-                this.matches -= replaced.matchCount
+                this.matches -= fileMatches(replaced)
                 this.files--
             }
             group.files.set(file.uri, file)
-            this.matches += file.matchCount
+            this.matches += fileMatches(file)
             this.files++
         }
     }
 
-    /** Replaces the icons of the files that `icons` names, keyed by file URI. */
-    setIcons(icons: Readonly<Record<string, FileIcons>>): void {
+    /** Adds folders whose name the query matched. A folder already in the tree gets replaced. */
+    addFolders(results: readonly FolderResult[]): void {
+        for (const folder of results)
+            this.folderResults.set(`${folder.rootIndex}:${folder.folder}`, folder)
+    }
+
+    /** Replaces the icons of the files and folders that `icons` and `folderIcons` name, keyed by URI. */
+    setIcons(
+        icons: Readonly<Record<string, FileIcons>>,
+        folderIcons: Readonly<Record<string, FileIcons>> = {}
+    ): void {
+        for (const [key, folder] of this.folderResults) {
+            const replacement = folderIcons[folder.uri]
+            if (replacement) this.folderResults.set(key, { ...folder, icons: replacement })
+        }
         for (const group of this.groups.values()) {
             for (const [uri, file] of group.files) {
                 const replacement = icons[uri]
@@ -128,6 +169,7 @@ export class ResultTree {
     /** Empties the tree and drops its filter. */
     clear(): void {
         this.groups.clear()
+        this.folderResults.clear()
         this.filter = undefined
         this.matches = 0
         this.files = 0
@@ -138,17 +180,26 @@ export class ResultTree {
      * The `list` layout shows no folder rows: every file sits at the top, sorted by its path.
      */
     rows(collapsed: ReadonlySet<string>, layout: ResultsLayout): Row[] {
-        if (layout !== "tree") return this.flatRows(collapsed)
+        const below = this.rangesBelow()
+        const context: LayoutContext = {
+            collapsed,
+            folderRanges: (rootIndex, folder) => [
+                ...this.folderRanges(rootIndex, folder),
+                ...(below.get(`${rootIndex}:${folder}`) ?? [])
+            ]
+        }
+        if (layout !== "tree") return this.flatRows(context)
         const rows: Row[] = []
         for (const [rootKey, root] of this.workspaceFolders()) {
-            const rootName = firstFile(root)?.root ?? ""
+            const first = firstFile(root) ?? firstMatch(root)
+            const rootName = first?.root ?? ""
             if (rootName === "") {
-                pushChildren(rows, root, rootKey, 0, collapsed)
+                pushChildren(rows, root, rootKey, 0, context)
                 continue
             }
             const key = `${rootKey}:`
             const rootCollapsed = collapsed.has(key)
-            const icons = firstFile(root)?.icons?.root
+            const icons = first?.icons?.root
             rows.push({
                 kind: "folder",
                 key,
@@ -156,20 +207,95 @@ export class ResultTree {
                 label: rootName,
                 folder: "",
                 collapsed: rootCollapsed,
-                icon: rootCollapsed ? icons?.collapsed : icons?.expanded
+                icon: rootCollapsed ? icons?.collapsed : icons?.expanded,
+                parent: undefined,
+                parentRanges: [],
+                labelRanges: [],
+                uri: undefined,
+                leaf: false
             })
-            if (!rootCollapsed) pushChildren(rows, root, rootKey, 1, collapsed)
+            if (!rootCollapsed) pushChildren(rows, root, rootKey, 1, context)
         }
         return rows
     }
 
-    private flatRows(collapsed: ReadonlySet<string>): Row[] {
+    /**
+     * Lays out every file at the top, sorted by its path.
+     * A matched folder takes a row of its own when no shown file sits below it. The rows of the files below it mark it otherwise.
+     */
+    private flatRows(context: LayoutContext): Row[] {
         const rows: Row[] = []
-        const files = this.shownFiles().sort(compareFilePaths)
+        const files = this.shownFiles()
+        const holding = new Set(
+            files.flatMap((file) =>
+                folderChain(file.folder).map((folder) => `${file.rootIndex}:${folder}`)
+            )
+        )
+        const folders = this.shownFolderResults().filter(
+            (folder) => !holding.has(`${folder.rootIndex}:${folder.folder}`)
+        )
         const distinct = distinctFoldersByFile(files)
-        for (const file of files)
-            pushFile(rows, file, flatFolders(file), 0, collapsed, distinct.get(file) ?? [])
+        const entries = [
+            ...files.map((file) => ({
+                file,
+                parts: pathParts(file.rootIndex, relativePath(file), true)
+            })),
+            ...folders.map((folder) => ({
+                folder,
+                parts: pathParts(folder.rootIndex, folder.folder, false)
+            }))
+        ].sort((a, b) => compareParts(a.parts, b.parts))
+        for (const entry of entries) {
+            if ("file" in entry)
+                pushFile(
+                    rows,
+                    entry.file,
+                    flatFolders(entry.file),
+                    0,
+                    context,
+                    distinct.get(entry.file) ?? []
+                )
+            else pushListFolder(rows, entry.folder, context)
+        }
         return rows
+    }
+
+    /** Collects the matched ranges of `folder` and of the folders above it, which all count offsets from the start of `folder`. */
+    private folderRanges(rootIndex: number, folder: string): Range[] {
+        if (this.folderResults.size === 0) return []
+        return folderChain(folder).flatMap(
+            (path) => this.folderResults.get(`${rootIndex}:${path}`)?.ranges ?? []
+        )
+    }
+
+    /**
+     * Maps a folder key to the parts of the matches of the folders below it that fall inside its own path.
+     * `apps/web` matches `deploy-apps/web-dev` and marks `apps` in the row of `deploy-apps` as well.
+     */
+    private rangesBelow(): Map<string, Range[]> {
+        const below = new Map<string, Range[]>()
+        for (const result of this.folderResults.values()) {
+            for (const folder of folderChain(result.folder).slice(0, -1)) {
+                const inside = shiftRanges(result.ranges, 0, folder.length)
+                if (inside.length === 0) continue
+                const key = `${result.rootIndex}:${folder}`
+                const known = below.get(key) ?? []
+                const added = inside.filter(
+                    (range) =>
+                        !known.some(
+                            (other) => other.start === range.start && other.end === range.end
+                        )
+                )
+                below.set(key, [...known, ...added])
+            }
+        }
+        return below
+    }
+
+    private shownFolderResults(): FolderResult[] {
+        return [...this.folderResults.values()].filter(
+            (folder) => this.filter?.accepts(folder.folder) ?? true
+        )
     }
 
     /** Builds the folder tree of the shown files, one per workspace folder, keyed as folder rows key their paths. */
@@ -194,6 +320,24 @@ export class ResultTree {
             }
             node.files.push(...files)
         }
+        for (const folder of this.shownFolderResults()) {
+            const rootKey = String(folder.rootIndex)
+            let node: FolderNode | undefined = roots.get(rootKey)
+            if (!node) {
+                node = folderNode("", "")
+                roots.set(rootKey, node)
+            }
+            const segments = folder.folder.split("/")
+            for (const [index, name] of segments.entries()) {
+                let child: FolderNode | undefined = node.folders.get(name)
+                if (!child) {
+                    child = folderNode(segments.slice(0, index + 1).join("/"), name)
+                    node.folders.set(name, child)
+                }
+                node = child
+            }
+            node.match = folder
+        }
         return roots
     }
 
@@ -215,6 +359,37 @@ export function relativePath(file: Pick<FileResult, "folder" | "name">): string 
 
 function folderNode(path: string, name: string): FolderNode {
     return { path, name, folders: new Map(), files: [] }
+}
+
+/** Counts a matched file name as one match beside the matched lines. */
+function fileMatches(file: FileResult): number {
+    return file.matchCount + (file.pathRanges ? 1 : 0)
+}
+
+/** Lists `folder` and the folders above it, the top one first: `a/b` gives `a` and `a/b`. */
+function folderChain(folder: string): string[] {
+    if (folder === "") return []
+    const names = folder.split("/")
+    return names.map((_, index) => names.slice(0, index + 1).join("/"))
+}
+
+/** Moves `ranges` by `shift` and cuts them to a text of `length`. Drops the ones that end up empty. */
+function shiftRanges(ranges: readonly Range[], shift: number, length: number): Range[] {
+    return ranges.flatMap((range) => {
+        const start = Math.max(0, range.start + shift)
+        const end = Math.min(length, range.end + shift)
+        return end > start ? [{ start, end }] : []
+    })
+}
+
+/** The first folder result in or below `node`, in the order of the rows. */
+function firstMatch(node: FolderNode): FolderResult | undefined {
+    if (node.match) return node.match
+    for (const folder of sortedFolders(node)) {
+        const match = firstMatch(folder)
+        if (match) return match
+    }
+    return undefined
 }
 
 /** The first file in or below `node`, in the order of the rows. */
@@ -240,10 +415,10 @@ function pushChildren(
     node: FolderNode,
     rootKey: string,
     depth: number,
-    collapsed: ReadonlySet<string>
+    context: LayoutContext
 ): void {
-    for (const folder of sortedFolders(node)) pushFolder(rows, folder, rootKey, depth, collapsed)
-    for (const file of sortedFiles(node)) pushFile(rows, file, "", depth, collapsed)
+    for (const folder of sortedFolders(node)) pushFolder(rows, folder, rootKey, depth, context)
+    for (const file of sortedFiles(node)) pushFile(rows, file, "", depth, context)
 }
 
 function flatFolders(file: FileResult): string {
@@ -263,15 +438,21 @@ function distinctFoldersByFile(files: readonly FileResult[]): Map<FileResult, nu
     return distinct
 }
 
+/**
+ * `folders` ends with the folder of the file: the tree shows the last folders of its path, the list its whole path after the workspace folder.
+ * Ranges in the path of the file shift by the difference in length.
+ */
 function pushFile(
     rows: Row[],
     file: FileResult,
     folders: string,
     depth: number,
-    collapsed: ReadonlySet<string>,
+    context: LayoutContext,
     distinctFolders: readonly number[] = []
 ): void {
-    const fileCollapsed = collapsed.has(file.uri)
+    const fileCollapsed = context.collapsed.has(file.uri)
+    const nameStart = file.folder === "" ? 0 : file.folder.length + 1
+    const pathRanges = file.pathRanges ?? []
     rows.push({
         kind: "file",
         key: file.uri,
@@ -279,7 +460,13 @@ function pushFile(
         file,
         folders,
         distinctFolders,
-        collapsed: fileCollapsed
+        collapsed: fileCollapsed,
+        folderRanges: shiftRanges(
+            [...context.folderRanges(file.rootIndex, file.folder), ...pathRanges],
+            folders.length - file.folder.length,
+            folders.length
+        ),
+        nameRanges: shiftRanges(pathRanges, -nameStart, file.name.length)
     })
     if (fileCollapsed) return
     for (const block of file.blocks) {
@@ -302,7 +489,7 @@ function pushFolder(
     folder: FolderNode,
     rootKey: string,
     depth: number,
-    collapsed: ReadonlySet<string>
+    context: LayoutContext
 ): void {
     const names = [folder.name]
     let last = folder
@@ -312,22 +499,66 @@ function pushFolder(
     }
     const [loneFile] = last.files
     if (loneFile && last.files.length === 1 && last.folders.size === 0) {
-        pushFile(rows, loneFile, names.join("/"), depth, collapsed)
+        pushFile(rows, loneFile, names.join("/"), depth, context)
         return
     }
     const key = `${rootKey}:${last.path}`
-    const folderCollapsed = collapsed.has(key)
-    const icons = firstFile(last)?.icons?.folders?.[last.path.split("/").length - 1]
+    const leaf = last.files.length === 0 && last.folders.size === 0
+    const folderCollapsed = !leaf && context.collapsed.has(key)
+    const below = firstFile(last) ?? firstMatch(last)
+    const icons = below?.icons?.folders?.[last.path.split("/").length - 1]
+    const label = names.join("/")
     rows.push({
         kind: "folder",
         key,
         depth,
-        label: names.join("/"),
+        label,
         folder: last.path,
         collapsed: folderCollapsed,
-        icon: folderCollapsed ? icons?.collapsed : icons?.expanded
+        icon: folderCollapsed || leaf ? icons?.collapsed : icons?.expanded,
+        parent: undefined,
+        parentRanges: [],
+        labelRanges: shiftRanges(
+            context.folderRanges(Number(rootKey), last.path),
+            label.length - last.path.length,
+            label.length
+        ),
+        uri: last.match?.uri ?? folderUri(firstFile(last), last.path),
+        leaf
     })
-    if (!folderCollapsed) pushChildren(rows, last, rootKey, depth + 1, collapsed)
+    if (!folderCollapsed) pushChildren(rows, last, rootKey, depth + 1, context)
+}
+
+/** A matched folder without results below it, in the list layout: its name after its dimmed parent folders. */
+function pushListFolder(rows: Row[], folder: FolderResult, context: LayoutContext): void {
+    const slash = folder.folder.lastIndexOf("/")
+    const label = folder.folder.slice(slash + 1)
+    const parent = [folder.root, slash < 0 ? "" : folder.folder.slice(0, slash)]
+        .filter((part) => part !== "")
+        .join("/")
+    const ranges = context.folderRanges(folder.rootIndex, folder.folder)
+    const icons = folder.icons?.folders?.at(-1)
+    rows.push({
+        kind: "folder",
+        key: `${folder.rootIndex}:${folder.folder}`,
+        depth: 0,
+        label,
+        folder: folder.folder,
+        collapsed: false,
+        icon: icons?.collapsed,
+        parent,
+        parentRanges: shiftRanges(ranges, parent.length - (slash < 0 ? 0 : slash), parent.length),
+        labelRanges: shiftRanges(ranges, -(slash + 1), label.length),
+        uri: folder.uri,
+        leaf: true
+    })
+}
+
+/** The URI of `folder`, cut from the URI of `file` below it, whose path segments hold no `/` of their own. */
+function folderUri(file: FileResult | undefined, folder: string): string | undefined {
+    if (!file) return undefined
+    const below = relativePath(file).split("/").length - folder.split("/").length
+    return file.uri.split("/").slice(0, -below).join("/")
 }
 
 function soleSubfolder(node: FolderNode): FolderNode | undefined {
@@ -346,20 +577,32 @@ function compareGroups(a: FolderGroup, b: FolderGroup): number {
     return a.segments.length - b.segments.length
 }
 
+/** A path in the list layout, split at `/`. `file` tells whether its last name names a file. */
+interface PathParts {
+    rootIndex: number
+    names: string[]
+    file: boolean
+}
+
+function pathParts(rootIndex: number, path: string, file: boolean): PathParts {
+    return { rootIndex, names: path.split("/"), file }
+}
+
 /**
  * Workspace folders keep the order of the workspace.
  * Inside one, paths compare folder by folder, and a file sorts before the subfolders beside it, as the built-in Search view sorts its list.
  */
-function compareFilePaths(a: FileResult, b: FileResult): number {
+function compareParts(a: PathParts, b: PathParts): number {
     if (a.rootIndex !== b.rootIndex) return a.rootIndex - b.rootIndex
-    const aParts = relativePath(a).split("/")
-    const bParts = relativePath(b).split("/")
     for (let i = 0; ; i++) {
-        const aLast = i === aParts.length - 1
-        const bLast = i === bParts.length - 1
-        if (aLast !== bLast) return aLast ? -1 : 1
-        const order = collator.compare(aParts[i] ?? "", bParts[i] ?? "")
-        if (order !== 0 || aLast) return order
+        const aEnd = i === a.names.length - 1
+        const bEnd = i === b.names.length - 1
+        const aFile = aEnd && a.file
+        const bFile = bEnd && b.file
+        if (aFile !== bFile) return aFile ? -1 : 1
+        const order = collator.compare(a.names[i] ?? "", b.names[i] ?? "")
+        if (order !== 0) return order
+        if (aEnd || bEnd) return Number(bEnd) - Number(aEnd)
     }
 }
 
@@ -398,10 +641,18 @@ export function highlightParts(line: ResultLine): { text: string; match?: number
     return parts
 }
 
-/** Builds the summary line, such as "4 results in 4 files". */
-export function resultSummary(matchCount: number, fileCount: number, cappedAt?: number): string {
+/** Builds the summary line, such as "4 results in 4 files" or "5 results in 4 files and 1 folder". */
+export function resultSummary(
+    matchCount: number,
+    fileCount: number,
+    cappedAt?: number,
+    folderCount = 0
+): string {
     if (matchCount === 0) return "No results"
-    const files = count(fileCount, "file", "files")
+    const files = [
+        ...(fileCount > 0 || folderCount === 0 ? [count(fileCount, "file", "files")] : []),
+        ...(folderCount > 0 ? [count(folderCount, "folder", "folders")] : [])
+    ].join(" and ")
     if (cappedAt !== undefined)
         return `First ${cappedAt.toLocaleString("en-US")} results in ${files}. Narrow the search to see the rest.`
     return `${matchCount.toLocaleString("en-US")} ${matchCount === 1 ? "result" : "results"} in ${files}`

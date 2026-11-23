@@ -5,7 +5,7 @@ import * as path from "node:path"
 import type { SearchPlusPlusApi } from "../../src/api"
 import { RegexEngine } from "../../src/engines/regex"
 import { textEngine } from "../../src/engines/text"
-import type { FileResult } from "../../src/messages"
+import type { FileResult, FolderResult } from "../../src/messages"
 import { parseQuery } from "../../src/query"
 import { NO_FILE_FIELDS } from "../../src/search/globs"
 import { LanguageIndex } from "../../src/search/languages"
@@ -53,6 +53,7 @@ export function rootAt(index: number, fsPath: string): SearchRoot {
 export interface RunResult {
     outcome: SearchOutcome
     files: FileResult[]
+    folders: FolderResult[]
     log: string[]
 }
 
@@ -88,6 +89,7 @@ export async function runSearch(
         workers: options.workers
     })
     const files: FileResult[] = []
+    const folders: FolderResult[] = []
     const outcome = await runner.run({
         query: parseQuery(raw),
         roots,
@@ -96,9 +98,12 @@ export async function runSearch(
         resultLineLimit: options.resultLineLimit,
         fields: NO_FILE_FIELDS,
         signal: new AbortController().signal,
-        onBatch: (batch) => files.push(...batch)
+        onBatch: (batch, folderBatch) => {
+            files.push(...batch)
+            folders.push(...folderBatch)
+        }
     })
-    return { outcome, files, log }
+    return { outcome, files, folders, log }
 }
 
 /** Writes each matched line of `files` as `<path>:<1-based line>: <text>`, sorted. */

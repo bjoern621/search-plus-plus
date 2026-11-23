@@ -36,7 +36,22 @@ export interface FileResult {
     matchCount: number
     /** Runs of consecutive lines in ascending order. Context of close matches shares one block. */
     blocks: ResultLine[][]
+    /** Matched ranges in the path of the file relative to its workspace folder, `folder/name`. Missing when the query matched no name of the file. */
+    pathRanges?: Range[]
     /** Set by the view provider from the active file icon theme. */
+    icons?: FileIcons
+}
+
+/** A folder whose name the query matched. */
+export interface FolderResult {
+    uri: string
+    rootIndex: number
+    root: string
+    /** The path of the folder relative to its workspace folder, with `/` as separator. */
+    folder: string
+    /** Matched ranges in `folder`. */
+    ranges: Range[]
+    /** Set by the view provider from the active file icon theme. `file` stays missing. */
     icons?: FileIcons
 }
 
@@ -101,6 +116,8 @@ export type ViewMessage =
     | { type: "copy"; text: string }
     /** Copies the whole line, since the view holds an excerpt of a long line. */
     | { type: "copyLine"; uri: string; line: number }
+    /** Selects a folder in the explorer. */
+    | { type: "reveal"; uri: string }
 
 /**
  * How the results show.
@@ -126,8 +143,13 @@ export type HostMessage =
     | { type: "settings"; settings: ViewSettings }
     | { type: "resultsLayout"; layout: ResultsLayout }
     | { type: "searchStarted"; searchId: number }
-    | { type: "results"; searchId: number; files: FileResult[] }
+    | { type: "results"; searchId: number; files: FileResult[]; folders: FolderResult[] }
     | { type: "hint"; searchId: number; hint: Hint }
     | { type: "searchDone"; searchId: number; status: SearchStatus; limit: number }
-    /** Sets the file icon theme and the icons of the files that the view holds, keyed by file URI. Without a theme, rows show empty icon slots. */
-    | { type: "icons"; theme: IconTable | undefined; files: Record<string, FileIcons> }
+    /** Sets the file icon theme and the icons of the files and folders that the view holds, keyed by URI. Without a theme, rows show empty icon slots. */
+    | {
+          type: "icons"
+          theme: IconTable | undefined
+          files: Record<string, FileIcons>
+          folders: Record<string, FileIcons>
+      }

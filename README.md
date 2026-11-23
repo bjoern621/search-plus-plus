@@ -12,6 +12,7 @@ A dotted query also finds keys in YAML, JSON and TOML files and member chains in
 - Finds keys by their path in YAML, JSON and TOML files: `gateway.image.tag` finds `tag` under `image` under `gateway`.
 - Finds member chains in TypeScript and JavaScript: `config.server.port` finds `this.config.server.port` and `config?.server.port`, also across lines.
 - Runs a query between two slashes as a regex: `/4\.\d+\.\d+/`.
+- Finds files and folders by their name: `staging` lists the folder `web-staging` and the file `staging-guide.md`.
 - Shows the results as a list of files or as a folder tree, with dimmed context lines around each match.
 - Says in the context menu of a match why it matched, such as `Gröse: 1 letter off from Größe.`
 
@@ -28,6 +29,11 @@ A line under the query input says how Search++ reads the query, such as `Searchi
   A word that starts a word of the file path counts as found in that file.
   The other words search its lines.
   A word may hold slashes, as `apps/staging` does.
+- `apps/web` finds the folder `deploy-apps/web-dev`, since a query with a slash matches across the folders of a path.
+  A match must end inside the last name of the path, which leaves out the files below `web-dev`.
+  A matched name shows highlighted in its row.
+  In the list, a folder with results below it takes no row of its own: the rows below it highlight its name.
+  A click on a folder without results below it selects that folder in the Explorer.
 - `"Größe"` finds `Größe` alone, since double quotes match a word exactly: in its own case, without umlaut variants and without typos.
 - `console.log(*)` finds every call of `console.log`, since `*` stands for any run of characters inside one line.
 - `import \* as fs` finds a literal star, since `\` escapes the next character.

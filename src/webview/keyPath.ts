@@ -23,7 +23,10 @@ function keyText(key: string): string {
  * The path leaves the page once the last key alone fails to fit.
  */
 export function keyPathElement(keys: readonly string[]): HTMLElement {
-    return pathElement("key-path", keyPathCuts(keys))
+    return pathElement(
+        "key-path",
+        keyPathCuts(keys).map((text) => ({ text, ranges: [] }))
+    )
 }
 
 /** Lists the ways to write `keys`, the whole path first and the last key alone last. */

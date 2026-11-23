@@ -1,6 +1,6 @@
 import * as path from "node:path"
 import * as vscode from "vscode"
-import type { FileResult } from "../messages"
+import type { FileResult, FolderResult } from "../messages"
 import { PathWords } from "../query/pathWords"
 import type { Hint } from "../query/types"
 import { assert } from "./assert"
@@ -10,10 +10,11 @@ import { collectFiles, relistReused } from "./files"
 import { type FileFields, PathFilter } from "./globs"
 import type { LanguageIndex } from "./languages"
 import { LineFeedLineMap } from "./lineFeedLines"
+import { NameMatcher } from "./names"
 import { readSearchText, unsavedTexts } from "./reader"
 import type { EngineRegistry } from "./registry"
 import { buildFileResult, fileMatches, splitLines } from "./results"
-import type { FileInfo, LineMatch, Query, SearchEngine } from "./types"
+import type { FileInfo, LineMatch, Query, Range, SearchEngine } from "./types"
 import type { PoolSearch, SearchWorkerPool } from "./worker/pool"
 import type { SearchRoot, WorkspaceSearchEngine } from "./workspaceEngine"
 
@@ -51,8 +52,8 @@ export interface SearchRequest {
     /** The files to include and exclude fields of the view. */
     fields: FileFields
     signal: AbortSignal
-    /** Receives results in batches, each file once. */
-    onBatch: (files: FileResult[]) => void
+    /** Receives results in batches, each file and each folder once. */
+    onBatch: (files: FileResult[], folders: FolderResult[]) => void
 }
 
 /** A file to search and the matches that a workspace engine found in it. */
@@ -60,6 +61,8 @@ interface PendingFile {
     root: SearchRoot
     relativePath: string
     lists: LineMatch[][]
+    /** The ranges that the query matched in `relativePath`, missing when it matched no name. */
+    pathRanges?: Range[]
 }
 
 export class SearchRunner {
@@ -109,10 +112,13 @@ class RunningSearch {
     private matchedLines = 0
     private readonly stop = new AbortController()
     private readonly signal: AbortSignal
-    private readonly sender: BatchSender<FileResult>
+    private readonly sender: BatchSender<FileResult | FolderResult>
     private readonly unsaved = unsavedTexts()
     private readonly languages: LanguageIndex
     private readonly pathWords: PathWords
+    private readonly names: NameMatcher
+    /** The folders that the search matched against the query, keyed by workspace folder index and path. */
+    private readonly seenFolders = new Set<string>()
 
     constructor(
         private readonly deps: SearchRunnerDeps,
@@ -121,11 +127,15 @@ class RunningSearch {
         private readonly workspaceEngines: readonly WorkspaceSearchEngine[]
     ) {
         this.signal = AbortSignal.any([request.signal, this.stop.signal])
-        this.sender = new BatchSender((files) => {
-            if (!request.signal.aborted) request.onBatch(files)
+        this.sender = new BatchSender((items) => {
+            if (request.signal.aborted) return
+            const files = items.filter((item): item is FileResult => "blocks" in item)
+            const folders = items.filter((item): item is FolderResult => !("blocks" in item))
+            request.onBatch(files, folders)
         }, BATCH_INTERVAL_DURATION_MS)
         this.languages = deps.languages()
         this.pathWords = new PathWords(request.query)
+        this.names = new NameMatcher(request.query)
         assert(
             workspaceEngines.length <= 1,
             "at most one workspace engine may accept a query, since the search takes up each file once"
@@ -161,7 +171,13 @@ class RunningSearch {
             const uri = this.fileUri(item.root, item.relativePath)
             if (takenUris.has(uri)) return
             takenUris.add(uri)
-            this.dispatch(item, uri, queue, workers)
+            this.matchFolders(item.root, item.relativePath)
+            this.dispatch(
+                { ...item, pathRanges: this.names.match(item.relativePath) },
+                uri,
+                queue,
+                workers
+            )
         }
         try {
             await this.takeFiles(take, fieldFilter)
@@ -198,6 +214,7 @@ class RunningSearch {
                 text,
                 found.map((engineLists) => engineLists[index] ?? [])
             )
+            const pathRanges = this.names.match(file.relativePath)
             const queries = this.pathWords.queriesFor(file.relativePath)
             for (const engine of this.fileEngines) {
                 for (const query of queries) {
@@ -206,7 +223,31 @@ class RunningSearch {
                     if (matches) lists.push(matches)
                 }
             }
-            this.emitFound(OPEN_FILES_ROOT, info, text, lists)
+            this.emitFound(OPEN_FILES_ROOT, info, text, lists, pathRanges)
+        }
+    }
+
+    /** Sends each folder above `relativePath` whose name the query matches, once per search. */
+    private matchFolders(root: SearchRoot, relativePath: string): void {
+        // The climb stops at the first folder that it saw before, whose parents it saw as well.
+        for (
+            let end = relativePath.lastIndexOf("/");
+            end > 0;
+            end = relativePath.lastIndexOf("/", end - 1)
+        ) {
+            const folder = relativePath.slice(0, end)
+            const key = `${root.index}:${folder}`
+            if (this.seenFolders.has(key)) return
+            this.seenFolders.add(key)
+            const ranges = this.names.match(folder)
+            if (ranges === undefined || !this.takeRoom(1)) continue
+            this.sender.push({
+                uri: this.fileUri(root, folder),
+                rootIndex: root.index,
+                root: root.name,
+                folder,
+                ranges
+            })
         }
     }
 
@@ -270,7 +311,10 @@ class RunningSearch {
         const engines = this.fileEngines.filter((engine) =>
             queries.some((query) => this.accepts(engine, file, query))
         )
-        if (engines.length === 0 && item.lists.length === 0) return
+        if (engines.length === 0 && item.lists.length === 0) {
+            if (item.pathRanges) this.emit(item.root, file, [], [], item.pathRanges)
+            return
+        }
         const inThread = () =>
             queue.add(() =>
                 this.searchFile(item, file, engines, queries).catch((error: unknown) =>
@@ -297,7 +341,14 @@ class RunningSearch {
     ): string | undefined {
         const workers = this.deps.workers
         if (workers === undefined || item.root.fsPath === undefined) return undefined
-        if (item.lists.length > 0 || engines.length === 0 || this.unsaved.has(uri)) return undefined
+        // A file whose name matched shows without a matched line, which the workers never report.
+        if (
+            item.lists.length > 0 ||
+            item.pathRanges ||
+            engines.length === 0 ||
+            this.unsaved.has(uri)
+        )
+            return undefined
         if (!engines.every((engine) => workers.engineIds.has(engine.id))) return undefined
         return path.join(item.root.fsPath, item.relativePath)
     }
@@ -345,7 +396,11 @@ class RunningSearch {
         queries: readonly Query[]
     ): Promise<void> {
         const text = await readSearchText(vscode.Uri.parse(file.uri), this.unsaved)
-        if (text === undefined || this.signal.aborted) return
+        if (this.signal.aborted) return
+        if (text === undefined) {
+            if (item.pathRanges) this.emit(item.root, file, [], [], item.pathRanges)
+            return
+        }
 
         const lists = workspaceEditorLines(text, item.lists)
         for (const engine of engines) {
@@ -355,40 +410,45 @@ class RunningSearch {
                 if (found) lists.push(found)
             }
         }
-        this.emitFound(item.root, file, text, lists)
+        this.emitFound(item.root, file, text, lists, item.pathRanges)
     }
 
     private emitFound(
         root: ResultRoot,
         file: FileInfo,
         text: string,
-        lists: readonly LineMatch[][]
+        lists: readonly LineMatch[][],
+        pathRanges?: Range[]
     ): void {
-        if (this.signal.aborted || lists.every((list) => list.length === 0)) return
+        if (this.signal.aborted) return
+        if (lists.every((list) => list.length === 0)) {
+            if (pathRanges) this.emit(root, file, [], [], pathRanges)
+            return
+        }
         const { lines, matches } = fileMatches(splitLines(text), lists)
-        this.emit(root, file, lines, matches)
+        this.emit(root, file, lines, matches, pathRanges)
     }
 
     private languageOf(relativePath: string): string {
         return this.languages.languageOf(relativePath.slice(relativePath.lastIndexOf("/") + 1))
     }
 
-    /** `lines` must hold the lines that `buildFileResult` reads for `merged`. */
+    /**
+     * `lines` must hold the lines that `buildFileResult` reads for `merged`.
+     * A file whose name matched shows without matched lines as well, and counts as one result.
+     */
     private emit(
         root: ResultRoot,
         file: FileInfo,
         lines: readonly string[],
-        merged: readonly LineMatch[]
+        merged: readonly LineMatch[],
+        pathRanges?: Range[]
     ): void {
-        const limit = this.request.resultLineLimit ?? RESULT_LINE_LIMIT
-        const room = limit - this.matchedLines
-        if (merged.length === 0 || room <= 0 || this.signal.aborted) return
+        if (merged.length === 0 && pathRanges === undefined) return
+        const room = this.room()
+        if (room <= 0 || this.signal.aborted) return
         const kept = merged.slice(0, room)
-        this.matchedLines += kept.length
-        if (this.matchedLines >= limit) {
-            this.capped = true
-            this.stop.abort()
-        }
+        this.takeRoom(Math.max(1, kept.length))
         const place = {
             rootIndex: root.index,
             root: root.name,
@@ -396,7 +456,24 @@ class RunningSearch {
             relativePath: file.relativePath,
             languageId: file.languageId
         }
-        this.sender.push(buildFileResult(place, lines, kept, this.request.contextLines))
+        const result = buildFileResult(place, lines, kept, this.request.contextLines)
+        this.sender.push(pathRanges ? { ...result, pathRanges } : result)
+    }
+
+    /** The results that the search may still send before it reaches its limit. */
+    private room(): number {
+        return (this.request.resultLineLimit ?? RESULT_LINE_LIMIT) - this.matchedLines
+    }
+
+    /** Counts `results` toward the limit and stops the search once it reaches it. Returns false when the limit left no room. */
+    private takeRoom(results: number): boolean {
+        if (this.room() <= 0 || this.signal.aborted) return false
+        this.matchedLines += results
+        if (this.room() <= 0) {
+            this.capped = true
+            this.stop.abort()
+        }
+        return true
     }
 
     private accepts(engine: SearchEngine, file: FileInfo, query: Query): boolean {

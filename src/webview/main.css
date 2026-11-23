@@ -603,3 +603,13 @@ button {
     margin: 4px 0;
     background: var(--vscode-menu-separatorBackground, var(--vscode-widget-border));
 }
+
+/* A matched name in a file or folder row takes the highlight of the matched letters in the workbench lists, as in Quick Open. */
+.name-mark {
+    color: var(--vscode-list-highlightForeground);
+    font-weight: bold;
+}
+
+.file-icon > .codicon {
+    vertical-align: middle;
+}

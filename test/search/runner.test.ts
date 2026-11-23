@@ -52,6 +52,27 @@ describe("SearchRunner", () => {
         }
     })
 
+    it("finds the folders and files whose name matches the query, each once", async () => {
+        const dir = await folderWith({
+            "deploy/web-staging/config/values.yaml": "replicas: 2\n",
+            "deploy/web-staging/notes.md": "staging notes\n",
+            "docs/staging.md": "replicas: 1\n"
+        })
+        const result = await runSearch("staging", [rootAt(0, dir)])
+        expect(result.folders.map((folder) => [folder.folder, folder.ranges])).toEqual([
+            ["deploy/web-staging", [{ start: 11, end: 18 }]]
+        ])
+        const byPath = new Map(result.files.map((file) => [`${file.folder}/${file.name}`, file]))
+        expect([...byPath.keys()].sort()).toEqual([
+            "deploy/web-staging/notes.md",
+            "docs/staging.md"
+        ])
+        expect(byPath.get("docs/staging.md")?.pathRanges).toEqual([{ start: 5, end: 12 }])
+        expect(byPath.get("docs/staging.md")?.blocks).toEqual([])
+        expect(byPath.get("deploy/web-staging/notes.md")?.pathRanges).toBeUndefined()
+        expect(matchedLines(result.files)).toEqual(["deploy/web-staging/notes.md:1: staging notes"])
+    })
+
     it("stops at the result limit of the request", async () => {
         const dir = await folderWith({ "a.txt": "needle\n".repeat(50) })
         const result = await runSearch("needle", [rootAt(0, dir)], { resultLineLimit: 7 })

@@ -4,6 +4,11 @@
 
 ### Added
 
+- The search finds files and folders whose name matches the query, with the typos and umlaut spellings of the line search.
+  Each matched name shows highlighted in its row and counts as one result.
+  In the list, a folder with results below it takes no row of its own: the rows below it highlight its name.
+  A click on a folder without results below it selects that folder in the Explorer.
+  The context menu of a file or folder row offers Reveal in Explorer.
 - A word of the query that starts a word of a file path counts as found in that file.
   The other words search its lines, on top of the whole query: `staging namespace` finds `namespace` alone in the files under `staging/`.
   A word may hold slashes, as `apps/staging` does.
