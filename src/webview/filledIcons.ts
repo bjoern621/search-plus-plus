@@ -1,6 +1,6 @@
 /**
  * Filled icons for the buttons of the view, as SVG markup on a 16px grid like the codicons.
- * The codicon font holds no filled trash, sliders or circle-slash.
+ * The codicon font holds no filled trash or sliders.
  * Each icon paints in `currentColor` and takes the color of its button.
  */
 
@@ -20,10 +20,4 @@ export const SLIDERS_ICON = svg(
         `<rect x="1" y="7.25" width="14" height="1.5" rx=".75"/>` +
         `<rect x="1" y="11.25" width="14" height="1.5" rx=".75"/>` +
         `<circle cx="10.5" cy="4" r="2"/><circle cx="5" cy="8" r="2"/><circle cx="11" cy="12" r="2"/>`
-)
-
-/** A disc split by a diagonal gap, for excluding a file or folder. */
-export const EXCLUDE_ICON = svg(
-    `<path d="M13.127 4.005A6.5 6.5 0 0 1 4.005 13.127z"/>` +
-        `<path d="M2.873 11.995A6.5 6.5 0 0 1 11.995 2.873z"/>`
 )

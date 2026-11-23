@@ -20,7 +20,6 @@ import { QueryHighlight, renderHint } from "./queryInput"
 import { highlightParts, resultSummary, ResultTree, type Row, rowAt, rowOffsets } from "./tree"
 import { keyPathElement, shownKeys } from "./keyPath"
 import { fillMarked, fitPaths, folderCuts, pathElement } from "./fitPaths"
-import { EXCLUDE_ICON } from "./filledIcons"
 import {
     continuesGroup,
     cutToMatch,
@@ -772,7 +771,7 @@ function excludeButton(label: string, entry: string): HTMLButtonElement {
     button.title = label
     button.setAttribute("aria-label", label)
     button.dataset.entry = entry
-    button.innerHTML = EXCLUDE_ICON
+    button.append(codicon("circle-slash"))
     return button
 }
 

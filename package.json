@@ -62,7 +62,7 @@
                 "command": "searchPlusPlus.openSettings",
                 "title": "Open Settings",
                 "category": "Search++",
-                "icon": "$(gear)"
+                "icon": "$(settings-gear)"
             },
             {
                 "command": "searchPlusPlus.viewAsTree",

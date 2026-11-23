@@ -21,6 +21,8 @@
 ### Changed
 
 - In the tree, a file row shows the folders that fold into it before its name, dimmed as in the list: `web-dev/values.yaml` (showed `values.yaml web-dev`).
+- The exclude buttons show the outlined circle-slash codicon again.
+- The settings button in the view title shows the settings-gear icon of the VS Code settings buttons (a product icon theme drew three dots).
 
 ### Fixed
 
