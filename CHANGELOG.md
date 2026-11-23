@@ -6,6 +6,7 @@
 
 - A click or double-click in the results selects no text, as in the lists of the workbench (a fast click on a folder could select its name).
 - The context menu of a result line names its copy item Copy matched line (showed Copy line).
+- The view title menu names its whole word item Match Whole Words Only (showed Match Whole Word).
 
 ### Fixed
 

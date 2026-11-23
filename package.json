@@ -88,12 +88,12 @@
             },
             {
                 "command": "searchPlusPlus.turnOff.matchWholeWord",
-                "title": "✓ Match Whole Word",
+                "title": "✓ Match Whole Words Only",
                 "category": "Search++"
             },
             {
                 "command": "searchPlusPlus.turnOn.matchWholeWord",
-                "title": "  Match Whole Word",
+                "title": "  Match Whole Words Only",
                 "category": "Search++"
             },
             {
