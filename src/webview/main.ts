@@ -167,8 +167,7 @@ rowsElement.addEventListener("click", (event) => {
     const index = rowIndexFromEvent(event)
     if (!rows[index]) return
     focusRow(index)
-    // The second click of a double-click keeps the match that the first one opened.
-    activate(index, { preview: true, preserveFocus: false }, event.detail <= 1)
+    activate(index, { preview: true, preserveFocus: false })
 })
 
 // The class "keyboard-focus" shows the selection outline after a key press in the results and hides it on a click.
