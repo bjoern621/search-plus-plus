@@ -581,19 +581,11 @@ function rowElement(row: Row, index: number): HTMLElement {
                 .filter((part) => part !== "")
                 .join("/")
             element.append(twisty(row.collapsed), iconTheme.element(row.file.icons?.file))
-            if (resultsLayout === "tree") {
-                element.append(span("label", row.file.name))
-                if (row.folders !== "") element.append(span("description", row.folders))
-            } else {
-                if (row.folders !== "")
-                    element.append(
-                        pathElement(
-                            "folder-path dimmed",
-                            folderCuts(row.folders, row.distinctFolders)
-                        )
-                    )
-                element.append(span("label", row.file.name))
-            }
+            if (row.folders !== "")
+                element.append(
+                    pathElement("folder-path dimmed", folderCuts(row.folders, row.distinctFolders))
+                )
+            element.append(span("label", row.file.name))
             element.append(excludeButton(`Exclude ${row.file.name}`, fileEntry(row.file)))
             return element
         }

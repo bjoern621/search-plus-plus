@@ -13,6 +13,10 @@
   Every click counts, however fast it follows the last one.
   A double-click keeps the editor open at the match that its second click selected.
 
+### Changed
+
+- In the tree, a file row shows the folders that fold into it before its name, dimmed as in the list: `web-dev/values.yaml` (showed `values.yaml web-dev`).
+
 ## v0.2.0 (2026-11-22)
 
 ### Changed

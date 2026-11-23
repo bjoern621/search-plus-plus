@@ -18,7 +18,7 @@ export type Row =
           icon: string | undefined
       }
     /**
-     * `folders` holds the folders that the row shows beside the file name.
+     * `folders` holds the folders that the row shows before the file name.
      * In the tree, it holds the chain of folders that leads to this file alone and folds into its row, such as `argocd/applications/gitlab`.
      * It stays empty there for a file that shares its folder row with other results.
      * In the flat layouts, it holds the folder of the file, after the name of its workspace folder in a multi-root workspace.
