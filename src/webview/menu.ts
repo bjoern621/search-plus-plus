@@ -38,7 +38,7 @@ export function matchMenu(file: FileResult, line: ResultLine, query: string): Me
         })
     groups.push(exclusions)
 
-    const copies: MenuItem[] = [{ label: "Copy line", action: { kind: "copyLine" } }]
+    const copies: MenuItem[] = [{ label: "Copy matched line", action: { kind: "copyLine" } }]
     if (line.keyPath)
         copies.push({
             label: "Copy key path",

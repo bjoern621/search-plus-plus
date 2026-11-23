@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- The context menu of a result line names its copy item Copy matched line (showed Copy line).
+
 ## v0.3.0 (2026-11-23)
 
 ### Added
