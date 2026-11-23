@@ -165,10 +165,10 @@ button {
     color: var(--vscode-input-placeholderForeground);
 }
 
-/* Selected text in the inputs takes the selection color of the workbench inputs. A theme without one falls back to the editor selection. */
+/* Selected text in the inputs takes the selection color of the workbench. A theme without one leaves the color of the browser, as in the workbench. */
 .query-input::selection,
 .input::selection {
-    background: var(--vscode-selection-background, var(--vscode-editor-selectionBackground));
+    background: var(--vscode-selection-background, Highlight);
     color: var(--vscode-input-foreground);
 }
 
@@ -557,12 +557,13 @@ button {
     border-style: dashed;
 }
 
+/* The border follows the workbench menus, which take editorWidget.border where a theme sets no menu.border. */
 .menu {
     position: fixed;
     z-index: 10;
     box-sizing: border-box;
     padding: 4px 0;
-    border: 1px solid var(--vscode-menu-border, var(--vscode-widget-border, transparent));
+    border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
     border-radius: var(--widget-corner-radius);
     background: var(--vscode-menu-background);
     color: var(--vscode-menu-foreground);

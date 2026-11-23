@@ -22,6 +22,11 @@
 
 - In the tree, a file row shows the folders that fold into it before its name, dimmed as in the list: `web-dev/values.yaml` (showed `values.yaml web-dev`).
 
+### Fixed
+
+- Under a theme without a selection color, such as Dark Modern, selected text in the inputs takes the color of the browser, as in the workbench (took the editor selection color).
+- Under a theme without a menu border, the context menu takes the border color of the editor widgets, as the workbench menus do (took the widget border color).
+
 ## v0.2.0 (2026-11-22)
 
 ### Changed
