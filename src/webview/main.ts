@@ -279,6 +279,8 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
 })
 
 vscode.postMessage({ type: "ready" })
+// The query of the last session runs again, as in the built-in Search view after a reload.
+if (state.query !== "") searchWithFields(state.query)
 
 function submit(): void {
     const query = input.value

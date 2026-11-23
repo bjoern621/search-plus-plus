@@ -24,6 +24,7 @@
 
 ### Fixed
 
+- After a restart or a reload of the window, the view runs the query of the last session again (showed the query without results).
 - Under a theme without a selection color, such as Dark Modern, selected text in the inputs takes the color of the browser, as in the workbench (took the editor selection color).
 - Under a theme without a menu border, the context menu takes the border color of the editor widgets, as the workbench menus do (took the widget border color).
 
