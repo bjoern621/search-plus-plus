@@ -1,6 +1,7 @@
 import * as path from "node:path"
 import * as vscode from "vscode"
 import type { FileResult } from "../messages"
+import { PathWords } from "../query/pathWords"
 import type { Hint } from "../query/types"
 import { assert } from "./assert"
 import { BatchSender } from "./batch"
@@ -111,6 +112,7 @@ class RunningSearch {
     private readonly sender: BatchSender<FileResult>
     private readonly unsaved = unsavedTexts()
     private readonly languages: LanguageIndex
+    private readonly pathWords: PathWords
 
     constructor(
         private readonly deps: SearchRunnerDeps,
@@ -123,6 +125,7 @@ class RunningSearch {
             if (!request.signal.aborted) request.onBatch(files)
         }, BATCH_INTERVAL_DURATION_MS)
         this.languages = deps.languages()
+        this.pathWords = new PathWords(request.query)
         assert(
             workspaceEngines.length <= 1,
             "at most one workspace engine may accept a query, since the search takes up each file once"
@@ -195,8 +198,11 @@ class RunningSearch {
                 text,
                 found.map((engineLists) => engineLists[index] ?? [])
             )
-            for (const engine of this.fileEngines.filter((engine) => this.accepts(engine, info))) {
-                const matches = await this.searchWith(engine, { ...info, text })
+            const query = this.pathWords.queryFor(file.relativePath)
+            for (const engine of this.fileEngines.filter((engine) =>
+                this.accepts(engine, info, query)
+            )) {
+                const matches = await this.searchWith(engine, { ...info, text }, query)
                 if (matches) lists.push(matches)
             }
             this.emitFound(OPEN_FILES_ROOT, info, text, lists)
@@ -259,11 +265,12 @@ class RunningSearch {
             relativePath: item.relativePath,
             languageId: this.languageOf(item.relativePath)
         }
-        const engines = this.fileEngines.filter((engine) => this.accepts(engine, file))
+        const query = this.pathWords.queryFor(item.relativePath)
+        const engines = this.fileEngines.filter((engine) => this.accepts(engine, file, query))
         if (engines.length === 0 && item.lists.length === 0) return
         const inThread = () =>
             queue.add(() =>
-                this.searchFile(item, file, engines).catch((error: unknown) =>
+                this.searchFile(item, file, engines, query).catch((error: unknown) =>
                     this.deps.log(`Could not search ${item.relativePath}: ${String(error)}`)
                 )
             )
@@ -331,14 +338,15 @@ class RunningSearch {
     private async searchFile(
         item: PendingFile,
         file: FileInfo,
-        engines: readonly SearchEngine[]
+        engines: readonly SearchEngine[],
+        query: Query
     ): Promise<void> {
         const text = await readSearchText(vscode.Uri.parse(file.uri), this.unsaved)
         if (text === undefined || this.signal.aborted) return
 
         const lists = workspaceEditorLines(text, item.lists)
         for (const engine of engines) {
-            const found = await this.searchWith(engine, { ...file, text })
+            const found = await this.searchWith(engine, { ...file, text }, query)
             if (found) lists.push(found)
         }
         this.emitFound(item.root, file, text, lists)
@@ -385,9 +393,9 @@ class RunningSearch {
         this.sender.push(buildFileResult(place, lines, kept, this.request.contextLines))
     }
 
-    private accepts(engine: SearchEngine, file: FileInfo): boolean {
+    private accepts(engine: SearchEngine, file: FileInfo, query: Query): boolean {
         try {
-            return engine.accepts(file, this.request.query)
+            return engine.accepts(file, query)
         } catch (error) {
             this.deps.log(
                 `Search engine ${engine.id} could not decide on ${file.relativePath}: ${String(error)}`
@@ -398,10 +406,11 @@ class RunningSearch {
 
     private async searchWith(
         engine: SearchEngine,
-        file: FileInfo & { text: string }
+        file: FileInfo & { text: string },
+        query: Query
     ): Promise<LineMatch[] | undefined> {
         try {
-            return await engine.search(file, this.request.query, this.signal)
+            return await engine.search(file, query, this.signal)
         } catch (error) {
             if (!this.signal.aborted)
                 this.deps.log(

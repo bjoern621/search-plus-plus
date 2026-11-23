@@ -4,6 +4,7 @@ import { readFileSync, statSync } from "node:fs"
 import { parentPort, workerData } from "node:worker_threads"
 import { assert, assertNever } from "../assert"
 import { FILE_SIZE_LIMIT_BYTES } from "../config"
+import { PathWords } from "../../query/pathWords"
 import { searchTextOf } from "../decode"
 import { fileMatches, shownLines, splitLines } from "../results"
 import type { LineMatch, PreparedFile, Query, SearchEngine } from "../types"
@@ -13,6 +14,7 @@ import { type CachedFile, cachedFile, TextCache } from "./textCache"
 
 interface RunningSearch {
     query: Query
+    pathWords: PathWords
     contextLines: number
     signal: AbortSignal
 }
@@ -31,6 +33,7 @@ port.on("message", (message: ToWorker) => {
             texts.startSearch()
             searches.set(message.searchId, {
                 query: message.query,
+                pathWords: new PathWords(message.query),
                 contextLines: message.contextLines,
                 signal: flagSignal(message.aborted)
             })
@@ -68,10 +71,11 @@ function searchChunk(chunk: SearchChunk): ChunkDone {
                 return value
             }
         }
+        const query = search.pathWords.queryFor(file.info.relativePath)
         const lists = file.engineIds.map((id) => {
             const engine = engines.get(id)
             assert(engine !== undefined, "a chunk names only the engines of workerEngines")
-            return runEngine(engine, prepared, search, done.errors)
+            return runEngine(engine, prepared, query, search, done.errors)
         })
         if (lists.every((list) => list.length === 0)) return
         const { matches } = fileMatches(prepared.lines(), lists)
@@ -88,11 +92,12 @@ function searchChunk(chunk: SearchChunk): ChunkDone {
 function runEngine(
     engine: SearchEngine,
     file: PreparedFile,
+    query: Query,
     search: RunningSearch,
     errors: string[]
 ): LineMatch[] {
     try {
-        const found = engine.search(file, search.query, search.signal)
+        const found = engine.search(file, query, search.signal)
         if (found instanceof Promise)
             throw new Error("a worker engine must return its matches without a promise")
         return found

@@ -24,6 +24,9 @@ Type a query into the Search++ view.
 The search runs once typing pauses, or at once on Enter.
 A line under the query input says how Search++ reads the query, such as `Searching as a regex.`
 
+- `staging namespace` finds `namespace` in the files under a folder `staging`, since a word that starts a word of the file path picks the files.
+  The other words search their lines.
+  A word may hold slashes, as `apps/staging` does.
 - `"Größe"` finds `Größe` alone, since double quotes match a word exactly: in its own case, without umlaut variants and without typos.
 - `console.log(*)` finds every call of `console.log`, since `*` stands for any run of characters inside one line.
 - `import \* as fs` finds a literal star, since `\` escapes the next character.
@@ -33,6 +36,9 @@ A line under the query input says how Search++ reads the query, such as `Searchi
 - `ingress.hosts.0` finds the first host, since a list item takes its index as its key, counted from 0.
 - `metadata.labels."app.kubernetes.io/name"` finds a key that holds dots.
 - `/4\.\d+\.\d+/` finds version numbers with the [syntax of the Rust `regex` crate](https://docs.rs/regex/latest/regex/#syntax), which ripgrep uses.
+
+A query whose words all or none sit in the path of a file searches that file for the whole query.
+A quoted word, a word with `*` or `\` and a single letter search lines alone.
 
 A key path takes the [VS Code glob syntax](https://code.visualstudio.com/docs/editor/glob-patterns), with `.` in place of `/`.
 A dotted query also runs as plain text: `example.com` finds the text `example.com` in every file.

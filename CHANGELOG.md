@@ -4,6 +4,9 @@
 
 ### Added
 
+- A word of the query that starts a word of a file path narrows the search to such files.
+  The other words search their lines: `staging namespace` finds `namespace` in the files under `staging/`.
+  A word may hold slashes, as `apps/staging` does.
 - A result line with matches past the edge of its row shows their count, such as `+1`.
 - Clicking a result line again, or pressing Enter on it again, opens its next match.
   The row scrolls to that match and marks it in the colors of the editor's current find match.
