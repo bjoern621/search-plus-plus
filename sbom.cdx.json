@@ -96,8 +96,8 @@
     "component": {
       "type": "application",
       "name": "searchplusplus",
-      "version": "0.3.0",
-      "bom-ref": "searchplusplus@0.3.0",
+      "version": "0.4.0",
+      "bom-ref": "searchplusplus@0.4.0",
       "description": "Search text and the key paths of YAML, JSON and TOML files. Typos and umlaut spellings match by default.",
       "licenses": [
         {
@@ -107,7 +107,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/searchplusplus@0.3.0?vcs_url=git%2Bhttps%3A%2F%2Fgithub.com%2Fbjoern621%2Fsearch-plus-plus.git",
+      "purl": "pkg:npm/searchplusplus@0.4.0?vcs_url=git%2Bhttps%3A%2F%2Fgithub.com%2Fbjoern621%2Fsearch-plus-plus.git",
       "externalReferences": [
         {
           "url": "https://github.com/bjoern621/search-plus-plus/issues",
@@ -153,7 +153,7 @@
       "name": "codicons",
       "group": "@vscode",
       "version": "0.0.45",
-      "bom-ref": "searchplusplus@0.3.0|@vscode/codicons@0.0.45",
+      "bom-ref": "searchplusplus@0.4.0|@vscode/codicons@0.0.45",
       "author": "Microsoft Corporation",
       "description": "The icon font for Visual Studio Code",
       "licenses": [
@@ -198,7 +198,7 @@
       "type": "library",
       "name": "jsonc-parser",
       "version": "3.3.1",
-      "bom-ref": "searchplusplus@0.3.0|jsonc-parser@3.3.1",
+      "bom-ref": "searchplusplus@0.4.0|jsonc-parser@3.3.1",
       "author": "Microsoft Corporation",
       "description": "Scanner and parser for JSON with comments.",
       "licenses": [
@@ -242,17 +242,17 @@
   ],
   "dependencies": [
     {
-      "ref": "searchplusplus@0.3.0",
+      "ref": "searchplusplus@0.4.0",
       "dependsOn": [
-        "searchplusplus@0.3.0|@vscode/codicons@0.0.45",
-        "searchplusplus@0.3.0|jsonc-parser@3.3.1"
+        "searchplusplus@0.4.0|@vscode/codicons@0.0.45",
+        "searchplusplus@0.4.0|jsonc-parser@3.3.1"
       ]
     },
     {
-      "ref": "searchplusplus@0.3.0|@vscode/codicons@0.0.45"
+      "ref": "searchplusplus@0.4.0|@vscode/codicons@0.0.45"
     },
     {
-      "ref": "searchplusplus@0.3.0|jsonc-parser@3.3.1"
+      "ref": "searchplusplus@0.4.0|jsonc-parser@3.3.1"
     }
   ]
 }

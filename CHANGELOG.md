@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.0 (2026-11-23)
+
 ### Added
 
 - Ctrl+Shift+F in an editor puts the selected text into the query and searches it, as the built-in Search view does.
