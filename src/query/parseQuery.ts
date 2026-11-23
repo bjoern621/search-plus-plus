@@ -36,6 +36,15 @@ export function isRegexQuery(raw: string): boolean {
 }
 
 /**
+ * Writes `text` as a query whose `\`, `*` and `"` match themselves.
+ * A slash that would start a regex query gets a backslash as well.
+ */
+export function literalQuery(text: string): string {
+    const escaped = text.replace(/[\\*"]/g, (char) => `\\${char}`)
+    return isRegexQuery(escaped) ? `\\${escaped}` : escaped
+}
+
+/**
  * Splits a text query into words, literals and wildcards.
  * A backslash makes the next character literal.
  * Double quotes make their words exact and their `*` literal.

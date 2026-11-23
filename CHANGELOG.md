@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- Ctrl+Shift+F in an editor puts the selected text into the query and searches it, as the built-in Search view does.
+  A `*`, `\` or `"` in the selection matches itself, since the query takes it with a backslash.
+  A selection over several lines leaves the query as it stands.
+
 ### Changed
 
 - A click or double-click in the results selects no text, as in the lists of the workbench (a fast click on a folder could select its name).

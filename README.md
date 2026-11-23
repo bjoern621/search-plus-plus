@@ -76,6 +76,10 @@ It leaves out the `.git` folders, the globs of `files.exclude` and the globs of 
 ## Make it the Ctrl+Shift+F default
 
 Search++ binds Ctrl+Shift+F (Cmd+Shift+F on macOS) to its view.
+Pressed in an editor, it puts the selected text into the query and searches it, as the built-in Search view does.
+A selection over several lines leaves the query as it stands.
+With `search.seedWithNearestWord` on, the word at the cursor fills the query when nothing is selected.
+`editor.find.seedSearchStringFromSelection` set to `never` turns the selection off.
 To hide the built-in Search view, right-click the activity bar and uncheck Search.
 
 If another extension or one of your keybindings takes Ctrl+Shift+F, add the binding to your keyboard shortcuts (command `Preferences: Open Keyboard Shortcuts (JSON)`):

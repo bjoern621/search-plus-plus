@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseQuery, parseTextPieces } from "../../src/query/parseQuery"
+import { isRegexQuery, literalQuery, parseQuery, parseTextPieces } from "../../src/query/parseQuery"
 
 describe("parseQuery", () => {
     it("reads a query between two slashes as a regex without the slashes", () => {
@@ -168,5 +168,27 @@ describe("parseTextPieces", () => {
 
     it("returns no pieces for an empty query", () => {
         expect(parseTextPieces("")).toEqual([])
+    })
+})
+
+describe("literalQuery", () => {
+    it("escapes stars, backslashes and quotes, so each matches itself", () => {
+        const query = literalQuery('import * as "fs" from a\\b')
+        expect(query).toBe('import \\* as \\"fs\\" from a\\\\b')
+        expect(parseTextPieces(query).filter((piece) => piece.kind === "wildcard")).toEqual([])
+    })
+
+    it("escapes the first slash of text that would read as a regex", () => {
+        const query = literalQuery("/api/")
+        expect(isRegexQuery(query)).toBe(false)
+        expect(parseTextPieces(query)).toEqual([
+            { kind: "literal", value: "/" },
+            { kind: "word", value: "api", exact: false },
+            { kind: "literal", value: "/" }
+        ])
+    })
+
+    it("leaves a path that holds slashes unescaped", () => {
+        expect(literalQuery("apps/web")).toBe("apps/web")
     })
 })

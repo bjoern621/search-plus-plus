@@ -112,6 +112,8 @@ export type ViewMessage =
     | { type: "ready" }
     | ({ type: "search"; query: string } & FileFields)
     | { type: "cancelSearch" }
+    /** Tells whether the view holds the focus of the window. */
+    | { type: "viewFocus"; focused: boolean }
     | ({ type: "open"; uri: string; line: number; range?: Range } & OpenOptions)
     | { type: "copy"; text: string }
     /** Copies the whole line, since the view holds an excerpt of a long line. */
@@ -137,7 +139,8 @@ export interface ViewSettings {
 }
 
 export type HostMessage =
-    | { type: "focus" }
+    /** Focuses the query input and selects its text. A `query` replaces the query and runs. */
+    | { type: "focus"; query?: string }
     /** Runs the last search again, with the query and file fields that it ran with. */
     | { type: "searchAgain" }
     | { type: "settings"; settings: ViewSettings }

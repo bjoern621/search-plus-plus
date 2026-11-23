@@ -191,12 +191,16 @@ results.addEventListener("focus", () =>
 // Its pointerdown reaches the view before the focus event in VS Code 1.144. The check waits a frame for a pointerdown that follows the focus event.
 let pointerDownSinceWindowBlur = false
 document.addEventListener("pointerdown", () => (pointerDownSinceWindowBlur = true), true)
-window.addEventListener("blur", () => (pointerDownSinceWindowBlur = false))
-window.addEventListener("focus", () =>
+window.addEventListener("blur", () => {
+    pointerDownSinceWindowBlur = false
+    vscode.postMessage({ type: "viewFocus", focused: false })
+})
+window.addEventListener("focus", () => {
+    vscode.postMessage({ type: "viewFocus", focused: true })
     requestAnimationFrame(() => {
         if (!pointerDownSinceWindowBlur) selectQuery()
     })
-)
+})
 
 results.addEventListener("keydown", (event) => {
     if (event.target !== results) return
@@ -237,6 +241,10 @@ window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
     const message = event.data
     switch (message.type) {
         case "focus":
+            if (message.query) {
+                setQuery(message.query)
+                submit()
+            }
             selectQuery()
             return
         case "searchAgain":

@@ -21,7 +21,7 @@ import { assertNever } from "./search/assert"
 import { DEFAULT_MATCHING, type MatchingOptions } from "./search/types"
 import { type FileFields, fieldGlobs, NO_FILE_FIELDS } from "./search/globs"
 import { RESULT_LINE_LIMIT, TREE_INDENT_MAX_PX, TREE_INDENT_MIN_PX } from "./search/config"
-import { parseQuery } from "./query"
+import { literalQuery, parseQuery } from "./query"
 import { SLIDERS_ICON, TRASH_ICON } from "./webview/filledIcons"
 import { readSearchText, unsavedTexts } from "./search/reader"
 import { splitLines } from "./search/results"
@@ -43,6 +43,7 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
     private viewReady: Promise<void> = new Promise(() => {})
     private markViewReady: () => void = () => {}
     private isViewReady = false
+    private viewFocused = false
     private searchId = 0
     private running: AbortController | undefined
     private iconTheme: LoadedIconTheme | undefined
@@ -81,14 +82,17 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
         view.webview.onDidReceiveMessage((message: ViewMessage) => this.handle(message))
         view.onDidDispose(() => {
             this.view = undefined
+            this.viewFocused = false
             this.running?.abort()
         })
     }
 
+    /** Focuses the view. From outside the view, the selection of the active editor replaces the query, as in the built-in Search view. */
     async focus(): Promise<void> {
+        const query = this.viewFocused ? undefined : queryFromEditor()
         await vscode.commands.executeCommand(`${SearchViewProvider.viewId}.focus`)
         await this.viewReady
-        this.post({ type: "focus" })
+        this.post({ type: "focus", query })
     }
 
     /**
@@ -247,6 +251,9 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
             case "cancelSearch":
                 this.running?.abort()
                 return
+            case "viewFocus":
+                this.viewFocused = message.focused
+                return
             case "open":
                 void this.open(message)
                 return
@@ -358,6 +365,29 @@ export class SearchViewProvider implements vscode.WebviewViewProvider {
 }
 
 /** The matching defaults that the extension settings turn on or off. */
+/**
+ * Reads the query that the built-in Search view takes from the active editor: the selected text, or with `search.seedWithNearestWord` the word at the cursor.
+ * `editor.find.seedSearchStringFromSelection` set to `never` turns this off.
+ * A selection over several lines gives no query, since the query input holds one line.
+ */
+function queryFromEditor(): string | undefined {
+    const editor = vscode.window.activeTextEditor
+    if (!editor) return undefined
+    const seed = vscode.workspace
+        .getConfiguration("editor.find")
+        .get("seedSearchStringFromSelection")
+    if (seed === "never") return undefined
+    const { document, selection } = editor
+    if (selection.isEmpty) {
+        if (!vscode.workspace.getConfiguration("search").get<boolean>("seedWithNearestWord"))
+            return undefined
+        const word = document.getWordRangeAtPosition(selection.start)
+        return word && literalQuery(document.getText(word))
+    }
+    if (!selection.isSingleLine) return undefined
+    return literalQuery(document.getText(selection))
+}
+
 function matchingSettings(): MatchingOptions {
     const settings = vscode.workspace.getConfiguration("searchPlusPlus")
     return {
