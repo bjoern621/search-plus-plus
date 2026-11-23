@@ -296,11 +296,13 @@ button {
     font-size: var(--small-font-size);
 }
 
+/* Clicks on the results select no text, as in the lists of the workbench. The context menu copies a line. */
 .results {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    user-select: none;
 }
 
 .rows {

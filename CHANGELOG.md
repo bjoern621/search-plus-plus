@@ -4,6 +4,7 @@
 
 ### Changed
 
+- A click or double-click in the results selects no text, as in the lists of the workbench (a fast click on a folder could select its name).
 - The context menu of a result line names its copy item Copy matched line (showed Copy line).
 
 ## v0.3.0 (2026-11-23)
