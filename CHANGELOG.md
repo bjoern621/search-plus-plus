@@ -7,6 +7,10 @@
 - A click or double-click in the results selects no text, as in the lists of the workbench (a fast click on a folder could select its name).
 - The context menu of a result line names its copy item Copy matched line (showed Copy line).
 
+### Fixed
+
+- A click into the open view while another part of the window holds the focus keeps the focus where the click puts it (selected the whole query).
+
 ## v0.3.0 (2026-11-23)
 
 ### Added

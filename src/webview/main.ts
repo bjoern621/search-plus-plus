@@ -187,15 +187,16 @@ results.addEventListener("focus", () =>
 )
 
 // Switching to the view from the workbench, such as through the activity bar, selects the query, so typing starts a new search.
-// A click into the view keeps the focus where the click puts it. Its pointerdown can follow the focus event, so the check waits a frame.
-let pointerDownSinceWindowFocus = false
-document.addEventListener("pointerdown", () => (pointerDownSinceWindowFocus = true), true)
-window.addEventListener("focus", () => {
-    pointerDownSinceWindowFocus = false
+// A click into the view keeps the focus where the click puts it.
+// Its pointerdown reaches the view before the focus event in VS Code 1.144. The check waits a frame for a pointerdown that follows the focus event.
+let pointerDownSinceWindowBlur = false
+document.addEventListener("pointerdown", () => (pointerDownSinceWindowBlur = true), true)
+window.addEventListener("blur", () => (pointerDownSinceWindowBlur = false))
+window.addEventListener("focus", () =>
     requestAnimationFrame(() => {
-        if (!pointerDownSinceWindowFocus) selectQuery()
+        if (!pointerDownSinceWindowBlur) selectQuery()
     })
-})
+)
 
 results.addEventListener("keydown", (event) => {
     if (event.target !== results) return
